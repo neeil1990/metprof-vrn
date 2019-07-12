@@ -141,7 +141,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 		"MESS_BTN_SUBSCRIBE" => "Подписаться",
 		"MESS_NOT_AVAILABLE" => "Нет в наличии",
 		"OFFER_TREE_PROPS_12" => "",
-		"PAGE_ELEMENT_COUNT" => "30",
+		"PAGE_ELEMENT_COUNT" => "10",
 		"PARTIAL_PRODUCT_PROPERTIES" => "N",
 		"PERIOD" => "0",
 		"PRICE_CODE" => array(
