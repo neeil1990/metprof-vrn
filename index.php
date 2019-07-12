@@ -69,7 +69,9 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 				<? foreach($section[$i] as $item):?>
 				<div class="category">
 					<a href="<?=$item['SECTION_PAGE_URL']?>" class="link">
-						<img src="<?=CFile::GetPath($item["PICTURE"]);?>" alt="<?=$item['NAME']?>" height="120" class="img">
+                        <? if($item["PICTURE"]):?>
+						<img src="<?=CFile::ResizeImageGet($item["PICTURE"], array('width' => 200, 'height' => 200), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src'];?>" alt="<?=$item['NAME']?>" height="120" class="img">
+                        <?endif;?>
 						<span class="name"><?=$item['NAME']?></span>
 					</a>
 				</div>
@@ -239,7 +241,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 					<div>
 						<div class="product">
 							<a href="<?=$arFields['DETAIL_PAGE_URL']?>" style="display: block;height: 110px;">
-								<img src="<?=CFile::GetPath($arFields["PREVIEW_PICTURE"]);?>" alt="" height="110" style="max-height: 110px;margin: 0 auto;" class="img">
+								<img src="<?=CFile::ResizeImageGet($arFields["PREVIEW_PICTURE"], array('width' => 150, 'height' => 150), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src'];?>" alt="" height="110" style="max-height: 110px;margin: 0 auto;" class="img">
 							</a>
 							<a href="<?=$arFields['DETAIL_PAGE_URL']?>" class="name"><?=$arFields['NAME']?></a>
 							<div class="price"><span><?=price($arFields['ID']);?></span> &#8381;/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
@@ -262,7 +264,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 				<div>
 					<div class="product">
 						<a href="<?=$arFields['DETAIL_PAGE_URL']?>" style="display: block;height: 110px;">
-							<img src="<?=CFile::GetPath($arFields["PREVIEW_PICTURE"]);?>" alt="" height="110" style="max-height: 110px;margin: 0 auto;" class="img">
+							<img src="<?=CFile::ResizeImageGet($arFields["PREVIEW_PICTURE"], array('width' => 150, 'height' => 150), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src'];?>" alt="" height="110" style="max-height: 110px;margin: 0 auto;" class="img">
 						</a>
 						<a href="<?=$arFields['DETAIL_PAGE_URL']?>" class="name"><?=$arFields['NAME']?></a>
 						<div class="price"><span><?=price($arFields['ID']);?></span> &#8381;/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
