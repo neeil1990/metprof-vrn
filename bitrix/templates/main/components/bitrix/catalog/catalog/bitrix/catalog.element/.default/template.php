@@ -60,15 +60,18 @@ foreach($arResult['OFFERS'] as $offer){
          <div class="pc__prod-gallery cl">
             <div class="pg-thumbnails">
                <? foreach($arResult['PROPERTIES']['MORE_PHOTO']['VALUE'] as $key => $img):?>
-               <div class="item <? if($key < 1): ?>active<? endif; ?>"><a href="#"><span>
-                           <img src="<?=CFile::GetPath($img)?>" alt="<?=$arResult['NAME']?>"></span></a></div>
+               <div class="item <? if($key < 1): ?>active<? endif; ?>">
+                   <a href="#">
+                       <span><img src="<?=CFile::ResizeImageGet($img, array('width' => 60, 'height' => 60), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src']?>" alt="<?=$arResult['NAME']?>"></span>
+                   </a>
+               </div>
                <? endforeach; ?>
 
             </div>
             <div class="pg-current">
                <? foreach($arResult['PROPERTIES']['MORE_PHOTO']['VALUE'] as $key => $img):?>
                <a href="<?=CFile::GetPath($img)?>" class="<? if($key < 1): ?>active<? endif; ?>" data-fancybox="gallery<?=$arResult['ID']?>">
-                   <img src="<?=CFile::GetPath($img)?>" alt="<?=$arResult['NAME']?>"></a>
+                   <img src="<?=CFile::ResizeImageGet($img, array('width' => 400, 'height' => 400), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src']?>" alt="<?=$arResult['NAME']?>"></a>
                <? endforeach; ?>
             </div>
          </div>
