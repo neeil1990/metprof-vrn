@@ -19,36 +19,7 @@ $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'cat
 <!DOCTYPE html>
 <html lang="ru">
 	<head>
-
-        <style>
-            @font-face {
-                font-family: 'Arvo-auto';
-                font-display: auto;
-                src: local('Arvo'), url(https://fonts.gstatic.com/s/arvo/v9/rC7kKhY-eUDY-ucISTIf5PesZW2xOQ-xsNqO47m55DA.woff2) format('woff2');
-            }
-            @font-face {
-                font-family: 'Arvo-block';
-                font-display: block;
-                src: local('Arvo'), url(https://fonts.gstatic.com/s/arvo/v9/rC7kKhY-eUDY-ucISTIf5PesZW2xOQ-xsNqO47m55DA.woff2) format('woff2');
-            }
-
-            @font-face {
-                font-family: 'Arvo-swap';
-                font-display: swap;
-                src: local('Arvo'), url(https://fonts.gstatic.com/s/arvo/v9/rC7kKhY-eUDY-ucISTIf5PesZW2xOQ-xsNqO47m55DA.woff2) format('woff2');
-            }
-
-            @font-face {
-                font-family: 'Arvo-optional';
-                font-display: optional;
-                src: local('Arvo'), url(https://fonts.gstatic.com/s/arvo/v9/rC7kKhY-eUDY-ucISTIf5PesZW2xOQ-xsNqO47m55DA.woff2) format('woff2');
-            }
-            @font-face {
-                font-family: 'Arvo-fallback';
-                font-display: fallback;
-                src: local('Arvo'), url(https://fonts.gstatic.com/s/arvo/v9/rC7kKhY-eUDY-ucISTIf5PesZW2xOQ-xsNqO47m55DA.woff2) format('woff2');
-            }
-        </style>
+        
 		<title><?$APPLICATION->ShowTitle()?></title>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
 		<!-- JavaScript -->
