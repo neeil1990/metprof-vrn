@@ -231,7 +231,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 				<?
 				$arSelect = Array("ID","IBLOCK_ID", "NAME", "DETAIL_PAGE_URL","PREVIEW_PICTURE","PROPERTY_SALE","PROPERTY_CML2_BASE_UNIT");
 				$arFilter = array('IBLOCK_ID' => 24, 'ACTIVE' => 'Y','>=TIMESTAMP_X' => date($DB->DateFormatToPHP(CLang::GetDateFormat("SHORT")), strtotime('-30 day')));
-				$res = CIBlockElement::GetList(Array(), $arFilter, false, Array("nPageSize" => 20), $arSelect);
+				$res = CIBlockElement::GetList(Array(), $arFilter, false, Array("nPageSize" => 10), $arSelect);
 				while($ob = $res->GetNextElement()):
 					$arFields = $ob->GetFields();
 					$arProps = $ob->GetProperties();
