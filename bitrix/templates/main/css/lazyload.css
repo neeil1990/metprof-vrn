@@ -6,6 +6,7 @@ img:not(.initial) {
 }
 img.initial,
 img.loading,
+img.loaded,
 img.error {
     opacity: 1;
 }

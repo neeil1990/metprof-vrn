@@ -492,15 +492,28 @@ $(function(){
 
 
 
+
 });
+
+if($(window).width() < 768){
+    $('.slider__product img').each(function(li,el){
+        var self = $(el);
+        self.attr('src',self.attr('data-small'));
+    });
+}
 
 var lazyLoadInstance = new LazyLoad({
     elements_selector: "img",
     threshold: 0,
 });
+
+
+
 if (lazyLoadInstance) {
     lazyLoadInstance.update();
 }
+
+
 
 function destroyPopover(){
     $('#order-table, #popover-button-cart, #popover-button-cart-table-add').popover('destroy');

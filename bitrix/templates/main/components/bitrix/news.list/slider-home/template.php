@@ -17,7 +17,11 @@ $this->setFrameMode(true);
 	<div>
 		<div class="item cl">
 			<div class="slider__product">
-				<img src="<?=CFile::ResizeImageGet($arItem["PREVIEW_PICTURE"]["ID"], array('width' => 350, 'height' => 350), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src']?>" alt="<?=$arItem["PREVIEW_PICTURE"]["ALT"]?>" width="" height="" >
+				<img
+                        src="<?=CFile::ResizeImageGet($arItem["PREVIEW_PICTURE"]["ID"], array('width' => 380, 'height' => 380), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src']?>" alt="<?=$arItem["PREVIEW_PICTURE"]["ALT"]?>"
+                        data-small="<?=CFile::ResizeImageGet($arItem["PREVIEW_PICTURE"]["ID"], array('width' => 150, 'height' => 150), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src']?>" alt="<?=$arItem["PREVIEW_PICTURE"]["ALT"]?>"
+                        width=""
+                        height="" >
 			</div>
 			<div class="slider__content">
 					<h2><?=$arItem['NAME']?></h2>
