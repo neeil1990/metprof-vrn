@@ -226,7 +226,8 @@ if (!empty($arResult['ITEMS']))
 			</div>
 		</div><!--end::products_roll-->
 
-		<?$APPLICATION->IncludeComponent(
+		<?
+        $APPLICATION->IncludeComponent(
 	"bitrix:catalog.products.viewed", 
 	"products-viewed", 
 	array(
@@ -281,8 +282,8 @@ if (!empty($arResult['ITEMS']))
 		"PRODUCT_QUANTITY_VARIABLE" => "quantity",
 		"PRODUCT_ROW_VARIANTS" => "[{'VARIANT':'2','BIG_DATA':false},{'VARIANT':'2','BIG_DATA':false},{'VARIANT':'2','BIG_DATA':false}]",
 		"PRODUCT_SUBSCRIPTION" => "Y",
-		"PROPERTY_CODE_10" => array(
-			0 => "",
+		"PROPERTY_CODE_$arParams[IBLOCK_ID]" => array(
+			0 => "CML2_BASE_UNIT",
 			1 => "",
 		),
 		"PROPERTY_CODE_11" => array(
