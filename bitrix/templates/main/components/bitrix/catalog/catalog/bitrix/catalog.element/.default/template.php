@@ -85,7 +85,11 @@ foreach($arResult['OFFERS'] as $offer){
               </div>
 
               <? if(empty($arOffers['DISCOUNT_VALUE'])): ?>
-                  <h1>Цену уточняйте у менеджера</h1>
+                  <div class="bb_col">
+                      <div class="price">
+                              <div class="price-new"><span><?=$arResult['MIN_PRICE']['VALUE']?></span>  &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+                      </div>
+                  </div>
               <? else: ?>
                   <div class="bb_col">
                       <div class="price">

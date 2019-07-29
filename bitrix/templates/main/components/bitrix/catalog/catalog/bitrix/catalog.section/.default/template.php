@@ -113,10 +113,10 @@ if (!empty($arResult['ITEMS']))
 								</a>
 								<a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="title"><?=$arItem['NAME']?></a>
 								<div class="cost">
-									<span><?=$arOffers['DISCOUNT_VALUE'];?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+									<span><?=($arOffers['DISCOUNT_VALUE']) ? $arOffers['DISCOUNT_VALUE'] : $arItem['MIN_PRICE']['VALUE'];?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
 								</div>
 								<?if(!$arOffers['DISCOUNT_VALUE']){
-									print '<span class="noprice">Цену уточняйте у менеджера</span>';
+									//print '<span class="noprice">Цену уточняйте у менеджера</span>';
 								}
 								?>
 
