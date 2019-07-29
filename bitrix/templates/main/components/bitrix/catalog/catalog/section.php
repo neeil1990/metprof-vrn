@@ -407,7 +407,7 @@ if($ob = $res->GetNextElement()):?>
 
 			'LABEL_PROP' => $arParams['LABEL_PROP'],
 			'ADD_PICT_PROP' => $arParams['ADD_PICT_PROP'],
-			'PRODUCT_DISPLAY_MODE' => $arParams['PRODUCT_DISPLAY_MODE'],
+			'PRODUCT_DISPLAY_MODE' => "Y", //$arParams['PRODUCT_DISPLAY_MODE'],
 
 			'OFFER_ADD_PICT_PROP' => $arParams['OFFER_ADD_PICT_PROP'],
 			'OFFER_TREE_PROPS' => $arParams['OFFER_TREE_PROPS'],

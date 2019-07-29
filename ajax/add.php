@@ -26,8 +26,12 @@ if($_POST['props']){
     if($quantity > 20 OR (int)$_POST["type"] == 5){
         if( Add2BasketByProductID( $id, $quantity ) )
             print 'Товар успешно добавлен в корзину';
-        else
-            print 'Товара нет в наличии';
+        else{
+            if($product = CCatalogProduct::GetByID($id))
+                print "Запрашиваемое кол-во превышает остаток. На складе: $product[QUANTITY]";
+            else
+                print 'Товара нет в наличии';
+        }
     }
 }
 
