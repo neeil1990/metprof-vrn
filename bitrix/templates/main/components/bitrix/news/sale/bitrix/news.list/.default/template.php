@@ -22,7 +22,7 @@ $this->setFrameMode(true);
 		<div class="info">
 			<div class="date">
 				<?if($arParams["DISPLAY_DATE"]!="N" && $arItem["DISPLAY_ACTIVE_FROM"]):?>
-					<?echo $arItem["DISPLAY_ACTIVE_FROM"]?>
+					<?echo $arItem["DISPLAY_ACTIVE_FROM"]?> <?=(date('d.m.Y H:m:s') > $arItem['DATE_ACTIVE_TO'] && $arItem['DATE_ACTIVE_TO']) ? '- Акция завершена' : ''?>
 				<?endif?>
 			</div>
 			<div class="name">
