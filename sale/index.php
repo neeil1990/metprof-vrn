@@ -20,7 +20,7 @@ $APPLICATION->SetTitle("Акции");
 		"CACHE_GROUPS" => "Y",
 		"CACHE_TIME" => "36000000",
 		"CACHE_TYPE" => "A",
-		"CHECK_DATES" => "Y",
+		"CHECK_DATES" => "N",
 		"DETAIL_ACTIVE_DATE_FORMAT" => "j F Y",
 		"DETAIL_DISPLAY_BOTTOM_PAGER" => "Y",
 		"DETAIL_DISPLAY_TOP_PAGER" => "N",
