@@ -71,7 +71,7 @@ foreach($arResult['OFFERS'] as $offer){
                     <div class="item">
                         <a data-fancybox data-width="640" data-height="360" href="https://www.youtube.com/watch?v=<?=$arResult['PROPERTIES']['YUTUB']['VALUE']?>">
                             <span>
-                                <img src="//img.youtube.com/vi/<?=$arResult['PROPERTIES']['YUTUB']['VALUE']?>/default.jpg">
+                                <img src="<?=SITE_TEMPLATE_PATH?>/img/video.jpg">
                             </span>
                         </a>
                     </div>
