@@ -67,6 +67,16 @@ foreach($arResult['OFFERS'] as $offer){
                </div>
                <? endforeach; ?>
 
+                <? if($arResult['PROPERTIES']['YUTUB']['VALUE']): ?>
+                    <div class="item">
+                        <a data-fancybox data-width="640" data-height="360" href="https://www.youtube.com/watch?v=<?=$arResult['PROPERTIES']['YUTUB']['VALUE']?>">
+                            <span>
+                                <img src="//img.youtube.com/vi/<?=$arResult['PROPERTIES']['YUTUB']['VALUE']?>/default.jpg">
+                            </span>
+                        </a>
+                    </div>
+                <? endif;?>
+
             </div>
             <div class="pg-current">
                <? foreach($arResult['PROPERTIES']['MORE_PHOTO']['VALUE'] as $key => $img):?>
