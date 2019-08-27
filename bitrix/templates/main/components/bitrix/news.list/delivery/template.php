@@ -55,6 +55,7 @@ $this->setFrameMode(true);
 						</div>
 					</div>
 					<? endforeach; ?>
+                    <div class="clear"></div>
 				</div>
 				<?endif;?>
 
