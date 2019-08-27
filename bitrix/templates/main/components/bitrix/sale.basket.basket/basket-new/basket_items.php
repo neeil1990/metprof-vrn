@@ -63,7 +63,7 @@ if ($normalCount > 0)
 				<div class="t-row t-sale cl">
 					<div class="line"></div>
 					<div class="name">Общая скидка:</div>
-					<div class="value"><span><?=$arResult['DISCOUNT_PRICE_ALL_FORMATED']?></span> &#8381;</div>
+					<div class="value"><span><?=$arResult['DISCOUNT_PRICE_ALL_FORMATED']?></span> </div>
 				</div>
 				<div class="t-row cl t-quan">
 					<div class="line"></div>

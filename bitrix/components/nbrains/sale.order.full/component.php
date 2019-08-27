@@ -7,8 +7,6 @@ if (!CModule::IncludeModule("sale"))
 	return;
 }
 
-
-
 $arParams["PATH_TO_BASKET"] = Trim($arParams["PATH_TO_BASKET"]);
 if (strlen($arParams["PATH_TO_BASKET"]) <= 0)
 	$arParams["PATH_TO_BASKET"] = "basket.php";
@@ -67,8 +65,6 @@ $GLOBALS['CATALOG_ONETIME_COUPONS_ORDER']=null;
 
 $allCurrency = CSaleLang::GetLangCurrency(SITE_ID);
 
-
-
 if ($_SERVER["REQUEST_METHOD"] == "POST" && ($arParams["DELIVERY_NO_SESSION"] == "N" || check_bitrix_sessid()))
 {
 
@@ -89,8 +85,6 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && ($arParams["DELIVERY_NO_SESSION"] ==
 		}
 	}
 }
-
-
 
 $arResult["SKIP_FIRST_STEP"] = (($arResult["POST"]["SKIP_FIRST_STEP"] == "Y") ? "Y" : "N");
 $arResult["SKIP_SECOND_STEP"] = (($arResult["POST"]["SKIP_SECOND_STEP"] == "Y") ? "Y" : "N");
@@ -129,8 +123,6 @@ if(strlen($arResult["POST"]["DELIVERY_ID"])>0)
 	else
 		$arResult["DELIVERY_ID"] = explode(":", $arResult["POST"]["DELIVERY_ID"]);
 }
-
-
 
 if(strlen($arResult["POST"]["PAY_SYSTEM_ID"])>0)
 	$arResult["PAY_SYSTEM_ID"] = IntVal($arResult["POST"]["PAY_SYSTEM_ID"]);
@@ -397,6 +389,8 @@ else
 		while ($arBasketItems = $dbBasketItems->GetNext())
 		{
 			$arBasketItems["DISCOUNT_PRICE"] = CCatalogProduct::GetOptimalPrice($arBasketItems["PRODUCT_ID"], 1, $USER->GetUserGroupArray(), 'N')['DISCOUNT']['VALUE'];
+			
+			
 			if ($arBasketItems["DELAY"] == "N" && $arBasketItems["CAN_BUY"] == "Y")
 			{
 				$arBasketItems["PRICE"] = roundEx($arBasketItems["PRICE"], SALE_VALUE_PRECISION);
@@ -446,8 +440,6 @@ else
 				$arResult["DISCOUNT_PRICE"] += $curDiscount;
 			}
 		}
-
-
 
 		if (strlen($arResult["ERROR_MESSAGE"]) <= 0 && $arResult["CurrentStep"] > 1)
 		{
@@ -890,6 +882,7 @@ else
 
 				}
 				*/
+
 				$arFilter = array("PERSON_TYPE_ID" => $arResult["PERSON_TYPE"], "ACTIVE" => "Y", "UTIL" => "N");
 				if(!empty($arParams["PROP_".$arResult["PERSON_TYPE"]]))
 					$arFilter["!ID"] = $arParams["PROP_".$arResult["PERSON_TYPE"]];
@@ -901,9 +894,11 @@ else
 						false,
 						array("ID", "TYPE", "NAME", "CODE", "USER_PROPS", "SORT")
 					);
+
 				while ($arOrderProperties = $dbOrderProperties->Fetch())
 				{
 					$curVal = $arResult["POST"]["~ORDER_PROP_".$arOrderProperties["ID"]];
+
 					if ($arOrderProperties["TYPE"] == "MULTISELECT")
 					{
 						$curVal = "";
@@ -930,7 +925,9 @@ else
 								"CODE" => $arOrderProperties["CODE"],
 								"VALUE" => $curVal
 							);
-						CSaleOrderPropsValue::Add($arFields);
+
+                        AddOrderProperty($arOrderProperties["CODE"],$curVal,$arResult["ORDER_ID"]);
+
 						if ( $arOrderProperties["USER_PROPS"] == "Y" && IntVal($arResult["PROFILE_ID"]) <= 0 && IntVal($arResult["USER_PROPS_ID"])<=0)
 						{
 							if (strlen($arResult["PROFILE_NAME"]) <= 0)
@@ -986,18 +983,15 @@ else
 				<?
 				while ($arBasketItems = $dbBasketItems->Fetch())
 				{
-					$mxResult = CCatalogSku::GetProductInfo($arBasketItems["PRODUCT_ID"]);
-					if (is_array($mxResult))
-					{
-						$orig_prod_res = CIBlockElement::GetByID($mxResult['ID']);
-						$orig_prod = $orig_prod_res->GetNext();
-					}
 
 					$res = CIBlockElement::GetByID($arBasketItems["PRODUCT_ID"]);
 					$ar_res = $res->GetNext();
-					$img = CFile::GetPath($orig_prod['PREVIEW_PICTURE']);
+					$img = CFile::GetPath($ar_res['PREVIEW_PICTURE']);
+					if(!$img){
+						$img = SITE_TEMPLATE_PATH.'/img/no_photo.png';
+					}
 					$link_img = $_SERVER['SERVER_NAME'].$img;
-					$link_prod = 'http://'.$_SERVER['SERVER_NAME'].$orig_prod['DETAIL_PAGE_URL'];
+					$link_prod = 'http://'.$_SERVER['SERVER_NAME'].$ar_res['DETAIL_PAGE_URL'];
 					$ar_res = CCatalogProduct::GetOptimalPrice($arBasketItems["PRODUCT_ID"], 1, $USER->GetUserGroupArray(), 'N');
 					$format_price = SaleFormatCurrency($ar_res['DISCOUNT_PRICE'], $arResult["BASE_LANG_CURRENCY"],true);
 					$price = SaleFormatCurrency($ar_res['DISCOUNT_PRICE']*$arBasketItems["QUANTITY"], $arResult["BASE_LANG_CURRENCY"],true);
@@ -1005,7 +999,7 @@ else
 					?>
 					<tr style="font-size: 13px;">
 						<td style="padding: 20px 10px;" width="" height="">
-							<img src="http://<?=$link_img;?>" style="max-width: 80px">
+							<img src="http://<?=$link_img;?>" style="max-height: 150px;max-width: 150px;">
 						</td>
 						<td style="padding: 20px 10px;" width="" height="">
 							<a href="<?=$link_prod;?>" style="text-decoration: none;color: #0464bb"><?=$arBasketItems["NAME"];?></a>
@@ -1018,7 +1012,6 @@ else
 					</tr>
 					<?
 				}
-
 				?>
 					<!-- Spacing -->
 					</tbody>
@@ -1969,6 +1962,7 @@ if ($USER->IsAuthorized())
 			}
 		}
 		$arResult["PAY_SYSTEM"] = Array();
+
 		$arFilter = array(
 							"ACTIVE" => "Y",
 							"PERSON_TYPE_ID" => $arResult["PERSON_TYPE"],
@@ -2002,6 +1996,7 @@ if ($USER->IsAuthorized())
 		}
 
 
+
 		$dbPaySystem = CSalePaySystem::GetList(
 					array("SORT" => "ASC", "PSA_NAME" => "ASC"),
 					$arFilter
@@ -2010,7 +2005,7 @@ if ($USER->IsAuthorized())
 		while ($arPaySystem = $dbPaySystem->Fetch())
 		{
 			if($arPaySystem["ID"] == "1" AND $deliv == "2")
-				continue;
+			continue;
 
 			if (!$bShowDefault || in_array($arPaySystem["ID"], $arD2P))
 			{
@@ -2212,45 +2207,44 @@ if ($USER->IsAuthorized())
 		$arResult["ORDER_WEIGHT"] = 0;
 
 		CSaleBasket::UpdateBasketPrices(CSaleBasket::GetBasketUserID(), SITE_ID);
-		$dbBasketItems = CSaleBasket::GetList(
-				array("ID" => "ASC"),
-				array(
-						"FUSER_ID" => CSaleBasket::GetBasketUserID(),
-						"LID" => SITE_ID,
-						"ORDER_ID" => "NULL"
-					)
-			);
-		$arDiscount = array();
-		while ($arBasketItems = $dbBasketItems->Fetch())
-		{
-			$arBasketItems["DISCOUNT_PRICE"] = CCatalogProduct::GetOptimalPrice($arBasketItems["PRODUCT_ID"], 1, $USER->GetUserGroupArray(), 'N')['RESULT_PRICE']['PERCENT'];
-			$arDiscount[] = CCatalogProduct::GetOptimalPrice($arBasketItems["PRODUCT_ID"], 1, $USER->GetUserGroupArray(), 'N')['RESULT_PRICE']['DISCOUNT']*$arBasketItems["QUANTITY"];
-			if ($arBasketItems["DELAY"] == "N" && $arBasketItems["CAN_BUY"] == "Y")
-			{
-				$arBasketItems['NAME'] = htmlspecialcharsEx($arBasketItems['NAME']);
-				$arBasketItems['NOTES'] = htmlspecialcharsEx($arBasketItems['NOTES']);
-				$arResult["ORDER_WEIGHT"] += $arBasketItems["WEIGHT"] * $arBasketItems["QUANTITY"];
-				$arBasketItems["WEIGHT_FORMATED"] = roundEx(DoubleVal($arBasketItems["WEIGHT"]/$arResult["WEIGHT_KOEF"]), SALE_WEIGHT_PRECISION)." ".$arResult["WEIGHT_UNIT"];
-
-				$arBasketItems["PRICE_FORMATED"] = SaleFormatCurrency($arBasketItems["PRICE"], $arBasketItems["CURRENCY"]);
-				if(DoubleVal($arBasketItems["DISCOUNT_PRICE"]) > 0)
-				{
-					if(DoubleVal($arBasketItems["VAT_RATE"]) > 0)
-						$arBasketItems["VAT_VALUE"] = DoubleVal(($arBasketItems["PRICE"] / ($arBasketItems["VAT_RATE"] +1)) * $arBasketItems["VAT_RATE"]);
-
-					$arBasketItems["DISCOUNT_PRICE_PERCENT"] = $arBasketItems["DISCOUNT_PRICE"]*100 / ($arBasketItems["DISCOUNT_PRICE"] + $arBasketItems["PRICE"]);
-					$arBasketItems["DISCOUNT_PRICE_PERCENT_FORMATED"] = roundEx($arBasketItems["DISCOUNT_PRICE_PERCENT"], 0)."%";
-				}
-
-				$arBasketItems["PROPS"] = Array();
-				$dbProp = CSaleBasket::GetPropsList(Array("SORT" => "ASC", "ID" => "ASC"), Array("BASKET_ID" => $arBasketItems["ID"], "!CODE" => array("CATALOG.XML_ID", "PRODUCT.XML_ID")));
-				while($arProp = $dbProp -> GetNext())
-					$arBasketItems["PROPS"][] = $arProp;
 
 
-				$arResult["BASKET_ITEMS"][] = $arBasketItems;
-			}
-		}
+        $arBasketItems = array();
+        $dbBasketItems = CSaleBasket::GetList(
+            array(
+                "NAME" => "ASC",
+                "ID" => "ASC"
+            ),
+            array(
+                "FUSER_ID" => CSaleBasket::GetBasketUserID(),
+                "LID" => SITE_ID,
+                "ORDER_ID" => "NULL",
+                "DELAY" => "N"
+            ),
+            false,
+            false,
+            array("*")
+        );
+        while ($arItems = $dbBasketItems->Fetch())
+        {
+            $currentUserBasket[] = $arItems;
+        }
+
+        $arErrors = array();
+        $arWarnings = array();
+        $basketItems = CSaleOrder::DoCalculateOrder(
+            SITE_ID, // id текущего сайта
+            $USER->GetId(), // id текущего пользователя
+            $currentUserBasket, // массив текущей корзины
+            $arResult["PERSON_TYPE"],
+            false,
+            $arResult["DELIVERY_ID"],
+            $arResult["PAY_SYSTEM_ID"],
+            false,
+            $arErrors,
+            $arWarnings
+        );
+        $arResult['BASKET_ITEMS'] = $basketItems['BASKET_ITEMS'];
 
 		$arResult["ORDER_WEIGHT_FORMATED"] = roundEx(DoubleVal($arResult["ORDER_WEIGHT"]/$arResult["WEIGHT_KOEF"]), SALE_WEIGHT_PRECISION)." ".$arResult["WEIGHT_UNIT"];
 		$arResult["ORDER_PRICE_FORMATED"] = SaleFormatCurrency($arResult["ORDER_PRICE"], $arResult["BASE_LANG_CURRENCY"]);
@@ -2279,8 +2273,12 @@ if ($USER->IsAuthorized())
 
 		if(IntVal($arResult["DELIVERY_PRICE"])>0)
 			$arResult["DELIVERY_PRICE_FORMATED"] = SaleFormatCurrency($arResult["DELIVERY_PRICE"], $arResult["BASE_LANG_CURRENCY"]);
+		
 		$orderTotalSum = $arResult["ORDER_PRICE"] + $arResult["DELIVERY_PRICE"] + $arResult["TAX_PRICE"] - $arResult["DISCOUNT_PRICE"];
-		$arResult["ORDER_TOTAL_PRICE_FORMATED"] = SaleFormatCurrency($orderTotalSum, $arResult["BASE_LANG_CURRENCY"]);
+
+		$arResult["ORDER_TOTAL_PRICE_FORMATED"] = $basketItems['ORDER_PRICE'];
+		
+		
 		if ($arResult["PAY_CURRENT_ACCOUNT"] == "Y")
 		{
 			$dbUserAccount = CSaleUserAccount::GetList(
@@ -2434,6 +2432,11 @@ if ($USER->IsAuthorized())
 						$_SESSION["ORDER_EVENTS"][] = $e;
 				}
 			}
+			
+			\Bitrix\Main\Loader::includeModule('sale');
+            $order = \Bitrix\Sale\Order::load($arOrder["ID"]);
+            $order->refreshData();
+            $order->save();
 
 			foreach(GetModuleEvents("sale", "OnSaleComponentOrderComplete", true) as $arEvent)
 				ExecuteModuleEventEx($arEvent, Array($arOrder["ID"], $arOrder));

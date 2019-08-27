@@ -86,3 +86,36 @@ function buttonName($IBLOCK_ID,$SECTION_ID){
     }
     return "Подробнее";
 }
+
+
+function AddOrderProperty($code, $value, $order)    {
+    if (!strlen($code)) {
+        return false;
+    }
+    if (CModule::IncludeModule('sale')) {
+        if ($arProp = CSaleOrderProps::GetList(array(), array('CODE' => $code))->Fetch()) {
+
+            $db_vals = CSaleOrderPropsValue::GetList(
+                array(),
+                array(
+                    "ORDER_ID" => $order,
+                    "ORDER_PROPS_ID" => $arProp["ID"]
+                )
+            );
+            if ($arVals = $db_vals->Fetch()) {
+                CSaleOrderPropsValue::Update($arVals["ID"], array("VALUE"=>$value));
+            } else {
+                CSaleOrderPropsValue::Add(array(
+                    'NAME' => $arProp['NAME'],
+                    'CODE' => $arProp['CODE'],
+                    'ORDER_PROPS_ID' => $arProp['ID'],
+                    'ORDER_ID' => $order,
+                    'VALUE' => $value,
+                ));
+            }
+            //  тут можно увидеть ошибку, если что
+//                global $APPLICATION;
+//                var_dump($APPLICATION->GetException());
+        }
+    }
+}
