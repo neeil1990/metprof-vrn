@@ -14,7 +14,7 @@ $this->setFrameMode(true);
 ?>
 
 <div class="sale-list">
-	<?foreach($arResult["ITEMS"] as $arItem):?>
+	<? foreach($arResult["ITEMS"] as $arItem): ?>
 	<div class="sale-list__item cl">
 		<a href="<?=$arItem["DETAIL_PAGE_URL"]?>" class="img">
 			<img width="200" alt="<?echo $arItem["NAME"]?>" src="<?=$arItem["PREVIEW_PICTURE"]["SRC"]?>" height="200">
@@ -22,7 +22,7 @@ $this->setFrameMode(true);
 		<div class="info">
 			<div class="date">
 				<?if($arParams["DISPLAY_DATE"]!="N" && $arItem["DISPLAY_ACTIVE_FROM"]):?>
-					<?echo $arItem["DISPLAY_ACTIVE_FROM"]?> <?=(date('d.m.Y H:m:s') > $arItem['DATE_ACTIVE_TO'] && $arItem['DATE_ACTIVE_TO']) ? '- Акция завершена' : ''?>
+					<?echo $arItem["DISPLAY_ACTIVE_FROM"]?> <?=($DB->CompareDates(date('d.m.Y H:m:s'), $arItem['DATE_ACTIVE_TO']) == "1" && $arItem['DATE_ACTIVE_TO']) ? '- Акция завершена' : ''?>
 				<?endif?>
 			</div>
 			<div class="name">
