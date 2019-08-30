@@ -62,6 +62,8 @@ RewriteRule ^(.*)$ /bitrix/virtual_file_system.php [L]
   RewriteCond %{REQUEST_FILENAME} !/bitrix/urlrewrite.php$
   RewriteRule ^(.*)$ /bitrix/urlrewrite.php [L]
   RewriteRule .* - [E=REMOTE_USER:%{HTTP:Authorization}]
+
+Redirect 301 /catalog/mansardnye_okna_i_cherdachnye_lestnitsy/ http://metprof-vrn.ru/catalog/mansardnye_okna/
 </IfModule>
 
 <IfModule mod_dir.c>

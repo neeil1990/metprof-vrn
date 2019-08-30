@@ -94,10 +94,11 @@ foreach($arResult['OFFERS'] as $offer){
                   <label for="icompare">Сравнить</label>
               </div>
 
-              <? if(empty($arOffers['DISCOUNT_VALUE'])):?>
+              <? if(empty($arOffers['DISCOUNT_VALUE'])): ?>
                   <div class="bb_col">
                       <div class="price">
-                              <div class="price-new"><span><?=$arResult['MIN_PRICE']['VALUE']?></span>  &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+							  <div class="price-old"><span><?=$arResult['MIN_PRICE']['VALUE']?></span> &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+                              <div class="price-new"><span><?=$arResult['MIN_PRICE']['DISCOUNT_VALUE']?></span>  &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
                       </div>
                   </div>
                   <div class="bb_col right">
