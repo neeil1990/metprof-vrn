@@ -996,6 +996,7 @@ else
 					$format_price = SaleFormatCurrency($ar_res['DISCOUNT_PRICE'], $arResult["BASE_LANG_CURRENCY"],true);
 					$price = SaleFormatCurrency($ar_res['DISCOUNT_PRICE']*$arBasketItems["QUANTITY"], $arResult["BASE_LANG_CURRENCY"],true);
 					$allPrice[] = $ar_res['DISCOUNT_PRICE']*$arBasketItems["QUANTITY"];
+                    $arMeasure = \Bitrix\Catalog\ProductTable::getCurrentRatioWithMeasure($arBasketItems["PRODUCT_ID"]);
 					?>
 					<tr style="font-size: 13px;">
 						<td style="padding: 20px 10px;" width="" height="">
@@ -1007,7 +1008,7 @@ else
 						<td style="padding: 20px 10px;text-align: center;" width="" height=""><?=$arBasketItems["QUANTITY"];?></td>
 						<td style="padding: 20px 10px;text-align: right;" width="" height="">
 							<p style="white-space: nowrap;font-weight: bold;font-size: 16px;"><?=$price;?> <i style="font-weight: 100;font-style: initial;">руб.</i></p>
-							<p style="white-space: nowrap;font-size: 12px;color: #939191;"><?=$arBasketItems["QUANTITY"];?> шт. X <?=$format_price?> руб.</i></p>
+							<p style="white-space: nowrap;font-size: 12px;color: #939191;"><?=$arBasketItems["QUANTITY"];?> <?=$arMeasure[$arBasketItems["PRODUCT_ID"]]['MEASURE']['SYMBOL_RUS'];?>. X <?=$format_price?> руб.</i></p>
 						</td>
 					</tr>
 					<?
