@@ -2,7 +2,36 @@
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetTitle("Каталог");
 ?>
+<div class="price" style="display: none;">
+	<?
+	$res = CCatalogSKU::getOffersList(
+		41745,
+		$iblockID = 24,
+		$skuFilter = array("ACTIVE" => "Y"),
+		$fields = array("CATALOG_PRICE_4"),
+		$propertyFilter = array()
+	);
+	$id_offer = array_keys($res[41745])[0];
 
+	$ar_res_price = CPrice::GetBasePrice($id_offer, false, false);
+	$price = $ar_res_price['PRICE'];
+	$arDiscounts = CCatalogDiscount::GetDiscountByProduct(
+		41745,
+		$USER->GetUserGroupArray(),
+		"N",
+		4
+	);
+	$discounts = 0;
+	foreach ($arDiscounts as $key => $arDiscountsPrice) {
+		$discounts = $arDiscountsPrice["VALUE"];
+	}
+	if($discounts){
+		$price = ($ar_res_price['PRICE'] - (($ar_res_price['PRICE']/100)*$discounts));
+	}
+	echo round($price, 1);
+
+?>
+</div>
 <?
 if(empty($_REQUEST['PAGE_ELEMENT_COUNT'])){
 	$_REQUEST['PAGE_ELEMENT_COUNT'] = 20;

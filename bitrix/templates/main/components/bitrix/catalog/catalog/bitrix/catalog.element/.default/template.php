@@ -275,6 +275,55 @@ foreach($arResult['OFFERS'] as $offer){
             <div class="tab tab_nal active">
                <a href="#" class="mtb" onclick="return false">Наличие в магазинах</a>
                <div class="content">
+				   <?if ($arResult["OFFERS"]){?>
+				   <?foreach($arResult["OFFERS"] as $arOfers){?>
+
+
+                  <?$APPLICATION->IncludeComponent(
+                    "nbrains:catalog.store.amount",
+                    "store",
+                    array(
+                        "CACHE_TIME" => "36000",
+                        "CACHE_TYPE" => "N",
+                        "ELEMENT_CODE" => "",
+                        "ELEMENT_ID" => $arOfers["ID"],
+                        "FIELDS" => array(
+                            0 => "TITLE",
+                            1 => "ADDRESS",
+                            2 => "DESCRIPTION",
+                            3 => "PHONE",
+                            4 => "EMAIL",
+                            5 => "IMAGE_ID",
+                            6 => "COORDINATES",
+                            7 => "SCHEDULE",
+                            8 => "",
+                        ),
+                        "IBLOCK_ID" => $arOfers["IBLOCK_ID"],
+                        "IBLOCK_TYPE" => "1c_catalog",
+                        "MAIN_TITLE" => "",
+                        "MIN_AMOUNT" => "0",
+                        "OFFER_ID" => "",
+                        "SHOW_EMPTY_STORE" => "N",
+                        "SHOW_GENERAL_STORE_INFORMATION" => "N",
+                        "STORES" => array(
+                            0 => "16",
+                        ),
+                        "STORE_PATH" => "",
+                        "USER_FIELDS" => array(
+                            0 => "",
+                            1 => "",
+                        ),
+                        "USE_MIN_AMOUNT" => "N",
+                        "COMPONENT_TEMPLATE" => "store",
+                        "COMPOSITE_FRAME_MODE" => "A",
+                        "COMPOSITE_FRAME_TYPE" => "AUTO"
+                    ),
+                    false
+                );?>
+<?
+break;
+}?>
+				   <?}else{?>
                   <?$APPLICATION->IncludeComponent(
                     "nbrains:catalog.store.amount",
                     "store",
@@ -316,6 +365,7 @@ foreach($arResult['OFFERS'] as $offer){
                     ),
                     false
                 );?>
+<?}?>
                </div>
             </div>
          </div>

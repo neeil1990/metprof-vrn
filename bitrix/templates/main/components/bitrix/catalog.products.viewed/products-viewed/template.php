@@ -145,7 +145,11 @@ $areaIds = array();
 					</a>
 					<a href="<?=$item['DETAIL_PAGE_URL']?>" class="name"><?=$item['NAME']?></a>
 					<div class="price">
-							<span><?=price($item['ID']);?></span> &#8381;/<?=$item['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+						<?if(priceDiscount($item['ID'])){?>
+							<span><?=priceDiscount($item['ID']);?></span> &#8381;/<?=$item['JS_OFFERS'][0]['MEASURE'];?>
+						<?}else{?>
+							<span><?=price($item['ID']);?></span> &#8381;/<?=$item['JS_OFFERS'][0]['MEASURE'];?>
+						<?}?>
 					</div>
 					<?if($item['PROPERTIES']['DLINA_TEST']['VALUE']):?>
 						<a href="<?=$item["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>

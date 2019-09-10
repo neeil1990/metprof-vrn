@@ -24,9 +24,13 @@ if($arResult["ITEMS"]):
 			</a>
 			<a href="<?=$arItem["DETAIL_PAGE_URL"]?>" class="name"><?=$arItem["NAME"]?></a>
 			<div class="price">
-				<span><?=price($arItem['ID']);?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+				<?if(priceDiscount($arItem['ID'])){?>
+					<span><?=priceDiscount($arItem['ID']);?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+				<?}else{?>
+					<span><?=price($arItem['ID']);?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+				<?}?>
 			</div>
-			
+
 			<?if($arItem['PROPERTIES']['DLINA_TEST']['VALUE']):?>
 				<a href="<?=$arItem["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>
 			<?else:?>

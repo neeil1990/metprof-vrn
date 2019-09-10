@@ -78,10 +78,11 @@ function buttonName($IBLOCK_ID,$SECTION_ID){
     foreach($nav->arResult as $item){
         $IDs[] = (int)$item['ID'];
     }
-    $SECTION = array(3191,3266,3205);
+	// $SECTION = array(3191,3266,3205);
     foreach($SECTION as $s_id){
         if(in_array($s_id,$IDs)){
             return "Под заказ";
+
         }
     }
     return "Подробнее";
