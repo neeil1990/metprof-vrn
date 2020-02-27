@@ -197,13 +197,7 @@ foreach($arResult['OFFERS'] as $offer){
                      foreach($arResult['PROPERTIES'] as $property){
                          if(
                              $property['CODE']
-                             and $property['CODE'] != "MORE_PHOTO"
-                             and $property['CODE'] != "DLINA_1"
-                             and $property['CODE'] != "DLINA_TEST"
-                             and $property['CODE'] != "SALE"
-                             and $property['CODE'] != "DUPUSTIMYE_RAZMERY_METALLOCHEREPITSA_MM"
-                             and $property['CODE'] != "CML2_BASE_UNIT"
-                             and $property['CODE'] != "RECOMEND_PRODUCT"
+                             and !in_array($property['CODE'], $arParams['HIDDEN_PROPERTY_CODE'])
                          ){
                              if(is_array($property['VALUE'])) {
                                  ?>

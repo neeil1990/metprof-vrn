@@ -51,6 +51,16 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 	"catalog", 
 	array(
 		"ACTION_VARIABLE" => "action",
+		"HIDDEN_PROPERTY_CODE" => array(
+				0 => "MORE_PHOTO",
+				1 => "DLINA_1",
+				2 => "DLINA_TEST",
+				3 => "SALE",
+				4 => "DUPUSTIMYE_RAZMERY_METALLOCHEREPITSA_MM",
+				5 => "CML2_BASE_UNIT",
+				6 => "RECOMEND_PRODUCT",
+				7 => "YUTUB",
+		),
 		"ADD_ELEMENT_CHAIN" => "Y",
 		"ADD_PICT_PROP" => "-",
 		"ADD_PROPERTIES_TO_BASKET" => "Y",
