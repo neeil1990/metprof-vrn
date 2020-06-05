@@ -10,3 +10,4 @@ access/*
 bitrix/html_pages/*
 bitrix/backup/*
 bitrix/catalog_export/*
+*.log
