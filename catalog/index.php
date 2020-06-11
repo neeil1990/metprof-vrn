@@ -47,8 +47,8 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 ?>
 
 <?$APPLICATION->IncludeComponent(
-	"bitrix:catalog", 
-	"catalog", 
+	"bitrix:catalog",
+	"catalog",
 	array(
 		"ACTION_VARIABLE" => "action",
 		"HIDDEN_PROPERTY_CODE" => array(
@@ -225,7 +225,7 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 		"HIDE_NOT_AVAILABLE" => "N",
 		"IBLOCK_ID" => "24",
 		"IBLOCK_TYPE" => "1c_catalog",
-		"INCLUDE_SUBSECTIONS" => "N",
+		"INCLUDE_SUBSECTIONS" => "Y",
 		"INSTANT_RELOAD" => "Y",
 		"LABEL_PROP" => "-",
 		"LINE_ELEMENT_COUNT" => "3",

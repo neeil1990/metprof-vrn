@@ -17,7 +17,6 @@ if (!empty($arResult['ITEMS']))
 
 
   <div class="ct__content">
-    <div class="h1"><?=$arResult['NAME']?></div>
 
     <div class="products_roll">
       <div class="pr_header cl">
@@ -232,8 +231,8 @@ if (!empty($arResult['ITEMS']))
 
     <?
         $APPLICATION->IncludeComponent(
-  "bitrix:catalog.products.viewed", 
-  "products-viewed", 
+  "bitrix:catalog.products.viewed",
+  "products-viewed",
   array(
     "ACTION_VARIABLE" => "action_cpv",
     "ADDITIONAL_PICT_PROP_10" => "-",

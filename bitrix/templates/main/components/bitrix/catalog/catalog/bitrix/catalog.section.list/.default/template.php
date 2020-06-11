@@ -40,21 +40,25 @@ $arViewStyles = array(
 );
 $arCurView = $arViewStyles[$arParams['VIEW_MODE']];
 ?>
+
 <?if($arResult['SECTIONS']):?>
-<div class="catalog-sections-list cl">
-	<?foreach ($arResult['SECTIONS'] as &$arSection):?>
+    <div class="product_top cl">
 
-	<div class="catalog-sections-list__item">
-		<a href="<?=$arSection['SECTION_PAGE_URL']?>" class="link">
-            <? if($arSection['PICTURE']): ?>
-                <img alt="<?=$arSection['NAME']?>" src="<?=CFile::ResizeImageGet($arSection['PICTURE'], array('width'=>200, 'height'=>200), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src'];?>" height="120" class="img">
-            <?endif;?>
-			<span class="name"><?=($arSection['~UF_SECTION_NAME']) ? $arSection['~UF_SECTION_NAME'] : $arSection['NAME'];?></span></a>
-	</div>
-	<?endforeach;?>
+        <div class="catalog_top cl">
+            <? foreach($arResult['SECTIONS'] as &$arSection):?>
+                <div class="item_c">
+                    <a href="<?=$arSection['SECTION_PAGE_URL']?>">
+                        <div class="img_c">
+                            <img src="<?=resizeImage($arSection['PICTURE']['ID'], 140, 120);?>" alt="<?=$arSection['NAME']?>">
+                        </div>
+                        <div class="name_c"><?=$arSection['NAME']?></div>
+                    </a>
+                </div>
+            <? endforeach; ?>
+        </div>
 
-</div>
-<!--end::catalog-sections-->
+    </div>
+    <!--end::catalog-sections-->
 
 	<?$APPLICATION->IncludeComponent("bitrix:news.list", "category-product", Array(
 		"ACTIVE_DATE_FORMAT" => "d.m.Y",	// Р¤РѕСЂРјР°С‚ РїРѕРєР°Р·Р° РґР°С‚С‹

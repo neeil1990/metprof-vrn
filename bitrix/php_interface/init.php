@@ -54,6 +54,21 @@ function getUrlProd($url){
 
 }
 
+function resizeImage($id, $w, $h){
+    if(!is_numeric($id) || empty($id))
+        return '/bitrix/templates/main/img/no_photo.png';
+
+    return CFile::ResizeImageGet(
+        $id,
+        ["width" => $w, "height" => $h],
+        BX_RESIZE_IMAGE_PROPORTIONAL,
+        true,
+        false,
+        false,
+        85
+    )['src'];
+}
+
 function isRootFolder($id,$root){
 
     CModule::IncludeModule( 'catalog' );
