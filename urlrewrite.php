@@ -88,7 +88,7 @@ $arUrlRewrite=array (
     'PATH' => '/sale/index.php',
     'SORT' => 100,
   ),
-  13 =>
+  15 =>
   array (
     'CONDITION' => '#^/ral/#',
     'RULE' => '',
