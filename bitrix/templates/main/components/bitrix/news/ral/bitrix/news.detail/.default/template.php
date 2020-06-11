@@ -23,7 +23,7 @@ $this->setFrameMode(true);
 <div class="catalog-sections-list cl">
     <?foreach ($arResult['SECTIONS'] as $arSection):?>
         <div class="catalog-sections-list__item">
-            <a href="<?=$arSection['SECTION_PAGE_URL']?>filter/proizvoditel-is-<?=$arSection['VALUE_XML_ID']?>/apply/" class="link">
+            <a href="<?=$arSection['SECTION_PAGE_URL']?>filter/<?=$arSection['TSVET_RAL_CODE']?>-is-<?=$arSection['VALUE_XML_ID']?>/apply/" class="link">
                 <img alt="<?=$arSection['NAME']?>" src="<?=$arSection['PICTURE'];?>" height="120" class="img">
                 <span class="name"><?=$arSection['NAME'];?></span>
             </a>

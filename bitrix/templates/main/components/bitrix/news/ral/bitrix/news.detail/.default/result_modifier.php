@@ -19,7 +19,8 @@ if($arResult['PROPERTIES']['CODE']['VALUE'] && is_numeric($arParams['CATALOG_IBL
         $arResult['ITEMS'][$arFields['ID']]['PREVIEW_PICTURE'] = CFile::GetPath($arFields['PREVIEW_PICTURE']);
         $arResult['ITEMS'][$arFields['ID']]['PROPERTIES'] = $arProps;
         $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['ID'] = $arFields['IBLOCK_SECTION_ID'];
-        $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['VALUE_XML_ID'] = $arProps['PROIZVODITEL']['VALUE_XML_ID'];
+        $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['VALUE_XML_ID'] = $arProps['TSVET_RAL']['VALUE_XML_ID'];
+        $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['TSVET_RAL_CODE'] = mb_strtolower($arProps['TSVET_RAL']['CODE']);
     }
 
     if(count($arResult['SECTIONS']) > 0){
@@ -27,6 +28,7 @@ if($arResult['PROPERTIES']['CODE']['VALUE'] && is_numeric($arParams['CATALOG_IBL
             $res = CIBlockSection::GetByID($arSection["ID"]);
             if($ar_res = $res->GetNext()){
                 $ar_res['VALUE_XML_ID'] = $arSection['VALUE_XML_ID'];
+                $ar_res['TSVET_RAL_CODE'] = $arSection['TSVET_RAL_CODE'];
                 $arSection = $ar_res;
                 $arSection['PICTURE'] = CFile::GetPath($arSection['PICTURE']);
             }
