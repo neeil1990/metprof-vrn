@@ -13,37 +13,38 @@
 $this->setFrameMode(true);
 
 if($_REQUEST['q'])
-$GLOBALS['filter_brand'] = array('NAME' => trim($_REQUEST['q']));
+$GLOBALS['filter_name'] = array('NAME' => trim($_REQUEST['q']));
 ?>
 
 <div class="row">
     <div class="h1">Цвета RAL</div>
     <?if($arParams["USE_SEARCH"]=="Y"):?>
-        <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title.brand", Array(
-            "CATEGORY_0" => array(	// Ограничение области поиска
-                0 => "iblock_1c_catalog",
+        <?$APPLICATION->IncludeComponent("bitrix:search.title", "search.title.brand",
+            array(
+                "CATEGORY_0" => array(
+                    0 => "iblock_news",
+                ),
+                "CATEGORY_0_TITLE" => "",
+                "CATEGORY_0_iblock_news" => array(
+                    0 => $arParams["IBLOCK_ID"],
+                ),
+                "CATEGORY_0_iblock_contact" => array(
+                    0 => "all",
+                ),
+                "CATEGORY_0_main" => array(
+                ),
+                "CHECK_DATES" => "N",
+                "CONTAINER_ID" => "title-search",
+                "INPUT_ID" => "title-search-input",
+                "NUM_CATEGORIES" => "1",
+                "ORDER" => "date",
+                "PAGE" => "#SITE_DIR#ral/",
+                "SHOW_INPUT" => "Y",
+                "SHOW_OTHERS" => "N",
+                "TOP_COUNT" => "5",
+                "USE_LANGUAGE_GUESS" => "N",
+                "COMPONENT_TEMPLATE" => ".default"
             ),
-            "CATEGORY_0_TITLE" => "",	// Название категории
-            "CATEGORY_0_iblock_1c_catalog" => array(	// Искать в информационных блоках типа "iblock_1c_catalog"
-                0 => $arParams["IBLOCK_ID"],
-            ),
-            "CATEGORY_0_iblock_contact" => array(
-                0 => "all",
-            ),
-            "CATEGORY_0_main" => array(
-                0 => "",
-            ),
-            "CHECK_DATES" => "N",	// Искать только в активных по дате документах
-            "CONTAINER_ID" => "title-search",	// ID контейнера, по ширине которого будут выводиться результаты
-            "INPUT_ID" => "title-search-input",	// ID строки ввода поискового запроса
-            "NUM_CATEGORIES" => "1",	// Количество категорий поиска
-            "ORDER" => "date",	// Сортировка результатов
-            "PAGE" => "#SITE_DIR#ral/",	// Страница выдачи результатов поиска (доступен макрос #SITE_DIR#)
-            "SHOW_INPUT" => "Y",	// Показывать форму ввода поискового запроса
-            "SHOW_OTHERS" => "N",	// Показывать категорию "прочее"
-            "TOP_COUNT" => "5",	// Количество результатов в каждой категории
-            "USE_LANGUAGE_GUESS" => "N",	// Включить автоопределение раскладки клавиатуры
-        ),
             $component
         );?>
     <?endif?>
