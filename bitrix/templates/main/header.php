@@ -15,7 +15,6 @@ $pages   = explode('/', $pages);
 $is_main = (($APPLICATION -> GetCurDir() == '/') || ($APPLICATION -> GetCurDir() == SITE_DIR)) && !$error_404;
 $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'catalog' && $pages[2]);
 ?>
-
 <!DOCTYPE html>
 <html lang="ru">
 	<head>
@@ -197,12 +196,8 @@ height="0" style="display:none;visibility:hidden"></iframe></noscript>
 									<div class="hours"><?= tplvar('week-two', true);?></div>
 								</div>
 								<div class="line cl">
-									<div class="days">CБ</div>
+									<div class="days">CБ-ВС</div>
 									<div class="hours"><?= tplvar('saturday', true);?></div>
-								</div>
-								<div class="line cl">
-									<div class="days">ВС</div>
-									<div class="hours"><span class="weekend"><?= tplvar('sun', true);?></span></div>
 								</div>
 							</div><!--end::mm__timework-->
 							<a href="#" class="header__letter show-popup" data-id="mailus">Написать письмо</a>
@@ -270,11 +265,7 @@ height="0" style="display:none;visibility:hidden"></iframe></noscript>
 								<div class="hours"><?= tplvar('week-two', true);?></div>
 							</div>
 							<div class="line cl">
-								<div class="days">CБ</div>
-								<div class="hours"><?= tplvar('saturday', true);?></div>
-							</div>
-							<div class="line cl">
-								<div class="days">ВС</div>
+								<div class="days">СБ-ВС</div>
 								<div class="hours"><span class="weekend"><?= tplvar('sun', true);?></span></div>
 							</div>
 						</div>

@@ -9,7 +9,7 @@ if($arResult['PROPERTIES']['CODE']['VALUE'] && is_numeric($arParams['CATALOG_IBL
         "PREVIEW_PICTURE",
         "PROPERTY_CML2_BASE_UNIT"
     );
-    $arFilter = Array("IBLOCK_ID" => $arParams['CATALOG_IBLOCK_ID'], "PROPERTY_TSVET_RAL_VALUE" => $arResult['PROPERTIES']['CODE']['VALUE']);
+    $arFilter = Array("IBLOCK_ID" => $arParams['CATALOG_IBLOCK_ID'], "PROPERTY_SVOYSTVA_TSVETA_VALUE" => $arResult['PROPERTIES']['CODE']['VALUE']);
     $res = CIBlockElement::GetList(Array(), $arFilter, false, false, $arSelect);
     while ($ob = $res->GetNextElement()) {
         $arFields = $ob->GetFields();
@@ -19,8 +19,8 @@ if($arResult['PROPERTIES']['CODE']['VALUE'] && is_numeric($arParams['CATALOG_IBL
         $arResult['ITEMS'][$arFields['ID']]['PREVIEW_PICTURE'] = CFile::GetPath($arFields['PREVIEW_PICTURE']);
         $arResult['ITEMS'][$arFields['ID']]['PROPERTIES'] = $arProps;
         $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['ID'] = $arFields['IBLOCK_SECTION_ID'];
-        $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['VALUE_XML_ID'] = $arProps['TSVET_RAL']['VALUE_XML_ID'];
-        $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['TSVET_RAL_CODE'] = mb_strtolower($arProps['TSVET_RAL']['CODE']);
+        $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['VALUE_XML_ID'] = $arProps['SVOYSTVA_TSVETA']['VALUE_XML_ID'];
+        $arResult['SECTIONS'][$arFields['IBLOCK_SECTION_ID']]['SVOYSTVA_TSVETA_CODE'] = mb_strtolower($arProps['SVOYSTVA_TSVETA']['CODE']);
     }
 
     if(count($arResult['SECTIONS']) > 0){
@@ -28,7 +28,7 @@ if($arResult['PROPERTIES']['CODE']['VALUE'] && is_numeric($arParams['CATALOG_IBL
             $res = CIBlockSection::GetByID($arSection["ID"]);
             if($ar_res = $res->GetNext()){
                 $ar_res['VALUE_XML_ID'] = $arSection['VALUE_XML_ID'];
-                $ar_res['TSVET_RAL_CODE'] = $arSection['TSVET_RAL_CODE'];
+                $ar_res['SVOYSTVA_TSVETA_CODE'] = $arSection['SVOYSTVA_TSVETA_CODE'];
                 $arSection = $ar_res;
                 $arSection['PICTURE'] = CFile::GetPath($arSection['PICTURE']);
             }
