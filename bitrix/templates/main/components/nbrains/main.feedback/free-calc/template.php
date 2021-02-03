@@ -73,7 +73,7 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 		</div>
 
 		<input type="hidden" name="PARAMS_HASH" value="<?=$arResult["PARAMS_HASH"]?>">
-		<input type="submit" class="send roi_free_calc" name="submit" value="<?=GetMessage("MFT_SUBMIT")?>">
+        <button class="send roi_free_calc"><?=GetMessage("MFT_SUBMIT")?></button>
 
 </form>
 

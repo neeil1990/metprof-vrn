@@ -97,12 +97,10 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 				</div>
 			<?endif;?>
 
-
 			<span class="line submit">
 				<input type="hidden" name="PARAMS_HASH" value="<?=$arResult["PARAMS_HASH"]?>">
-				<input type="submit" name="submit" class="roi_buy_one_click" value="<?=GetMessage("MFT_SUBMIT")?>">
+                <button class="send roi_buy_one_click"><?=GetMessage("MFT_SUBMIT")?></button>
 			</span>
-
 
 		</fieldset>
 	</form>

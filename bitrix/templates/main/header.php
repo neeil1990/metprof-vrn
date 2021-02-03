@@ -10,7 +10,7 @@ use Bitrix\Main\Application,
 
 if(defined("ERROR_404") && ERROR_404){ $error_404 = true; }
 
-$pages   = $APPLICATION -> GetCurDir();     
+$pages   = $APPLICATION -> GetCurDir();
 $pages   = explode('/', $pages);
 $is_main = (($APPLICATION -> GetCurDir() == '/') || ($APPLICATION -> GetCurDir() == SITE_DIR)) && !$error_404;
 $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'catalog' && $pages[2]);
@@ -27,7 +27,7 @@ $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'cat
     var js = d.createElement(s); js.charset="UTF-8"; js.async = 1; js.src = p+h+u; var js2 = d.getElementsByTagName(s)[0]; js2.parentNode.insertBefore(js, js2);
 })(window, document, 'script', 'cloud.roistat.com', 'cc563f216e9979c2d9c12cfcd7e3a05c');
 </script>
-        
+
 		<title><?$APPLICATION->ShowTitle()?></title>
 		<script src="https://cdnjs.cloudflare.com/ajax/libs/modernizr/2.8.3/modernizr.min.js"></script>
 		<!-- JavaScript -->
@@ -36,6 +36,8 @@ $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'cat
 		<link rel="stylesheet" href="//cdn.jsdelivr.net/alertifyjs/1.10.0/css/alertify.min.css"/>
 		<!-- Default theme -->
 		<link rel="stylesheet" href="//cdn.jsdelivr.net/alertifyjs/1.10.0/css/themes/default.min.css"/>
+
+        <script src="https://www.google.com/recaptcha/api.js?render=6LezVEgaAAAAAKzoeExCbnYHBOc8sf974RuGrDEX"></script>
 
 		<?
 		$APPLICATION->ShowHead();
@@ -277,8 +279,8 @@ height="0" style="display:none;visibility:hidden"></iframe></noscript>
 					<div class="wr cl">
 						<div class="header__catalog cl">
 							<?$APPLICATION->IncludeComponent(
-	"bitrix:catalog.section.list", 
-	"top-menu-catalog", 
+	"bitrix:catalog.section.list",
+	"top-menu-catalog",
 	array(
 		"ADD_SECTIONS_CHAIN" => "Y",
 		"CACHE_GROUPS" => "Y",
@@ -309,8 +311,8 @@ height="0" style="display:none;visibility:hidden"></iframe></noscript>
 					<div class="header__action">
 
 						<?$APPLICATION->IncludeComponent(
-	"bitrix:news.list", 
-	"last-sale", 
+	"bitrix:news.list",
+	"last-sale",
 	array(
 		"ACTIVE_DATE_FORMAT" => "d.m.Y",
 		"ADD_SECTIONS_CHAIN" => "N",
@@ -425,8 +427,8 @@ height="0" style="display:none;visibility:hidden"></iframe></noscript>
 	        <div class="mp__banners cl">
 
 				<?$APPLICATION->IncludeComponent(
-	"bitrix:news.list", 
-	"slider-home", 
+	"bitrix:news.list",
+	"slider-home",
 	array(
 		"ACTIVE_DATE_FORMAT" => "d.m.Y",
 		"ADD_SECTIONS_CHAIN" => "Y",
@@ -494,8 +496,8 @@ height="0" style="display:none;visibility:hidden"></iframe></noscript>
 );?>
 
 				<?$APPLICATION->IncludeComponent(
-	"bitrix:news.list", 
-	"baners-home", 
+	"bitrix:news.list",
+	"baners-home",
 	array(
 		"ACTIVE_DATE_FORMAT" => "d.m.Y",
 		"ADD_SECTIONS_CHAIN" => "Y",
@@ -569,7 +571,7 @@ height="0" style="display:none;visibility:hidden"></iframe></noscript>
          		<?if(!$is_main && $pages[1] !== 'basket' && !($pages[1] == 'catalog' && $pages[3])){?>
 	            <div class="page_content">
 	            	<?if(!$noh1){?>
-	               	
+
 	               	<?$APPLICATION->IncludeComponent("bitrix:menu", "section", Array(
 						"ALLOW_MULTI_SELECT" => "N",	// Разрешить несколько активных пунктов одновременно
 							"CHILD_MENU_TYPE" => "top",	// Тип меню для остальных уровней

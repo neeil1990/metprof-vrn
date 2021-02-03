@@ -471,8 +471,8 @@ $(function(){
             console.log("Вы уже ученый!");
         }
     }, "json");
-	
-	
+
+
 	  $('.ym-goal-subscribe-price').submit(function(e) {
         var $form = $(this);
         $.ajax({
@@ -486,12 +486,27 @@ $(function(){
           alertify.error("Произошла ошибка. Попробуйте повторить запрос позже");
         });
         //отмена действия по умолчанию для кнопки submit
-        e.preventDefault(); 
+        e.preventDefault();
       });
 
+    $('body').on('click','form button', function(e) {
+        e.preventDefault();
+        var self = $(this);
+        grecaptcha.ready(function() {
+            grecaptcha.execute('6LezVEgaAAAAAKzoeExCbnYHBOc8sf974RuGrDEX', {action: 'submit'}).then(function(token) {
+                // Add your logic to submit to your backend server here.
+                $.post( "/ajax/captcha.php", { g_recaptcha: token }, function( data ) {
+                    if(data.score >= 0.7){
+                        self.closest('form').submit();
+                    }else{
+                        return false;
+                    }
+                }, "json");
 
-
-
+                return false;
+            });
+        });
+    });
 
 });
 

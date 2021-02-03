@@ -37,7 +37,7 @@ foreach($arParams['PROPERTY_CODE'] as $code){
 }
 
 
-if($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["submit"] <> '' && (!isset($_POST["PARAMS_HASH"]) || $arResult["PARAMS_HASH"] === $_POST["PARAMS_HASH"]))
+if($_SERVER["REQUEST_METHOD"] == "POST" && (!isset($_POST["PARAMS_HASH"]) || $arResult["PARAMS_HASH"] === $_POST["PARAMS_HASH"]))
 {
 
 
@@ -113,7 +113,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["submit"] <> '' && (!isset($_P
 					$arFields[$field['CODE']] = trim(strip_tags($_POST[$field['CODE']]));
 				}
 				$arFields["EMAIL_TO"] = $arParams["EMAIL_TO"];
-			}			
+			}
 			if(!empty($arParams["EVENT_MESSAGE_ID"]))
 			{
 				foreach($arParams["EVENT_MESSAGE_ID"] as $v)
@@ -122,7 +122,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["submit"] <> '' && (!isset($_P
 			}
 			else
 			CEvent::Send($arParams["EVENT_NAME"], SITE_ID, $arFields);
-		
+
 			LocalRedirect($APPLICATION->GetCurPageParam("success=".$arResult["PARAMS_HASH"], Array("success")));
 		}
 
