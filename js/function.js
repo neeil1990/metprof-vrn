@@ -488,24 +488,20 @@ $(function(){
         //отмена действия по умолчанию для кнопки submit
         e.preventDefault();
       });
-
-    $('body').on('click','form button', function(e) {
-        e.preventDefault();
+	  
+	  
+	$('body').on('click','form input[type="submit"]', function(e) {   
         var self = $(this);
         grecaptcha.ready(function() {
             grecaptcha.execute('6LezVEgaAAAAAKzoeExCbnYHBOc8sf974RuGrDEX', {action: 'submit'}).then(function(token) {
                 // Add your logic to submit to your backend server here.
-                $.post( "/ajax/captcha.php", { g_recaptcha: token }, function( data ) {
-                    if(data.score >= 1){
-                        self.closest('form').submit();
-                    }else{
-                        return false;
-                    }
-                }, "json");
-
-                return false;
+				var form = self.closest('form');
+				form.prepend($('<input>').attr({name : 'g-recaptcha-response', type : 'hidden', value : token}));
+				self.remove();
+				form.submit();
             });
         });
+		return false;
     });
 
 });

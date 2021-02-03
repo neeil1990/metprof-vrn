@@ -37,7 +37,7 @@ $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'cat
 		<!-- Default theme -->
 		<link rel="stylesheet" href="//cdn.jsdelivr.net/alertifyjs/1.10.0/css/themes/default.min.css"/>
 
-        <script src="https://www.google.com/recaptcha/api.js?render=6LezVEgaAAAAAKzoeExCbnYHBOc8sf974RuGrDEX"></script>
+         <script src="https://www.google.com/recaptcha/api.js?render=6LezVEgaAAAAAKzoeExCbnYHBOc8sf974RuGrDEX"></script>
 
 		<?
 		$APPLICATION->ShowHead();

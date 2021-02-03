@@ -38,9 +38,7 @@ foreach($arParams['PROPERTY_CODE'] as $code){
 
 
 if($_SERVER["REQUEST_METHOD"] == "POST" && (!isset($_POST["PARAMS_HASH"]) || $arResult["PARAMS_HASH"] === $_POST["PARAMS_HASH"]))
-{
-
-
+{	
 	$arResult["ERROR_MESSAGE"] = array();
 	if(check_bitrix_sessid())
 	{
@@ -51,6 +49,14 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && (!isset($_POST["PARAMS_HASH"]) || $ar
 					$arResult["ERROR_MESSAGE"][] = GetMessage("FIELD_ERROR").': '.$field['NAME'];
 			}
 		}
+		
+		if($g_recaptcha_response = $_POST['g-recaptcha-response']){
+			$response = json_decode(file_get_contents("https://www.google.com/recaptcha/api/siteverify?secret=6LezVEgaAAAAABpYkkwf8h1b3UL4BWivLDKSG3Lb&response=".$g_recaptcha_response."&remoteip=".$_SERVER["REMOTE_ADDR"]),true);
+			if (($response["success"] && $response["score"] <= 0.7)){
+				$arResult["ERROR_MESSAGE"][] = GetMessage("MF_CAPTCHA_WRONG");
+			}
+		}else
+			$arResult["ERROR_MESSAGE"][] = GetMessage("MF_CAPTHCA_EMPTY");
 
 		if($arParams["USE_CAPTCHA"] == "Y")
 		{

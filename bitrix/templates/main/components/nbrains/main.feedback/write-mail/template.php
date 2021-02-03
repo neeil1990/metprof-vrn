@@ -40,7 +40,8 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 	<div class="title">Написать письмо</div>
 	<div class="subtitle">Если у Вас возник вопрос или Вы хотите оставить комментарий, воспользуйтесь формой обратной связи. Наши специалисты свяжутся с Вами в ближайшее время.</div>
 
-<form action="<?=POST_FORM_ACTION_URI?>" method="POST" enctype="multipart/form-data">
+<form action="<?=POST_FORM_ACTION_URI?>" method="POST" enctype="multipart/form-data" id="<?=$arResult["PARAMS_HASH"]?>">
+
 
 <?=bitrix_sessid_post()?>
 
@@ -90,18 +91,14 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 
 		<span class="line submit">
 			<input type="hidden" name="PARAMS_HASH" value="<?=$arResult["PARAMS_HASH"]?>">
-            <button class="roi_mail"><?=GetMessage("MFT_SUBMIT")?></button>
+			<input type="submit" name="submit" class="roi_mail" value="<?=GetMessage("MFT_SUBMIT")?>">	 
 		</span>
-
-
-
-
 
 	</fieldset>
 
 </form>
 
-
+				
 </div>
 
 
