@@ -423,7 +423,7 @@ break;
 
             <? if($arOffers['DISCOUNT_VALUE']): ?>
                 <span id="popover-button-cart">
-                    <a class="button button-primary button-block text-center toShopBox" id="button-cart-offers" data-toggle="tooltip" data-placement="top" title="необходимо ввести количество">Добавить в корзину</a>
+                    <a class="button button-primary button-block text-center toShopBox" id="button-cart-offers" data-toggle="tooltip" data-placement="top" title="необходимо ввести количество">Купить</a>
                 </span>
             <?else:?>
                 <a href="javascript:void(0)" class="add2cart show-popup" data-id="order-product">Товар под заказ</a>

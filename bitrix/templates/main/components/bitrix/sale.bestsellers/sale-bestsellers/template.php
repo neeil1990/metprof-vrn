@@ -18,7 +18,7 @@ $this->setFrameMode(true);
 			</a>
 			<a href="<?=$item['DETAIL_PAGE_URL']?>" class="name"><?=$item['NAME']?></a>
 			<div class="price"><span><?=price($item['ID']);?></span> &#8381;/<?=$item['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
-			<a href="<?=$item["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>
+			<a href="<?=$item["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 		</div>
 	</div>
 	<? endforeach; ?>

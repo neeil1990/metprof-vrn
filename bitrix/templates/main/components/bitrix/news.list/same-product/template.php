@@ -32,7 +32,7 @@ if($arResult["ITEMS"]):
 			</div>
 
 			<?if($arItem['PROPERTIES']['DLINA_TEST']['VALUE']):?>
-				<a href="<?=$arItem["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>
+				<a href="<?=$arItem["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 			<?else:?>
 				<a href="javascript:void(0);" onclick="addToBasket2(<?=$arItem['OFFERS']['ID']?>, 1,this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);" class="cart">Купить</a>
 			<?endif;?>

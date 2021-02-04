@@ -79,7 +79,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 				<? endforeach; ?>
 			</div><!-- row cl category__line-->
 			<? endfor; ?>
-			
+
 		</div><!-- end: tabitem -->
 		<? endforeach; ?>
       	<div class="tabitem"></div>
@@ -93,13 +93,13 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
    	<div class="tabs">
       	<span class="tab active">Популярные товары</span>
       	<span class="tab">Новые поступления</span>
-      	<span class="tab">Акции и скидки</span> 
+      	<span class="tab">Акции и скидки</span>
    	</div><!--end::tabs-->
 	<div class="tab_content">
 		<div class="tab_item ac">
 			<?$APPLICATION->IncludeComponent(
-	"bitrix:sale.bestsellers", 
-	"sale-bestsellers", 
+	"bitrix:sale.bestsellers",
+	"sale-bestsellers",
 	array(
 		"ACTION_VARIABLE" => "action",
 		"ADDITIONAL_PICT_PROP_10" => "MORE_PHOTO",
@@ -246,7 +246,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 							</a>
 							<a href="<?=$arFields['DETAIL_PAGE_URL']?>" class="name"><?=$arFields['NAME']?></a>
 							<div class="price"><span><?=price($arFields['ID']);?></span> &#8381;/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
-							<a href="<?=$arFields["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>
+							<a href="<?=$arFields["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 						</div>
 					</div>
 				<? endwhile; ?>
@@ -269,7 +269,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 						</a>
 						<a href="<?=$arFields['DETAIL_PAGE_URL']?>" class="name"><?=$arFields['NAME']?></a>
 						<div class="price"><span><?=price($arFields['ID']);?></span> &#8381;/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
-						<a href="<?=$arFields["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>
+						<a href="<?=$arFields["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 					</div>
 				</div>
 				<? endwhile; ?>
@@ -300,8 +300,8 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 	</div>
 	<div class="mp__articles cl">
 		<?$APPLICATION->IncludeComponent(
-	"bitrix:news.list", 
-	"news-list-home", 
+	"bitrix:news.list",
+	"news-list-home",
 	array(
 		"ACTIVE_DATE_FORMAT" => "j F Y",
 		"ADD_SECTIONS_CHAIN" => "N",
@@ -366,8 +366,8 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 );?>
 
 		<?$APPLICATION->IncludeComponent(
-	"bitrix:news.list", 
-	"articles-list-home", 
+	"bitrix:news.list",
+	"articles-list-home",
 	array(
 		"ACTIVE_DATE_FORMAT" => "j F Y",
 		"ADD_SECTIONS_CHAIN" => "N",

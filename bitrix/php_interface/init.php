@@ -100,7 +100,7 @@ function buttonName($IBLOCK_ID,$SECTION_ID){
 
         }
     }
-    return "Подробнее";
+    return "Купить";
 }
 
 

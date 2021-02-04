@@ -152,7 +152,7 @@ $areaIds = array();
 						<?}?>
 					</div>
 					<?if($item['PROPERTIES']['DLINA_TEST']['VALUE']):?>
-						<a href="<?=$item["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>
+						<a href="<?=$item["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 					<?else:?>
 						<a href="javascript:void(0);" onclick="addToBasket2(<?=$arOffers['ID']?>, 1,this,<?=$item['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);" class="cart">Купить</a>
 					<?endif;?>
