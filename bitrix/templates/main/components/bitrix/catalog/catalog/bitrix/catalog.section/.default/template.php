@@ -181,7 +181,7 @@ if (!empty($arResult['ITEMS']))
                     <div style="display: none;"><?=$arOffers['QUANTITY']?></div>
                     <?if($arOffers['QUANTITY'] > 0 and !$arItem['IS_M2']):?>
                       <a href="javascript:void(0)" class="add2cart">
-                        <span class="txt1" onclick="if(document.body.clientWidth < 659){addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>)};">В корзину</span>
+                        <span class="txt1" onclick="if(document.body.clientWidth < 659){addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>)};">Купить</span>
                         <span class="txt2" onclick="addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);">Добавить в корзину</span>
                       </a>
                     <?else:?>

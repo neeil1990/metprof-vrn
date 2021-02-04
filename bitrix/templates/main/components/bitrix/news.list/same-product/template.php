@@ -34,7 +34,7 @@ if($arResult["ITEMS"]):
 			<?if($arItem['PROPERTIES']['DLINA_TEST']['VALUE']):?>
 				<a href="<?=$arItem["DETAIL_PAGE_URL"]?>" class="cart">Подробнее</a>
 			<?else:?>
-				<a href="javascript:void(0);" onclick="addToBasket2(<?=$arItem['OFFERS']['ID']?>, 1,this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);" class="cart">В корзину</a>
+				<a href="javascript:void(0);" onclick="addToBasket2(<?=$arItem['OFFERS']['ID']?>, 1,this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);" class="cart">Купить</a>
 			<?endif;?>
 		</div>
 	</div>

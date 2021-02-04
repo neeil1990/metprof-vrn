@@ -157,7 +157,7 @@ foreach($arResult['OFFERS'] as $offer){
               <?if(!$arResult['IS_M2']):?>
 
                   <? if($arOffers['DISCOUNT_VALUE'] and $arOffers['QUANTITY'] > 0): ?>
-                      <a href="javascript:void(0)" class="add2cart" onclick="addToBasket2(<?=$arOffers['ID']?>, $('#count_product').val(),this,<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);">Добавить в корзину</a>
+                      <a href="javascript:void(0)" class="add2cart" onclick="addToBasket2(<?=$arOffers['ID']?>, $('#count_product').val(),this,<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);">Купить</a>
                   <?else:?>
                       <a href="javascript:void(0)" class="add2cart show-popup" data-id="order-product">Товар под заказ</a>
                   <?endif;?>

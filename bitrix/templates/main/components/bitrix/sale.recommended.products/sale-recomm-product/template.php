@@ -22,7 +22,7 @@ $this->setFrameMode(true);
 						<div class="cost"><span><?=$arItem['PRICE'];?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
 						<a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="txt"><?=$arItem['NAME']?></a>
 						<? if((float)$arItem['PRICE']): ?>
-							<a href="javascript:void(0)" onclick="addToBasket2(<?=$arItem['ID']?>,1,this,5);" class="add2cart">В корзину</a>
+							<a href="javascript:void(0)" onclick="addToBasket2(<?=$arItem['ID']?>,1,this,5);" class="add2cart">Купить</a>
 						<? else: ?>
 							<a href="javascript:void(0)" class="add2cart show-popup" data-id="order-product">под заказ</a>
 						<? endif; ?>

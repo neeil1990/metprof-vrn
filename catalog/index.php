@@ -34,7 +34,7 @@ $APPLICATION->SetTitle("Каталог");
 </div>
 <?
 if(empty($_REQUEST['PAGE_ELEMENT_COUNT'])){
-	$_REQUEST['PAGE_ELEMENT_COUNT'] = 20;
+	$_REQUEST['PAGE_ELEMENT_COUNT'] = 40;
 }
 if(empty($_REQUEST['ELEMENT_SORT_FIELD'])){
 	$_REQUEST['ELEMENT_SORT_FIELD'] = "shows";
@@ -47,8 +47,8 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 ?>
 
 <?$APPLICATION->IncludeComponent(
-	"bitrix:catalog", 
-	"catalog", 
+	"bitrix:catalog",
+	"catalog",
 	array(
 		"ACTION_VARIABLE" => "action",
 		"HIDDEN_PROPERTY_CODE" => array(
