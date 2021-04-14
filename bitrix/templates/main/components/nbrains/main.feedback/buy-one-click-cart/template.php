@@ -71,6 +71,7 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 					$allPrice = array();
 					ob_start();
 					?>
+                    <? if($dbBasketItems->SelectedRowsCount()): ?>
 					<table width="100%" align="center" cellspacing="0" cellpadding="0" border="0" class="">
 						<tbody>
 						<!-- title -->
@@ -114,6 +115,7 @@ if(!defined("B_PROLOG_INCLUDED")||B_PROLOG_INCLUDED!==true)die();
 						<!-- Spacing -->
 						</tbody>
 					</table>
+                    <? endif; ?>
 					<?
 					$strOrderList = ob_get_contents();
 					ob_end_clean();
