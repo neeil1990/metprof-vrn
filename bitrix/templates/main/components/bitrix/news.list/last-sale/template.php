@@ -12,13 +12,15 @@
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
 ?>
-<span class="action__title"><?=$arParams["PAGER_TITLE"]?></span>
+<span class="action__title" onclick="window.location.href='/sale/'"><?=$arParams["PAGER_TITLE"]?></span>
+<? if($arResult["ITEMS"]): ?>
 <ul class="action__list">
 	<?foreach($arResult["ITEMS"] as $arItem):?>
 		<li><a href="<?=$arItem["DETAIL_PAGE_URL"]?>"><?echo $arItem["NAME"]?></a></li>
 	<?endforeach;?>
 </ul>
 <span class="action__arrow"></span>
+<? endif; ?>
 
 
 
