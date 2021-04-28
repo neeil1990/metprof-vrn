@@ -7,7 +7,7 @@ CHTTP::SetStatus("404 Not Found");
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 
 $APPLICATION->SetTitle("Страница не найдена");?>
-
+<div class="page_content">
 	<div class="bx-404-container">
 		<div class="bx-404-block"><img src="<?=SITE_DIR?>images/404.png" alt=""></div>
 		<div class="bx-404-text-block">Неправильно набран адрес, <br>или такой страницы на сайте больше не существует.</div>
@@ -69,4 +69,30 @@ $APPLICATION->SetTitle("Страница не найдена");?>
 			false
 		);?>
 	</div>
+</div>
+<style>
+	.map-level-1{
+		margin: 30px 0 !important;
+	}
+	.col-sm-offset-2{
+		margin-left: 0 !important;
+		padding-left: 0 !important;
+	}
+	.col-sm-4{
+		width: 100% !important;
+	}
+	.col-sm-offset-1 {
+		margin-left:  0 !important;
+		padding-left: 0 !important;
+	}
+	.map-columns.row{
+		margin:  0 !important;
+	}
+	.col-sm-1, .col-sm-2, .col-sm-3, .col-sm-4, .col-sm-5, .col-sm-6, .col-sm-7, .col-sm-8, .col-sm-9, .col-sm-10, .col-sm-11, .col-sm-12 {
+		float: none !important;
+	}
+	ul.map-level-0  {
+		margin: 30px 0;
+	}
+</style>
 <?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>

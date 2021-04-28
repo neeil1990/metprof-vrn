@@ -187,19 +187,19 @@ if (!empty($arResult['ITEMS']))
                     <?else:?>
                       <div class="cost_total"><span></span></div>
                       <a href="javascript:void(0)" class="add2cartOrder show-popup" data-id="order-product">Товар под заказ</a>
-                      <div class="outstock">Товар под заказ</div>
+                      
                     <?endif;?>
 
                   <?endif;?>
 
                     <?if($arOffers['QUANTITY'] > 0):?>
-                      <div class="instock">Товар в наличии</div>
+                      <div class="instock">В наличии</div>
                     <?endif;?>
 
                 <? else:?>
                   <div class="cost_total"><span></span></div>
                   <a href="javascript:void(0)" class="add2cartOrder show-popup" data-id="order-product">Товар под заказ</a>
-                  <div class="outstock">Товар под заказ</div>
+
                 <? endif; ?>
 
               </div>
@@ -229,7 +229,39 @@ if (!empty($arResult['ITEMS']))
       </div>
     </div><!--end::products_roll-->
 
-    <?
+<?
+global $menuTag;
+if($menuTag):?>
+	<?if(count($menuTag)>5):?>
+		<div class="slider_product_show_all slider_product_b tag_menu_b" id="tag_menu_b">
+			<?
+			foreach ($menuTag as $tag)
+			{
+				?>
+					<div>
+						<a href="<?=$tag[1]?>"><?=$tag[0]?></a>
+					</div>
+				<?
+			}
+			?>
+		</div>
+	<?endif;?>
+	<div class="slider_product_show_all slider_product_b tag_menu_b" <?if(count($menuTag)>5):?>style="display:none;"<?endif;?> id="tag_menu_all">
+
+		<?
+		foreach ($menuTag as $tag)
+		{
+			?>
+
+					<a href="<?=$tag[1]?>"><?=$tag[0]?></a>
+
+			<?
+		}
+		?>
+	</div>
+<div class="navi"><span class="open" style="display: inline;">Показать все</span><span hidden="" class="close" style="display: none;">Свернуть</span></div>
+<?endif;?>
+<?
         $APPLICATION->IncludeComponent(
   "bitrix:catalog.products.viewed",
   "products-viewed",

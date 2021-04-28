@@ -121,45 +121,65 @@ use Bitrix\Main\ModuleManager;
 
         <?
         $APPLICATION->IncludeComponent(
-            "bitrix:catalog.section.list",
-            "catalog-menu",
-            array(
-                "ADD_SECTIONS_CHAIN" => "Y",
-                "CACHE_GROUPS" => "Y",
-                "CACHE_TIME" => "36000000",
-                "CACHE_TYPE" => "A",
-                "COUNT_ELEMENTS" => "Y",
-                "IBLOCK_ID" => $arParams["IBLOCK_ID"],
-                "IBLOCK_TYPE" => "1c_catalog",
-                "SECTION_CODE" => "",
-                "SECTION_FIELDS" => array(
-                    0 => "",
-                    1 => "",
-                ),
-                "SECTION_ID" => $_REQUEST["SECTION_ID"],
-                "SECTION_URL" => "",
-                "SECTION_USER_FIELDS" => array(
-                    0 => "",
-                    1 => "",
-                ),
-                "VARIABLES" => $arResult["VARIABLES"]["SECTION_CODE"],
-                "SHOW_PARENT_NAME" => "Y",
-                "TOP_DEPTH" => "3",
-                "VIEW_MODE" => "LINE",
-                "COMPONENT_TEMPLATE" => "catalog-menu"
-            ),
-            false
-        );?>
+	"bitrix:catalog.section.list", 
+	"catalog-menu", 
+	array(
+		"ADD_SECTIONS_CHAIN" => "Y",
+		"CACHE_GROUPS" => "Y",
+		"CACHE_TIME" => "36000000",
+		"CACHE_TYPE" => "A",
+		"COUNT_ELEMENTS" => "Y",
+		"IBLOCK_ID" => $arParams["IBLOCK_ID"],
+		"IBLOCK_TYPE" => "1c_catalog",
+		"SECTION_CODE" => "",
+		"SECTION_FIELDS" => array(
+			0 => "",
+			1 => "",
+		),
+		"SECTION_ID" => $_REQUEST["SECTION_ID"],
+		"SECTION_URL" => "",
+		"SECTION_USER_FIELDS" => array(
+			0 => "",
+			1 => "UF_TAG",
+		),
+		"VARIABLES" => $arResult["VARIABLES"]["SECTION_CODE"],
+		"SHOW_PARENT_NAME" => "Y",
+		"TOP_DEPTH" => "3",
+		"VIEW_MODE" => "LINE",
+		"COMPONENT_TEMPLATE" => "catalog-menu"
+	),
+	false
+);?>
 
 
         <div class="cat pricel">
             <a href="/price/" class="name"><div class="cube"><span></span><span></span></div>Прайс-листы</a>
         </div>
 
+		<?
+		  global $menuTag;
+		  $arFilterTag = Array('IBLOCK_ID'=>$arParams["IBLOCK_ID"], 'CODE'=>$arResult["VARIABLES"]["SECTION_CODE"]);
+		  $db_listTag = CIBlockSection::GetList(Array($by=>$order), $arFilterTag, true, Array("UF_TAG"));
+		  while($ar_resultTag = $db_listTag->GetNext())
+		  {
+			if($ar_resultTag["UF_TAG"]){
+				foreach($ar_resultTag["UF_TAG"] as $tag){
+					$menuTag[] = explode("##",$tag);
+				}
+			}
+		  }
+		?>
+		<?if($menuTag):?>
+			<div class="tag_menu">
+				<?foreach($menuTag as $tag):?>
+					<a href="<?=$tag[1]?>"><?=$tag[0]?></a>
+				<?endforeach;?>
+			</div>
+		<?endif;?>
     </div>
 
     <div class="ct__content">
-        <div class="h1"><? $APPLICATION->ShowTitle(false, false); ?></div>
+        <h1 class="h1"><? $APPLICATION->ShowTitle(false, false); ?></h1>
 
         <?
         $sectionID = $APPLICATION->IncludeComponent(

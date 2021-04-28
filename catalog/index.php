@@ -440,4 +440,11 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 	);?>
 </div>
 <? endif; ?>
- <br><?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>
+ <br>
+<?
+	global $ufH;
+	if($ufH){
+		$APPLICATION->SetTitle($ufH);
+	}
+?>
+<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/footer.php");?>

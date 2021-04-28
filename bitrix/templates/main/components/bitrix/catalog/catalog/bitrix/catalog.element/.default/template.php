@@ -195,6 +195,9 @@ foreach($arResult['OFFERS'] as $offer){
                   if (!empty($arResult['PROPERTIES']))
                   {
                      foreach($arResult['PROPERTIES'] as $property){
+						 if($property["CODE"]=='NAME_SEO'){
+							continue;
+						}
                          if(
                              $property['CODE']
                              and !in_array($property['CODE'], $arParams['HIDDEN_PROPERTY_CODE'])

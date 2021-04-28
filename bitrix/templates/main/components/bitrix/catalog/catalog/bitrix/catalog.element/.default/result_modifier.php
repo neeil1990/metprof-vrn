@@ -617,7 +617,8 @@ if($arResult['PROPERTIES']['MORE_PHOTO']['VALUE']){
 	$arResult['PROPERTIES']['MORE_PHOTO']['VALUE'] = array($arResult['DETAIL_PICTURE']['ID']);
 }
 
-$arResult['NAME'] = preg_replace('#(~(.*?)~)#is', '', $arResult['NAME']);
+
+      $arResult['NAME'] = preg_replace('#(~(.*?)~)#is', '', $arResult['NAME']);
 
 
 foreach($arResult['OFFERS'] as $key => $offer){
@@ -640,8 +641,18 @@ ksort($arResult['OFFERS']);
 
 $arResult['OFFERS_TABLE'] = array_chunk($arResult['OFFERS'],15,true);
 
+$res = CIBlockSection::GetByID($arResult["IBLOCK_SECTION_ID"]);
+if($ar_res = $res->GetNext()){
+   if($ar_res['CODE'] != $arParams["SECTION_CODE"]){
+		 Bitrix\Iblock\Component\Tools::process404(
+		         'Не найден', //Сообщение
+		         true, // Нужно ли определять 404-ю константу
+		         true, // Устанавливать ли статус
+		         true, // Показывать ли 404-ю страницу
+		         false // Ссылка на отличную от стандартной 404-ю
+		 );
+	   //LocalRedirect($ar_res["SECTION_PAGE_URL"].$arResult["CODE"].'/');
+   }
+}
+
 ?>
-
-
-
-
