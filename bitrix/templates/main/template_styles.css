@@ -62,10 +62,13 @@
 }
 
 .tag_menu a{
+    display: none;
 	border: 1px solid #0060bf;
-    display: block;
     margin-top: 10px;
 	padding: 7px 15px;
+}
+.tag_menu a.active{
+    display: block;
 }
 .tag_menu a:hover{
 	background:#0060bf;

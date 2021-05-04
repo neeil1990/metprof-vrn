@@ -121,8 +121,8 @@ use Bitrix\Main\ModuleManager;
 
         <?
         $APPLICATION->IncludeComponent(
-	"bitrix:catalog.section.list", 
-	"catalog-menu", 
+	"bitrix:catalog.section.list",
+	"catalog-menu",
 	array(
 		"ADD_SECTIONS_CHAIN" => "Y",
 		"CACHE_GROUPS" => "Y",
@@ -171,9 +171,12 @@ use Bitrix\Main\ModuleManager;
 		?>
 		<?if($menuTag):?>
 			<div class="tag_menu">
-				<?foreach($menuTag as $tag):?>
-					<a href="<?=$tag[1]?>"><?=$tag[0]?></a>
-				<?endforeach;?>
+				<? foreach($menuTag as $inc => $tag): ?>
+					<a href="<?=$tag[1]?>" class="<?=($inc < 5) ? 'active' : ''?>"><?=$tag[0]?></a>
+                    <? if($inc == 4): ?>
+                        <a href="javascript:void(0)" class="active" onclick="$(this).closest('.tag_menu').find('a').css('display', 'block'); $(this).hide();" style="text-align: center">Показать все</a>
+                    <? endif; ?>
+				<? endforeach; ?>
 			</div>
 		<?endif;?>
     </div>
