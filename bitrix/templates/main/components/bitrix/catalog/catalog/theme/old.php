@@ -131,6 +131,7 @@ $intSectionID = $APPLICATION->IncludeComponent(
         'SECTION_USER_FIELDS' => array(
             0 => 'UF_SECTION_TOP',
             1 => 'UF_FILTER_CATALOG',
+            2 => 'UF_PROPERTY_LIST',
         ),
         'TEMPLATE_THEME' => (isset($arParams['TEMPLATE_THEME']) ? $arParams['TEMPLATE_THEME'] : ''),
         "ADD_SECTIONS_CHAIN" => "N",

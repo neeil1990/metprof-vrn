@@ -111,6 +111,18 @@ if (!empty($arResult['ITEMS']))
                    </span>
                 </a>
                 <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="title"><?=$arItem['NAME']?></a>
+
+                <? if($arItem['DISPLAY_PROPERTIES'] && $arResult['UF_PROPERTY_LIST']): ?>
+                <div class="list-properties">
+                    <? foreach ($arItem['DISPLAY_PROPERTIES'] as $prop): ?>
+                        <div class="item-prop">
+                            <div class="title-prop"><?=$prop['NAME']?>:</div>
+                            <div class="value-prop"><?=(is_array($prop['VALUE'])) ? implode(', ', $prop['VALUE']) : $prop['VALUE']?></div>
+                        </div>
+                    <? endforeach; ?>
+                </div>
+                <? endif; ?>
+
                 <div class="cost">
                   <?if(priceDiscount($arItem['ID'])){?>
                     <span><?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
