@@ -245,7 +245,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 								<img src="<?=CFile::ResizeImageGet($arFields["PREVIEW_PICTURE"], array('width' => 150, 'height' => 150), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src'];?>" alt="" height="110" style="max-height: 110px;margin: 0 auto;" class="img">
 							</a>
 							<a href="<?=$arFields['DETAIL_PAGE_URL']?>" class="name"><?=$arFields['NAME']?></a>
-							<div class="price"><span><?=price($arFields['ID']);?></span> &#8381;/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
+							<div class="price"><span><?=price($arFields['ID']);?></span> <?=RUB?>/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
 							<a href="<?=$arFields["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 						</div>
 					</div>
@@ -268,7 +268,7 @@ $APPLICATION->SetTitle("«Металлинвест Профиль» — гла�
 							<img src="<?=CFile::ResizeImageGet($arFields["PREVIEW_PICTURE"], array('width' => 150, 'height' => 150), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src'];?>" alt="" height="110" style="max-height: 110px;margin: 0 auto;" class="img">
 						</a>
 						<a href="<?=$arFields['DETAIL_PAGE_URL']?>" class="name"><?=$arFields['NAME']?></a>
-						<div class="price"><span><?=price($arFields['ID']);?></span> &#8381;/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
+						<div class="price"><span><?=price($arFields['ID']);?></span> <?=RUB?>/<?=$arProps['CML2_BASE_UNIT']['VALUE'];?></div>
 						<a href="<?=$arFields["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 					</div>
 				</div>

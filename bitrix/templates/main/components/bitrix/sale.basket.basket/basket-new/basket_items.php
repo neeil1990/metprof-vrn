@@ -23,7 +23,7 @@ if ($normalCount > 0)
 					<div class="l-cell name">
 						<a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="plink"><?=$arItem['NAME']?></a>
 					</div>
-					<div class="l-cell price"><div class="txt pr">Цена</div><span><?=$arItem['FULL_PRICE']?></span> &#8381;</div>
+					<div class="l-cell price"><div class="txt pr">Цена</div><span><?=$arItem['FULL_PRICE']?></span> <?=RUB?></div>
 					<div class="l-cell sale"><div class="txt sl">Скидка</div><span><?=$arItem['DISCOUNT_PRICE_PERCENT']?></span>%</div>
 					<div class="l-cell width-list">
 						<div class="txt qn">Длина листа</div>
@@ -73,7 +73,7 @@ if ($normalCount > 0)
 				<div class="t-row cl t-cost">
 					<div class="line"></div>
 					<div class="name">Общая стоимость:</div>
-					<div class="value"><span><?=$arResult["allSum_FORMATED"]?></span> &#8381;</div>
+					<div class="value"><span><?=$arResult["allSum_FORMATED"]?></span></div>
 				</div>
 			</div>
 		</div>

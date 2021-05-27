@@ -17,7 +17,7 @@ $this->setFrameMode(true);
 				<img src="<?=CFile::ResizeImageGet($item["PREVIEW_PICTURE"]["ID"], array('width' => 150, 'height' => 150), BX_RESIZE_IMAGE_PROPORTIONAL, true)['src']?>" alt="" height="110" style="max-height: 110px;margin: 0 auto;" class="img">
 			</a>
 			<a href="<?=$item['DETAIL_PAGE_URL']?>" class="name"><?=$item['NAME']?></a>
-			<div class="price"><span><?=price($item['ID']);?></span> &#8381;/<?=$item['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+			<div class="price"><span><?=price($item['ID']);?></span> <?=RUB?>/<?=$item['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
 			<a href="<?=$item["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 		</div>
 	</div>

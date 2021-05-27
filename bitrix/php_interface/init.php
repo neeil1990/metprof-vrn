@@ -1,4 +1,5 @@
 <?php
+define('RUB', 'руб');
 
 function price($id){
     $res = CCatalogSKU::getOffersList(

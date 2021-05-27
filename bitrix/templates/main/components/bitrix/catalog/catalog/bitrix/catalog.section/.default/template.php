@@ -113,9 +113,9 @@ if (!empty($arResult['ITEMS']))
                 <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="title"><?=$arItem['NAME']?></a>
                 <div class="cost">
                   <?if(priceDiscount($arItem['ID'])){?>
-                    <span><?=priceDiscount($arItem['ID']);?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                    <span><?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                   <?}else{?>
-                    <span><?=price($arItem['ID']);?></span> &#8381;/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                    <span><?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                   <?}?>
                   </div>
                 <?if(!$arOffers['DISCOUNT_VALUE']){
@@ -171,7 +171,7 @@ if (!empty($arResult['ITEMS']))
                     </script>
                   <?endif;?>
 
-                  <div class="cost_total"><span><?=$arOffers['DISCOUNT_VALUE']?></span> &#8381;</div>
+                  <div class="cost_total"><span><?=$arOffers['DISCOUNT_VALUE']?></span> <?=RUB?></div>
                   <?if($arItem['IS_M2']):?>
                     <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="add2cart add3" >
                       <span class="txt1"><?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?></span>
@@ -187,7 +187,7 @@ if (!empty($arResult['ITEMS']))
                     <?else:?>
                       <div class="cost_total"><span></span></div>
                       <a href="javascript:void(0)" class="add2cartOrder show-popup" data-id="order-product">Товар под заказ</a>
-                      
+
                     <?endif;?>
 
                   <?endif;?>

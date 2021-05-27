@@ -98,9 +98,9 @@ foreach($arResult['OFFERS'] as $offer){
                   <div class="bb_col">
                       <div class="price">
 							  <?if($arResult['MIN_PRICE']['DISCOUNT_DIFF_PERCENT']): ?>
-								<div class="price-old"><span><?=$arResult['MIN_PRICE']['VALUE']?></span> &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+								<div class="price-old"><span><?=$arResult['MIN_PRICE']['VALUE']?></span> <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
 							  <? endif;?>
-                              <div class="price-new"><span><?=$arResult['MIN_PRICE']['DISCOUNT_VALUE']?></span>  &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+                              <div class="price-new"><span><?=$arResult['MIN_PRICE']['DISCOUNT_VALUE']?></span>  <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
                       </div>
                   </div>
                   <div class="bb_col right">
@@ -115,9 +115,9 @@ foreach($arResult['OFFERS'] as $offer){
                   <div class="bb_col">
                       <div class="price">
 								<?if($arOffers['DISCOUNT_DIFF_PERCENT']): ?>
-									<div class="price-old"><span><?=$arOffers['BASE_PRICE']?></span> &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+									<div class="price-old"><span><?=$arOffers['BASE_PRICE']?></span> <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
 								<? endif;?>
-                              <div class="price-new"><span><?=$arOffers['DISCOUNT_VALUE']?></span>  &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+                              <div class="price-new"><span><?=$arOffers['DISCOUNT_VALUE']?></span>  <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
                       </div>
                   </div>
 

@@ -146,9 +146,9 @@ $areaIds = array();
 					<a href="<?=$item['DETAIL_PAGE_URL']?>" class="name"><?=$item['NAME']?></a>
 					<div class="price">
 						<?if(priceDiscount($item['ID'])){?>
-							<span><?=priceDiscount($item['ID']);?></span> &#8381;/<?=$item['JS_OFFERS'][0]['MEASURE'];?>
+							<span><?=priceDiscount($item['ID']);?></span> <?=RUB?>/<?=$item['JS_OFFERS'][0]['MEASURE'];?>
 						<?}else{?>
-							<span><?=price($item['ID']);?></span> &#8381;/<?=$item['JS_OFFERS'][0]['MEASURE'];?>
+							<span><?=price($item['ID']);?></span> <?=RUB?>/<?=$item['JS_OFFERS'][0]['MEASURE'];?>
 						<?}?>
 					</div>
 					<?if($item['PROPERTIES']['DLINA_TEST']['VALUE']):?>
