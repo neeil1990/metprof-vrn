@@ -97,32 +97,36 @@ foreach($arResult['OFFERS'] as $offer){
               <? if(empty($arOffers['DISCOUNT_VALUE'])): ?>
                   <div class="bb_col">
                       <div class="price">
-							  <div class="price-old"><span><?=$arResult['MIN_PRICE']['VALUE']?></span> &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+							  <?if($arResult['MIN_PRICE']['DISCOUNT_DIFF_PERCENT']): ?>
+								<div class="price-old"><span><?=$arResult['MIN_PRICE']['VALUE']?></span> &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+							  <? endif;?>
                               <div class="price-new"><span><?=$arResult['MIN_PRICE']['DISCOUNT_VALUE']?></span>  &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
                       </div>
                   </div>
                   <div class="bb_col right">
-                      <div class="sale">
+                      <div class="sale" <?if(!$arResult['MIN_PRICE']['DISCOUNT_DIFF_PERCENT']): ?> style="background: #FFFFFF;" <? endif; ?>>
                           <?if($arResult['MIN_PRICE']['DISCOUNT_DIFF_PERCENT']): ?>
                               <span>СКИДКА <?=$arResult['MIN_PRICE']['DISCOUNT_DIFF_PERCENT'];?>%</span>
+							  <span>при заказе<br>с сайта</span>
                           <? endif;?>
-                          <span>при заказе<br>с сайта</span>
                       </div>
                   </div>
               <? else: ?>
                   <div class="bb_col">
                       <div class="price">
-							  <div class="price-old"><span><?=$arOffers['BASE_PRICE']?></span> &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+								<?if($arOffers['DISCOUNT_DIFF_PERCENT']): ?>
+									<div class="price-old"><span><?=$arOffers['BASE_PRICE']?></span> &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+								<? endif;?>
                               <div class="price-new"><span><?=$arOffers['DISCOUNT_VALUE']?></span>  &#8381;/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
                       </div>
                   </div>
 
                   <div class="bb_col right">
-                      <div class="sale">
+                      <div class="sale" <?if(!$arOffers['DISCOUNT_DIFF_PERCENT']): ?> style="background: #FFFFFF;" <? endif; ?>>
                           <?if($arOffers['DISCOUNT_DIFF_PERCENT']): ?>
                               <span>СКИДКА <?=$arOffers['DISCOUNT_DIFF_PERCENT'];?>%</span>
+							  <span>при заказе<br>с сайта</span>
                           <? endif;?>
-                          <span>при заказе<br>с сайта</span>
                       </div>
 
                       <?if(!$arResult['IS_M2']):?>

@@ -71,6 +71,7 @@ Disallow: /*.doc
 Disallow: /*.ppt
 Disallow: /*.txt
 Disallow: /filter/clear/apply/
+Disallow: */preconnect/*
 Allow: /*/css/*.css
 Allow: /*/js/*.js
 Allow: /*.jpg

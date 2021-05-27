@@ -64,6 +64,15 @@ RewriteRule ^(.*)$ /bitrix/virtual_file_system.php [L]
   RewriteRule .* - [E=REMOTE_USER:%{HTTP:Authorization}]
 
 Redirect 301 /catalog/mansardnye_okna_i_cherdachnye_lestnitsy/ http://metprof-vrn.ru/catalog/mansardnye_okna/
+Redirect 301 /articles/kak-pravilno-uteplit--cherdak/ /articles/kak-pravilno-uteplit-cherdak/
+Redirect 301 /articles/metallicheskiy-sayding-s-dostavkoy/ /articles/
+Redirect 301 /articles/sayding-pod-kirpich-v-voronezhe-dlya-otdelki-fasadov/ /articles/
+Redirect 301 /articles/kakuyu-krovlyu-vybrat-dlya-bani/ /articles/
+Redirect 301 /articles/stenovye-sendvich-paneli-ot-proizvoditelya/ /articles/
+Redirect 301 /articles/gibkaya-krovlya-ili-metallocherepitsa-kriterii-vybora/ /articles/
+Redirect 301 /articles/kak-vybrat-pravilnyy-uteplitel/ /articles/
+Redirect 301 /articles/shinglas-dzhaz/ /articles/
+Redirect 301 /articles/naruzhnoe-uteplenie-sten-doma/ /articles/
 </IfModule>
 
 <IfModule mod_dir.c>
