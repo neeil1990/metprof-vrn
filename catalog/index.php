@@ -47,8 +47,8 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 ?>
 
 <?$APPLICATION->IncludeComponent(
-	"bitrix:catalog",
-	"catalog",
+	"bitrix:catalog", 
+	"catalog", 
 	array(
 		"ACTION_VARIABLE" => "action",
 		"HIDDEN_PROPERTY_CODE" => array(
@@ -246,9 +246,11 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 			1 => "",
 		),
 		"LIST_PROPERTY_CODE" => array(
-			0 => "OBEM_1",
-			1 => "SVOYSTVA_TSVETA",
-			2 => "VES_M2",
+			0 => "VES_M2",
+			1 => "DLINA",
+			2 => "OBEM_1",
+			3 => "SVOYSTVA_TSVETA",
+			4 => "",
 		),
 		"MESSAGE_404" => "",
 		"MESS_BTN_ADD_TO_BASKET" => "В корзину",
@@ -407,6 +409,7 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 		"FORUM_ID" => "1",
 		"URL_TEMPLATES_READ" => "",
 		"SHOW_LINK_TO_FORUM" => "N",
+		"FILE_404" => "",
 		"SEF_URL_TEMPLATES" => array(
 			"sections" => "/catalog/",
 			"section" => "#SECTION_CODE#/",
