@@ -172,7 +172,7 @@ use Bitrix\Main\ModuleManager;
 		<?if($menuTag):?>
 			<div class="tag_menu">
 				<? foreach($menuTag as $inc => $tag): ?>
-					<a href="<?=$tag[1]?>" class="<?=($inc < 5) ? 'active' : ''?>"><?=$tag[0]?></a>
+					<a href="<?=$tag[1]?>" class="<?=($inc < 5) ? 'active' : ''?>" title="<?=$tag[2]?>"><?=$tag[0]?></a>
                     <? if($inc == 4): ?>
                         <a href="javascript:void(0)" class="active" onclick="$(this).closest('.tag_menu').find('a').css('display', 'block'); $(this).hide();" style="text-align: center">Показать все</a>
                     <? endif; ?>
