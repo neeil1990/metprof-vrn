@@ -300,9 +300,7 @@ use Bitrix\Main\ModuleManager;
                 'MESS_BTN_DETAIL' => $arParams['MESS_BTN_DETAIL'],
                 'MESS_NOT_AVAILABLE' => $arParams['MESS_NOT_AVAILABLE'],
                 'SECTION_USER_FIELDS' => array(
-                    0 => 'UF_SECTION_TOP',
-                    1 => 'UF_FILTER_CATALOG',
-                    2 => 'UF_PROPERTY_LIST',
+                    0 => 'UF_*'
                 ),
                 'TEMPLATE_THEME' => (isset($arParams['TEMPLATE_THEME']) ? $arParams['TEMPLATE_THEME'] : ''),
                 "ADD_SECTIONS_CHAIN" => "N",

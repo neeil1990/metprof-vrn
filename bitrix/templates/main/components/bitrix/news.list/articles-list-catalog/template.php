@@ -16,6 +16,7 @@ $this->setFrameMode(true);
 <div class="h1"><?=$arParams["PAGER_TITLE"]?></div>
 <?foreach($arResult["ITEMS"] as $arItem):?>
 <a href="<?=$arItem['DETAIL_PAGE_URL']?>"><?echo $arItem["NAME"]?></a>
+<p class="text" style="margin-top: 5px"><?echo $arItem["PREVIEW_TEXT"]?></p>
 <?endforeach;?>
 
 <a href="/articles/" class="allarticles">Все <?=$arParams["PAGER_TITLE"]?></a>

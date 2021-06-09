@@ -396,7 +396,14 @@ if($menuTag):?>
         </div>
       </div>
       <div class="col-articles">
-        <?$APPLICATION->IncludeComponent(
+        <?
+        $articlesCount = "9";
+        if($arResult['UF_ARTICLES']){
+            $GLOBALS['articleSectionFilter'] = ['ID' => $arResult['UF_ARTICLES']];
+            $articlesCount = "0";
+        }
+
+        $APPLICATION->IncludeComponent(
           "bitrix:news.list",
           "articles-list-catalog",
           array(
@@ -423,14 +430,14 @@ if($menuTag):?>
               0 => "",
               1 => "",
             ),
-            "FILTER_NAME" => "",
+            "FILTER_NAME" => "articleSectionFilter",
             "HIDE_LINK_WHEN_NO_DETAIL" => "N",
             "IBLOCK_ID" => "4",
             "IBLOCK_TYPE" => "news",
             "INCLUDE_IBLOCK_INTO_CHAIN" => "N",
             "INCLUDE_SUBSECTIONS" => "Y",
             "MESSAGE_404" => "",
-            "NEWS_COUNT" => "2",
+            "NEWS_COUNT" => $articlesCount,
             "PAGER_BASE_LINK_ENABLE" => "N",
             "PAGER_DESC_NUMBERING" => "N",
             "PAGER_DESC_NUMBERING_CACHE_TIME" => "36000",
@@ -441,7 +448,7 @@ if($menuTag):?>
             "LINK_TITLE" => "articles",
             "PARENT_SECTION" => "",
             "PARENT_SECTION_CODE" => "",
-            "PREVIEW_TRUNCATE_LEN" => "50",
+            "PREVIEW_TRUNCATE_LEN" => "199",
             "PROPERTY_CODE" => array(
               0 => "",
               1 => "",
