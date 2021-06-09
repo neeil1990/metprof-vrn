@@ -530,3 +530,8 @@ foreach ($arResult['ITEMS'] as $key => &$arItem){
   }
   $arItem['IS_M2'] = ($arItem['OFFERS'][0]['CATALOG_MEASURE'] == 6) ? true : false;
 }
+
+$arResult['UF_JS_TEXT_PROP'] = ($arResult['UF_JS_TEXT_PROP']) ?: 15;
+$arResult['UF_JS_TEXT_ORDER'] = ($arResult['UF_JS_TEXT_ORDER']) ?: 10;
+$arResult['UF_JS_TEXT_PRICE'] = ($arResult['UF_JS_TEXT_PRICE']) ?: 20;
+$arResult['UF_JS_TEXT_IN_STOCK'] = ($arResult['UF_JS_TEXT_IN_STOCK']) ?: 20;

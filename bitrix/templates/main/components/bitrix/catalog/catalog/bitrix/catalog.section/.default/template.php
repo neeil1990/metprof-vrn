@@ -81,7 +81,11 @@ if (!empty($arResult['ITEMS']))
 
       <div class="pr_box cl">
 
-        <? foreach ($arResult['ITEMS'] as $key => $arItem):?>
+        <?
+        $intOrder = 0;
+        $intBuy = 0;
+        $intInStock = 0;
+        foreach ($arResult['ITEMS'] as $key => $arItem): ?>
 
           <?
           $arOffers = array();
@@ -101,7 +105,7 @@ if (!empty($arResult['ITEMS']))
                 <div class="compare">
                   <label>
                     <input type="checkbox" id-cat="<?=$arItem['IBLOCK_SECTION_ID']?>" value="<?=$arItem['ID']?>">
-                    <span>Сравнить</span>
+                    <span class="js-text" data-text="Сравнить"></span>
                   </label>
                 </div>
                 <div class="close"></div>
@@ -116,26 +120,40 @@ if (!empty($arResult['ITEMS']))
                 <div class="list-properties">
                     <? foreach ($arItem['DISPLAY_PROPERTIES'] as $prop): ?>
                         <div class="item-prop">
-                            <div class="title-prop"><?=$prop['NAME']?>:</div>
-                            <div class="value-prop"><?=(is_array($prop['VALUE'])) ? implode(', ', $prop['VALUE']) : $prop['VALUE']?></div>
+                            <? if($key < $arResult['UF_JS_TEXT_PROP']): ?>
+                                <div class="title-prop"><?=$prop['NAME']?>:</div>
+                                <div class="value-prop"><?=(is_array($prop['VALUE'])) ? implode(', ', $prop['VALUE']) : $prop['VALUE']?></div>
+                            <? else: ?>
+                                <div class="title-prop js-text" data-text="<?=$prop['NAME']?>:"></div>
+                                <div class="value-prop js-text" data-text="<?=(is_array($prop['VALUE'])) ? implode(', ', $prop['VALUE']) : $prop['VALUE']?>"></div>
+                            <? endif; ?>
                         </div>
                     <? endforeach; ?>
                 </div>
                 <? endif; ?>
 
-                <div class="cost">
-                  <?if(priceDiscount($arItem['ID'])){?>
-                    <span><?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
-                  <?}else{?>
-                    <span><?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
-                  <?}?>
-                  </div>
+                <? if($intBuy < $arResult['UF_JS_TEXT_PRICE']): ?>
+                    <div class="cost">
+                      <?if(priceDiscount($arItem['ID'])){?>
+                        <span>цена <?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                      <?}else{?>
+                        <span>цена <?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                      <?}?>
+                      </div>
+                <? else: ?>
+                    <div class="cost js-text" data-text="<?if(priceDiscount($arItem['ID'])){?>
+                            <span>цена <?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                        <?}else{?>
+                            <span>цена <?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                        <?}?>"></div>
+                <? endif;?>
                 <?if(!$arOffers['DISCOUNT_VALUE']){
                   //print '<span class="noprice">Цену уточняйте у менеджера</span>';
                 }
                 ?>
 
-                <? if($arOffers['DISCOUNT_VALUE']): ?>
+                <?
+                if($arOffers['DISCOUNT_VALUE']): ?>
 
                   <?if(!$arItem['IS_M2']):?>
                   <div class="quantity" id="count_<?=$arItem['ID']?>">
@@ -186,34 +204,62 @@ if (!empty($arResult['ITEMS']))
                   <div class="cost_total"><span><?=$arOffers['DISCOUNT_VALUE']?></span> <?=RUB?></div>
                   <?if($arItem['IS_M2']):?>
                     <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="add2cart add3" >
-                      <span class="txt1"><?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?></span>
+                    <? if($intBuy < $arResult['UF_JS_TEXT_PRICE']): ?>
+                        <span class="txt1"><?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?></span>
+                    <? else: ?>
+                        <span class="txt1 js-text" data-text="<?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?>"></span>
+                    <? endif;?>
+
                       <span class="txt2"><?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?></span>
                     </a>
-                  <?else:?>
+                    <?
+                    $intBuy++;
+                    else:?>
                     <div style="display: none;"><?=$arOffers['QUANTITY']?></div>
                     <?if($arOffers['QUANTITY'] > 0 and !$arItem['IS_M2']):?>
                       <a href="javascript:void(0)" class="add2cart">
-                        <span class="txt1" onclick="if(document.body.clientWidth < 659){addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>)};">Купить</span>
+                        <? if($intBuy < $arResult['UF_JS_TEXT_PRICE']): ?>
+                            <span class="txt1" onclick="if(document.body.clientWidth < 659){addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>)};">Купить</span>
+                        <? else: ?>
+                            <span class="txt1 js-text" onclick="if(document.body.clientWidth < 659){addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>)};" data-text="Купить"></span>
+                        <? endif;?>
                         <span class="txt2" onclick="addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);">Добавить в корзину</span>
                       </a>
-                    <?else:?>
+                    <?
+                    $intBuy++;
+                    else:?>
                       <div class="cost_total"><span></span></div>
-                      <a href="javascript:void(0)" class="add2cartOrder show-popup" data-id="order-product">Товар под заказ</a>
-
-                    <?endif;?>
+                      <? if($intOrder < $arResult['UF_JS_TEXT_ORDER']): ?>
+                        <a href="javascript:void(0)" class="add2cartOrder show-popup" data-id="order-product">Товар под заказ</a>
+                      <? else: ?>
+                        <a href="javascript:void(0)" class="add2cartOrder show-popup js-text" data-id="order-product" data-text="Товар под заказ"></a>
+                      <? endif; ?>
+                    <?
+                    $intOrder++;
+                    endif;?>
 
                   <?endif;?>
 
                     <?if($arOffers['QUANTITY'] > 0):?>
-                      <div class="instock">В наличии</div>
-                    <?endif;?>
+                        <? if($intOrder < $arResult['UF_JS_TEXT_IN_STOCK']): ?>
+                            <div class="instock">В наличии</div>
+                        <? else: ?>
+                            <div class="instock js-text" data-text="В наличии"></div>
+                        <? endif; ?>
+                    <?
+                    $intInStock++;
+                    endif;?>
 
                 <? else:?>
                   <div class="cost_total"><span></span></div>
-                  <a href="javascript:void(0)" class="add2cartOrder show-popup" data-id="order-product">Товар под заказ</a>
-
-                <? endif; ?>
-
+                    <? if($intOrder < $arResult['UF_JS_TEXT_ORDER']): ?>
+                        <a href="javascript:void(0)" class="add2cartOrder show-popup" data-id="order-product">Товар под заказ</a>
+                    <? else: ?>
+                        <a href="javascript:void(0)" class="add2cartOrder show-popup js-text" data-id="order-product" data-text="Товар под заказ"></a>
+                    <? endif; ?>
+                <?
+                $intOrder++;
+                endif; ?>
               </div>
             </div>
           </div>
