@@ -206,11 +206,11 @@ if (!empty($arResult['ITEMS']))
                     <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="add2cart add3" >
                     <? if($intBuy < $arResult['UF_JS_TEXT_PRICE']): ?>
                         <span class="txt1"><?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?></span>
+                        <span class="txt2"><?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?></span>
                     <? else: ?>
                         <span class="txt1 js-text" data-text="<?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?>"></span>
+                        <span class="txt2 js-text" data-text="<?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?>"></span>
                     <? endif;?>
-
-                      <span class="txt2"><?=buttonName($arItem['IBLOCK_ID'],$arItem['IBLOCK_SECTION_ID']);?></span>
                     </a>
                     <?
                     $intBuy++;
@@ -241,9 +241,8 @@ if (!empty($arResult['ITEMS']))
                   <?endif;?>
 
                     <?if($arOffers['QUANTITY'] > 0):?>
-                        <?
-						if($intOrder < $arResult['UF_JS_TEXT_IN_STOCK']): ?>
-                            <div class="instock">В наличии</div>
+                        <? if($intInStock < $arResult['UF_JS_TEXT_IN_STOCK']): ?>
+                            <div class="instock"><?=$intInStock?> В наличии</div>
                         <? else: ?>
                             <div class="instock js-text" data-text="В наличии"></div>
                         <? endif; ?>
