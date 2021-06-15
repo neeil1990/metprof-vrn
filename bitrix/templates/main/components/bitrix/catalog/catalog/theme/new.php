@@ -172,9 +172,16 @@ use Bitrix\Main\ModuleManager;
 		<?if($menuTag):?>
 			<div class="tag_menu">
 				<? foreach($menuTag as $inc => $tag): ?>
-					<a href="<?=$tag[1]?>" class="<?=($inc < 5) ? 'active' : ''?>" title="<?=$tag[2]?>"><?=$tag[0]?></a>
+                    <div class="tag_menu-item <?=($inc < 5) ? 'active' : ''?>">
+                        <a href="<?=$tag[1]?>"><?=$tag[0]?></a>
+                        <? if($tag[2]): ?>
+                        <div class="tag_menu-prompt"><?=$tag[2]?></div>
+                        <? endif; ?>
+                    </div>
                     <? if($inc == 4): ?>
-                        <a href="javascript:void(0)" class="active" onclick="$(this).closest('.tag_menu').find('a').css('display', 'block'); $(this).hide();" style="text-align: center">Показать все</a>
+                    <div class="tag_menu-item active" style="text-align: center">
+                        <a href="javascript:void(0)" onclick="$(this).closest('.tag_menu').find('.tag_menu-item').css('display', 'block'); $(this).parent().hide();">Показать все</a>
+                    </div>
                     <? endif; ?>
 				<? endforeach; ?>
 			</div>
