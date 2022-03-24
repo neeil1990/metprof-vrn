@@ -31,15 +31,17 @@ if($arResult["ITEMS"]):
 				<?}?>
 			</div>
 
-			<?if($arItem['PROPERTIES']['DLINA_TEST']['VALUE']):?>
-				<a href="<?=$arItem["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
-			<?else:?>
-				<a href="javascript:void(0);" onclick="addToBasket2(<?=$arItem['OFFERS']['ID']?>, 1,this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);" class="cart">Купить</a>
-			<?endif;?>
+            <? if(count($item['OFFERS']) > 1):?>
+                <? $APPLICATION->IncludeFile(SITE_TEMPLATE_PATH . "/include/cart/_to_cart_offer.php", $arItem, Array(
+                    "SHOW_BORDER" => false
+                )); ?>
+            <?else:?>
+                <? $APPLICATION->IncludeFile(SITE_TEMPLATE_PATH . "/include/cart/_to_cart.php", $arItem, Array(
+                    "SHOW_BORDER" => false
+                )); ?>
+            <?endif;?>
 		</div>
 	</div>
 	<? endforeach; ?>
-
-
 </div><!-- end::slider_product -->
 <? endif; ?>

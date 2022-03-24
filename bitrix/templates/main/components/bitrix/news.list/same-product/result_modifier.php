@@ -12,7 +12,7 @@ foreach($arResult["ITEMS"] as &$arItem){
     $arInfo = CCatalogSKU::GetInfoByProductIBlock($IBLOCK_ID);
     if (is_array($arInfo))
     {
-        $rsOffers = CIBlockElement::GetList(array(),array('IBLOCK_ID' => $arInfo['IBLOCK_ID'], 'PROPERTY_'.$arInfo['SKU_PROPERTY_ID'] => $ID));
+        $rsOffers = CIBlockElement::GetList(array(),array('IBLOCK_ID' => $arInfo['IBLOCK_ID'], 'PROPERTY_'.$arInfo['SKU_PROPERTY_ID'] => $ID), false, false, ['*', 'CATALOG_QUANTITY']);
         while ($arOffer = $rsOffers->GetNext())
         {
             $arItem['OFFERS'] = $arOffer;

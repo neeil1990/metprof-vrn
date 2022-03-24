@@ -46,12 +46,7 @@ $this->setFrameMode(true);
 							print '<span class="noprice" style="font-size: 11px;margin: 17px 0">Цену уточняйте у менеджера</span>';
 						} ?>
 
-						<? if ((float)price($arFields['ID'])): ?>
-							<a href="javascript:void(0)" onclick="addToBasket2(<?= $arFields['ID'] ?>,1,this);"
-							   class="cart">В корзину</a>
-						<? else: ?>
-							<a href="javascript:void(0)" class="cart show-popup" data-id="order-product">под заказ</a>
-						<? endif; ?>
+                        <a href="<?=$arFields["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
 					</div>
 				</div>
 

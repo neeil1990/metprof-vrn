@@ -52,12 +52,12 @@
     }
 
     function closeBannerCenter(El){
-		
+
 		var showId = El.closest(".prime-banner-center").id;
 		var id = showId.split("-");
-		
-        document.cookie = 'primeBannerClose-' + id[1] + '=true';
-		
+
+        document.cookie = 'primeBannerClose-' + id[1] + '=true; path=/;';
+
         document.getElementById(showId).style.opacity='0';
         document.getElementById('prime-window-bgr').style.opacity='0';
         document.getElementById(showId).style.display='none';

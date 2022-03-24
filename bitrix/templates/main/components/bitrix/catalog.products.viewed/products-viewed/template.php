@@ -123,7 +123,7 @@ if (!empty($arResult['ITEMS']) && !empty($arResult['ITEM_ROWS']))
 	<div class="slider_product_show_all slider_product" id="mp__product__action">
 
 	<?
-$areaIds = array();
+    $areaIds = array();
 
 	foreach ($arResult['ITEMS'] as $item)
 	{
@@ -131,12 +131,6 @@ $areaIds = array();
 		$areaIds[$item['ID']] = $this->GetEditAreaId($uniqueId);
 		$this->AddEditAction($uniqueId, $item['EDIT_LINK'], $elementEdit);
 		$this->AddDeleteAction($uniqueId, $item['DELETE_LINK'], $elementDelete, $elementDeleteParams);
-
-		$arOffers = array();
-		foreach($item['OFFERS'] as $offer){
-				$arOffers['ID'] = $offer['ID'];
-				$arOffers['QUANTITY'] = $offer['CATALOG_QUANTITY'];
-		}
 		?>
 			<div>
 				<div class="product ">
@@ -151,10 +145,15 @@ $areaIds = array();
 							<span><?=price($item['ID']);?></span> <?=RUB?>/<?=$item['JS_OFFERS'][0]['MEASURE'];?>
 						<?}?>
 					</div>
-					<?if($item['PROPERTIES']['DLINA_TEST']['VALUE']):?>
-						<a href="<?=$item["DETAIL_PAGE_URL"]?>" class="cart">Купить</a>
+
+                    <? if(count($item['OFFERS']) > 1):?>
+                        <? $APPLICATION->IncludeFile(SITE_TEMPLATE_PATH . "/include/cart/_to_cart_offer.php", $item, Array(
+                            "SHOW_BORDER" => false
+                        )); ?>
 					<?else:?>
-						<a href="javascript:void(0);" onclick="addToBasket2(<?=$arOffers['ID']?>, 1,this,<?=$item['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);" class="cart">Купить</a>
+                        <? $APPLICATION->IncludeFile(SITE_TEMPLATE_PATH . "/include/cart/_to_cart.php", $item, Array(
+                            "SHOW_BORDER" => false
+                        )); ?>
 					<?endif;?>
 				</div>
 			</div>
