@@ -7,7 +7,7 @@ define('BX_SECURITY_SHOW_MESSAGE', true);
 define('NOT_CHECK_PERMISSIONS', true);
 
 $siteId = isset($_REQUEST['SITE_ID']) && is_string($_REQUEST['SITE_ID']) ? $_REQUEST['SITE_ID'] : '';
-$siteId = substr(preg_replace('/[^a-z0-9_]/i', '', $siteId), 0, 2);
+$siteId = mb_substr(preg_replace('/[^a-z0-9_]/i', '', $siteId), 0, 2);
 if (!empty($siteId) && is_string($siteId))
 {
 	define('SITE_ID', $siteId);
@@ -21,13 +21,14 @@ $request->addFilter(new \Bitrix\Main\Web\PostDecodeFilter);
 if (!Bitrix\Main\Loader::includeModule('sale'))
 	return;
 
-Bitrix\Main\Localization\Loc::loadMessages(dirname(__FILE__).'/class.php');
+Bitrix\Main\Localization\Loc::loadMessages(__DIR__.'/class.php');
 
 $signer = new \Bitrix\Main\Security\Sign\Signer;
 try
 {
-	$params = $signer->unsign($request->get('signedParamsString'), 'sale.order.ajax');
-	$params = unserialize(base64_decode($params));
+	$signedParamsString = $request->get('signedParamsString') ?: '';
+	$params = $signer->unsign($signedParamsString, 'sale.order.ajax');
+	$params = unserialize(base64_decode($params), ['allowed_classes' => false]);
 }
 catch (\Bitrix\Main\Security\Sign\BadSignatureException $e)
 {

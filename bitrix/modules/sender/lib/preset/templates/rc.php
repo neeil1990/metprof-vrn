@@ -73,7 +73,7 @@ class Rc
 			[
 				'CODE' => 'nps',
 				'SEGMENT_CODES' => ['case_crm_client_aft_deal_clo'],
-				'HINT' => Loc::getMessage('SENDER_PRESET_TEMPLATE_RC_HINT_EVERY_DAY'),
+				'HINT' => Loc::getMessage('SENDER_PRESET_TEMPLATE_RC_HINT_NPS'),
 				'DISPATCH' => [
 					'METHOD_CODE' => Dispatch\Method::SCHEDULE,
 					'TIMES_OF_DAY' => '09:00',
@@ -84,7 +84,7 @@ class Rc
 
 		foreach ($list as $index => $item)
 		{
-			$code = strtoupper($item['CODE']);
+			$code = mb_strtoupper($item['CODE']);
 			$msgPrefix = 'SENDER_PRESET_TEMPLATE_RC_' . $code . '_';
 			foreach (['NAME', 'DESC', 'TITLE', 'TEXT'] as $key)
 			{
@@ -165,8 +165,8 @@ class Rc
 		];
 		foreach (self::getListByType() as $item)
 		{
-			$originalCode = strtolower($item['CODE']);
-			$code = 'rc_' . strtolower($item['CODE']);
+			$originalCode = mb_strtolower($item['CODE']);
+			$code = 'rc_'.mb_strtolower($item['CODE']);
 			if($templateId && $code !== $templateId)
 			{
 				continue;

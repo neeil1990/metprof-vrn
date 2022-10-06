@@ -1,4 +1,6 @@
 <?
+$MESS["SENDER_LETTER_STAT_RESEND"] = "Відправити повторно";
+$MESS["SENDER_LETTER_STAT_RESEND_HINT"] = "Повторно відправити одержувачам, листи яким не були відправлені через помилку. Ті, хто вже отримав лист, другий не отримають.";
 $MESS["SENDER_LETTER_STAT_STATS_TITLE"] = "Статистика";
 $MESS["SENDER_LETTER_STAT_STATS_ANALYTICS"] = "Аналітика";
 $MESS["SENDER_LETTER_STAT_STATS_NO_DATA"] = "Немає даних";
@@ -7,7 +9,7 @@ $MESS["SENDER_LETTER_STAT_STATS_FROM"] = "з";
 $MESS["SENDER_LETTER_STAT_STATS_NO_POSTINGS"] = "Немає даних. Випуск не відправлявся або відправка не завершена.";
 $MESS["SENDER_LETTER_STAT_STATS_EFFICIENCY_TITLE"] = "Рівень ефективності розсилки";
 $MESS["SENDER_LETTER_STAT_STATS_EFFICIENCY_LEVEL_1"] = "Погано";
-$MESS["SENDER_LETTER_STAT_STATS_EFFICIENCY_LEVEL_2"] = "Не погано";
+$MESS["SENDER_LETTER_STAT_STATS_EFFICIENCY_LEVEL_2"] = "Непогано";
 $MESS["SENDER_LETTER_STAT_STATS_EFFICIENCY_LEVEL_3"] = "Нормально";
 $MESS["SENDER_LETTER_STAT_STATS_EFFICIENCY_LEVEL_4"] = "Добре";
 $MESS["SENDER_LETTER_STAT_STATS_EFFICIENCY_LEVEL_5"] = "Відмінно";

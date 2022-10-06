@@ -35,6 +35,10 @@
 				name: item.user.name,
 				link: addUtm(item.user.links.html)
 			},
+			dimensions: {
+				width: item.width,
+				height: item.height
+			},
 			onClick: unsplash.onPictureChange.bind(unsplash, item)
 		}
 	}
@@ -201,7 +205,11 @@
 				.getInstance()
 				.download(item)
 				.then(function(path) {
-					this.onChange({link: path, ext: getFileExtension(path)});
+					this.onChange({
+						link: path,
+						ext: getFileExtension(path),
+						name: item.id + '.' + getFileExtension(path)
+					});
 				}.bind(this));
 		}
 	};

@@ -1,9 +1,17 @@
 <?php
 return [
 	'controllers' => [
-		'value'    => [
+		'value' => [
+			'defaultNamespace' => '\\Bitrix\\Main\\Controller',
 			'namespaces' => [
 				'\\Bitrix\\Main\\Controller' => 'api',
+			],
+			'restIntegration' => [
+				'enabled' => true,
+				'hideModuleScope' => true,
+				'scopes' => [
+					'userfieldconfig',
+				],
 			],
 		],
 		'readonly' => true,

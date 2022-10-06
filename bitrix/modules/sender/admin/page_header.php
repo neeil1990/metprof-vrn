@@ -17,20 +17,25 @@ if (!Security\User::current()->canView())
 	$APPLICATION->AuthForm(Security\AccessChecker::getError()->getMessage());
 }
 
+\Bitrix\Main\UI\Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
+]);
+
 $APPLICATION->SetAdditionalCSS('/bitrix/css/main/grid/webform-button.css');
 
 $senderPathPrefix = '/bitrix/admin/sender_';
 $senderAdminPaths = [
-	'CONTACT_LIST' => $senderPathPrefix . 'contacts.php',
-	'CONTACT_IMPORT' => $senderPathPrefix . 'contacts.php?import',
-	'SEGMENT_EDIT' => $senderPathPrefix . 'segments.php?edit&ID=#id#',
-	'SEGMENT_ADD' => $senderPathPrefix . 'segments.php?edit&ID=0',
-	'CAMPAIGN_EDIT' => $senderPathPrefix . 'campaign.php?edit&ID=#id#',
-	'CAMPAIGN_ADD' => $senderPathPrefix . 'campaign.php?edit&ID=0',
-	'LETTER_LIST' => $senderPathPrefix . 'letters.php',
-	'LETTER_EDIT' => $senderPathPrefix . 'letters.php?edit&ID=#id#',
-	'LETTER_ADD' => $senderPathPrefix . 'letters.php?edit&ID=0',
-	'ABUSES' => $senderPathPrefix . 'letters.php?abuses',
+	'CONTACT_LIST' => $senderPathPrefix . 'contacts.php?lang=' . LANGUAGE_ID,
+	'CONTACT_IMPORT' => $senderPathPrefix . 'contacts.php?import&lang=' . LANGUAGE_ID,
+	'SEGMENT_EDIT' => $senderPathPrefix . 'segments.php?edit&ID=#id#&lang=' . LANGUAGE_ID,
+	'SEGMENT_ADD' => $senderPathPrefix . 'segments.php?edit&ID=0&lang=' . LANGUAGE_ID,
+	'CAMPAIGN_EDIT' => $senderPathPrefix . 'campaign.php?edit&ID=#id#&lang=' . LANGUAGE_ID,
+	'CAMPAIGN_ADD' => $senderPathPrefix . 'campaign.php?edit&ID=0&lang=' . LANGUAGE_ID,
+	'LETTER_LIST' => $senderPathPrefix . 'letters.php?lang=' . LANGUAGE_ID,
+	'LETTER_EDIT' => $senderPathPrefix . 'letters.php?edit&ID=#id#&lang=' . LANGUAGE_ID,
+	'LETTER_ADD' => $senderPathPrefix . 'letters.php?edit&ID=0&lang=' . LANGUAGE_ID,
+	'ABUSES' => $senderPathPrefix . 'letters.php?abuses&lang=' . LANGUAGE_ID,
 ];
 
 ?>

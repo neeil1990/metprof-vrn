@@ -7,6 +7,7 @@
  */
 namespace Bitrix\Blog;
 
+use Bitrix\Main\Application;
 use Bitrix\Main\DB\SqlException;
 use Bitrix\Main\Entity;
 use Bitrix\Main\Loader;
@@ -16,6 +17,22 @@ use Bitrix\Socialnetwork\LogTable;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class PostSocnetRightsTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_PostSocnetRights_Query query()
+ * @method static EO_PostSocnetRights_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_PostSocnetRights_Result getById($id)
+ * @method static EO_PostSocnetRights_Result getList(array $parameters = array())
+ * @method static EO_PostSocnetRights_Entity getEntity()
+ * @method static \Bitrix\Blog\EO_PostSocnetRights createObject($setDefaultValues = true)
+ * @method static \Bitrix\Blog\EO_PostSocnetRights_Collection createCollection()
+ * @method static \Bitrix\Blog\EO_PostSocnetRights wakeUpObject($row)
+ * @method static \Bitrix\Blog\EO_PostSocnetRights_Collection wakeUpCollection($rows)
+ */
 class PostSocnetRightsTable extends Entity\DataManager
 {
 	public static function getTableName()
@@ -179,5 +196,21 @@ class PostSocnetRightsTable extends Entity\DataManager
 		}
 
 		return $queryRes;
+	}
+
+	public static function deleteByEntity($value = '')
+	{
+		if ($value == '')
+		{
+			return false;
+		}
+
+		$connection = Application::getConnection();
+		$helper = $connection->getSqlHelper();
+
+		$tableName = self::getTableName();
+		$connection->queryExecute("DELETE FROM {$tableName} WHERE `ENTITY` = '".$helper->forSql($value)."'");
+
+		return true;
 	}
 }

@@ -23,6 +23,9 @@ use Bitrix\Sender\MailingChainTable;
 use Bitrix\Sender\MailingTriggerTable;
 use Bitrix\Sender\PostingTable;
 use Bitrix\Sender\PostingRecipientTable;
+use Bitrix\Sender\Integration;
+use Bitrix\Sender\Internals\Model;
+use Bitrix\Sender\Transport\Adapter;
 
 class Manager
 {
@@ -159,11 +162,21 @@ class Manager
 	 */
 	protected static function stop($chain, $data, $setGoal)
 	{
+		if(!$data || empty($data['EMAIL']))
+		{
+			return;
+		}
+
+		$code = $data['EMAIL'];
+		$typeId = Recipient\Type::detect($data['EMAIL']);
+		$code = Recipient\Normalizer::normalize($code, $typeId);
+
 		// if mailing continue, then stop it
 		$recipientDb = PostingRecipientTable::getList(array(
 			'select' => array('ID', 'ROOT_ID', 'POSTING_ID', 'STATUS', 'POSTING_STATUS' => 'POSTING.STATUS'),
 			'filter' => array(
-				'=CONTACT_ID' => $data['CONTACT_ID'],
+				'=CONTACT.CODE' => $code,
+				'=CONTACT.TYPE_ID' => $typeId,
 				'=POSTING.MAILING_ID' => $chain['MAILING_ID'],
 				'=STATUS' => array(
 					PostingRecipientTable::SEND_RESULT_NONE,
@@ -176,7 +189,7 @@ class Manager
 		{
 			// if mailing continue, then stop it and the next was riched
 			$updateFields = array('STATUS' => PostingRecipientTable::SEND_RESULT_DENY);
-			PostingRecipientTable::update(array('ID' => $recipient['ID']), $updateFields);
+			Model\Posting\RecipientTable::update($recipient['ID'], $updateFields);
 
 			// change status of posting if all emails sent
 			if(!in_array($recipient['POSTING_STATUS'], array(PostingTable::STATUS_NEW, PostingTable::STATUS_PART)))
@@ -194,7 +207,7 @@ class Manager
 				));
 				if(!$recipientCountDb->fetch())
 				{
-					PostingTable::update(array('ID' => $recipient['POSTING_ID']), array('STATUS' => PostingTable::STATUS_SENT));
+					Model\PostingTable::update($recipient['POSTING_ID'], ['STATUS' => PostingTable::STATUS_SENT]);
 				}
 			}
 		}
@@ -208,7 +221,8 @@ class Manager
 		$recipientDb = PostingRecipientTable::getList(array(
 			'select' => array('ID', 'DATE_DENY'),
 			'filter' => array(
-				'=CONTACT_ID' => $data['CONTACT_ID'],
+				'=CONTACT.CODE' => $code,
+				'=CONTACT.TYPE_ID' => $typeId,
 				'=POSTING.MAILING_ID' => $chain['MAILING_ID'],
 				'=STATUS' => array(
 					PostingRecipientTable::SEND_RESULT_SUCCESS
@@ -220,7 +234,9 @@ class Manager
 		if($recipient = $recipientDb->fetch())
 		{
 			if(empty($recipient['DATE_DENY']))
-				PostingRecipientTable::update(array('ID' => $recipient['ID']), array('DATE_DENY' => new DateTime));
+			{
+				Model\Posting\RecipientTable::update($recipient['ID'], ['DATE_DENY' => new DateTime]);
+			}
 		}
 	}
 
@@ -260,7 +276,7 @@ class Manager
 
 		if(count($updateFields) > 0)
 		{
-			MailingChainTable::update(array('ID' => $chain['ID']), $updateFields);
+			Model\LetterTable::update($chain['ID'], $updateFields);
 		}
 	}
 
@@ -270,7 +286,7 @@ class Manager
 	 */
 	protected static function preventMailEvent(array $emailEvent)
 	{
-		if(isset($emailEvent['EVENT_NAME']) && strlen($emailEvent['EVENT_NAME'])>0)
+		if(isset($emailEvent['EVENT_NAME']) && $emailEvent['EVENT_NAME'] <> '')
 		{
 			if(!empty($emailEvent['FILTER']) && is_array($emailEvent['FILTER']))
 			{
@@ -330,9 +346,9 @@ class Manager
 
 				if($statusNew !== null)
 				{
-					PostingRecipientTable::update(
-						array('ID' => $recipient['ID']),
-						array('STATUS' => $statusNew)
+					Model\Posting\RecipientTable::update(
+						$recipient['ID'],
+						['STATUS' => $statusNew]
 					)->isSuccess();
 				}
 			}
@@ -516,7 +532,7 @@ class Manager
 		{
 			$resultList[$endpoint['MODULE_ID']][$endpoint['CODE']][] = $endpoint['FIELDS'];
 		}
-		
+
 		return $resultList;
 	}
 
@@ -656,7 +672,8 @@ class Manager
 						continue;
 					}
 
-					$connectorCode = call_user_func(array($connectorClassName, 'getCode'));
+					$connector = new $connectorClassName;
+					$connectorCode = $connector->getCode();
 					if($moduleConnectorFilter && !in_array($connectorCode, $moduleConnectorFilter[$eventResult->getModuleId()]))
 					{
 						continue;
@@ -666,8 +683,8 @@ class Manager
 					if(is_subclass_of($connectorClassName,  '\Bitrix\Sender\TriggerConnectorClosed'))
 						$isClosedTrigger = true;
 
-					$connectorName = call_user_func(array($connectorClassName, 'getName'));
-					$connectorRequireConfigure = call_user_func(array($connectorClassName, 'requireConfigure'));
+					$connectorName = $connector->getName();
+					$connectorRequireConfigure = $connector->requireConfigure();
 					$resultList[] = array(
 						'MODULE_ID' => $eventResult->getModuleId(),
 						'CLASS_NAME' => $connectorClassName,
@@ -841,7 +858,7 @@ class Manager
 			$isSend = false;
 
 			$settings = new Settings();
-			if(strlen($settings->getEndpoint('CODE')) <= 0)
+			if($settings->getEndpoint('CODE') == '')
 			{
 				// send certainly
 				$isSend = true;
@@ -924,7 +941,7 @@ class Manager
 			return;
 		}
 
-		foreach($mailingParams[$chainId] as  $mailingParamsItem)
+		foreach($mailingParams[$chainId] as $chainKey => $mailingParamsItem)
 		{
 			$postingId = $mailingParamsItem['POSTING_ID'];
 			$childChain = $mailingParamsItem['CHAIN'];
@@ -959,12 +976,12 @@ class Manager
 
 			// add recipient
 			PostingTable::addRecipient($recipient, true);
-			if(empty($mailingParams[$chainId]['CHAIN']['POSTING_ID']))
+			if(empty($childChain['POSTING_ID']))
 			{
-				$chainUpdateDb = MailingChainTable::update(array('ID' => $childChain['ID']), array('POSTING_ID' => $postingId));
+				$chainUpdateDb = Model\LetterTable::update($childChain['ID'], array('POSTING_ID' => $postingId));
 				if($chainUpdateDb->isSuccess())
 				{
-					$mailingParams[$chainId]['CHAIN']['POSTING_ID'] = $postingId;
+					$mailingParams[$chainId][$chainKey]['CHAIN']['POSTING_ID'] = $postingId;
 				}
 			}
 		}
@@ -993,11 +1010,6 @@ class Manager
 	 */
 	public static function onTriggerList($data)
 	{
-		$data['TRIGGER'] = array(
-			'Bitrix\Sender\Integration\Main\Trigger\UserAuth',
-			'Bitrix\Sender\Integration\Main\Trigger\UserDontAuth',
-		);
-
-		return $data;
+		return Integration\EventHandler::onTriggerList($data);
 	}
 }

@@ -3,6 +3,7 @@
 
 	BX.namespace("BX.Landing.MediaService");
 
+	var isArray = BX.Landing.Utils.isArray;
 
 	/**
 	 * Implements base interface for works with media services
@@ -32,6 +33,7 @@
 		this.idPlace = 0;
 		this.type = "iframe";
 		this.params = {};
+		this.isDataLoaded = true;
 	};
 
 	BX.Landing.MediaService.BaseMediaService.prototype = {
@@ -43,7 +45,6 @@
 		{
 			return this.url.match(this.matcher)[this.idPlace];
 		},
-
 
 		/**
 		 * Gets user settings from settings form
@@ -57,6 +58,13 @@
 			if (form)
 			{
 				result = form.fields.fetchValues();
+
+				Object.keys(result).forEach(function(key) {
+					if (isArray(result[key]))
+					{
+						result[key] = encodeURIComponent(result[key].join(", "));
+					}
+				});
 			}
 
 			return result;
@@ -103,6 +111,32 @@
 			}
 
 			return result;
+		},
+
+
+		/**
+		 * Try create image preview, if service can
+		 */
+		getEmbedPreview: function ()
+		{
+			var result = this.previewURL;
+			var matchedUrl = this.url.match(this.matcher);
+
+			if (typeof this.previewURL === "string")
+			{
+				[].slice.call(matchedUrl).forEach(function (value, index)
+				{
+					result = result.replace(new RegExp("\\$" + index, "g"), value);
+				});
+
+				return result;
+			}
+			else if (typeof this.previewURL === "function")
+			{
+				return this.previewURL(matchedUrl);
+			}
+
+			return false;
 		},
 
 

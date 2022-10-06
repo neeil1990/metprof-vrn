@@ -31,7 +31,7 @@ if($arResult["ITEMS"]):
 				<?}?>
 			</div>
 
-            <? if(count($item['OFFERS']) > 1):?>
+            <? if(count($arItem['OFFERS']) > 1): ?>
                 <? $APPLICATION->IncludeFile(SITE_TEMPLATE_PATH . "/include/cart/_to_cart_offer.php", $arItem, Array(
                     "SHOW_BORDER" => false
                 )); ?>

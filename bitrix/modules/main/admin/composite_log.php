@@ -12,7 +12,7 @@ use Bitrix\Main\Type;
  * @global \CUser $USER
  * @global \CMain $APPLICATION
  */
-require_once(dirname(__FILE__)."/../include/prolog_admin_before.php");
+require_once(__DIR__."/../include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/prolog.php");
 define("HELP_FILE", "settings/composite_pages.php");
 
@@ -87,7 +87,7 @@ $adminList->initFilter($filterFields);
 
 function getFilterDate($date)
 {
-	if (!isset($date) || strlen(trim($date)) < 1)
+	if (!isset($date) || mb_strlen(trim($date)) < 1)
 	{
 		return null;
 	}
@@ -110,7 +110,7 @@ $filter = array(
 
 foreach ($filter as $key => $value)
 {
-	if (!is_array($value) && !strlen(trim($value)))
+	if (!is_array($value) && !mb_strlen(trim($value)))
 	{
 		unset($filter[$key]);
 	}
@@ -119,9 +119,9 @@ foreach ($filter as $key => $value)
 $logEntity = LogTable::getEntity();
 
 //Sorting
-$sortBy = strtoupper($sorting->getField());
+$sortBy = mb_strtoupper($sorting->getField());
 $sortBy = $logEntity->hasField($sortBy) ? $sortBy : "ID";
-$sortOrder = strtoupper($sorting->getOrder());
+$sortOrder = mb_strtoupper($sorting->getOrder());
 $sortOrder = $sortOrder !== "DESC" ? "ASC" : "DESC";
 
 $nav = new AdminPageNavigation("nav");
@@ -208,7 +208,7 @@ while ($record = $logList->fetch())
 
 	$pageCell = '<div style="max-width:250px; word-wrap: break-word"><a href="//%s" target="_blank">%s</a><br>%s</div>';
 	$pageLink = htmlspecialcharsbx($record["HOST"].$record["URI"]);
-	$title = strlen(trim($record["TITLE"])) ? $record["TITLE"] : $pageLink;
+	$title = trim($record["TITLE"]) <> ''? $record["TITLE"] : $pageLink;
 	$title = htmlspecialcharsbx($title, ENT_COMPAT, false);
 
 	$row->addViewField("PAGE", sprintf($pageCell, $pageLink, $title, $pageLink));

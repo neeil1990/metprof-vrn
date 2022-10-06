@@ -1,20 +1,25 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Loader;
+use Bitrix\Fileman\Block;
 use Bitrix\Main\Error;
 use Bitrix\Main\ErrorCollection;
-
-use Bitrix\Sender\Security;
-use Bitrix\Sender\PostingRecipientTable;
-use Bitrix\Sender\TemplateTable;
-use Bitrix\Sender\Internals\QueryController as Controller;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Sender\Integration\Crm\Connectors\Helper;
 use Bitrix\Sender\Internals\CommonAjax;
-
-use Bitrix\Fileman\Block;
+use Bitrix\Sender\Internals\QueryController as Controller;
+use Bitrix\Sender\PostingRecipientTable;
+use Bitrix\Sender\Security;
+use Bitrix\Sender\TemplateTable;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
+	die();
+}
+
+if (!Loader::IncludeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
 	die();
 }
 
@@ -59,6 +64,9 @@ class SenderMessageEditorMailComponent extends CBitrixComponent
 		$this->arParams['TEMPLATE_ID'] = isset($this->arParams['TEMPLATE_ID']) ? $this->arParams['TEMPLATE_ID'] : null;
 
 		$this->arParams['IS_TEMPLATE_MODE'] = isset($this->arParams['IS_TEMPLATE_MODE']) ? (bool) $this->arParams['IS_TEMPLATE_MODE'] : true;
+		$this->arParams['IS_TRIGGER'] = isset($this->arParams['IS_TRIGGER']) ? (bool) $this->arParams['IS_TRIGGER'] :
+			false;
+
 		if (!isset($this->arParams['PERSONALIZE_LIST']) || !is_array($this->arParams['PERSONALIZE_LIST']))
 		{
 			$this->arParams['PERSONALIZE_LIST'] = array();
@@ -76,14 +84,18 @@ class SenderMessageEditorMailComponent extends CBitrixComponent
 		));
 		\CJSCore::Init(array("sender_editor"));
 		*/
-
+		$this->arParams['~VALUE'] = Block\Content\SliceConverter::sanitize($this->arParams['~VALUE']);
 
 		// personalize tags
 		if (!empty($this->arParams['PERSONALIZE_LIST']))
 		{
 			PostingRecipientTable::setPersonalizeList($this->arParams['PERSONALIZE_LIST']);
 		}
-		$this->arResult['PERSONALIZE_LIST'] = PostingRecipientTable::getPersonalizeList();
+
+		$this->arResult['PERSONALIZE_LIST'] = array_merge(
+			Helper::getPersonalizeFieldsFromConnectors($this->arParams['IS_TRIGGER']),
+			PostingRecipientTable::getPersonalizeList()
+		);
 
 		// template use
 		$this->arResult['TEMPLATE_USED'] = false;

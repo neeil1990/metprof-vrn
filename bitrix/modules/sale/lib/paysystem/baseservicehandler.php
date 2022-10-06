@@ -2,6 +2,8 @@
 namespace Bitrix\Sale\PaySystem;
 
 use Bitrix\Main\Application;
+use Bitrix\Main\Context;
+use Bitrix\Main\Text;
 use Bitrix\Main\Error;
 use Bitrix\Main\IO;
 use Bitrix\Main\Localization\Loc;
@@ -20,12 +22,12 @@ abstract class BaseServiceHandler
 	const ACTIVE_URL = 'active';
 
 	protected $handlerType = '';
-	
+
 	protected $service = null;
-	
+
 	protected $extraParams = array();
 	protected $initiateMode = self::STREAM;
-	
+
 	/** @var bool */
 	protected $isClone = false;
 
@@ -67,6 +69,12 @@ abstract class BaseServiceHandler
 			if ($this->initiateMode == self::STREAM)
 			{
 				require($templatePath);
+
+				if ($this->service->getField('ENCODING') != '')
+				{
+					define("BX_SALE_ENCODING", $this->service->getField('ENCODING'));
+					AddEventHandler('main', 'OnEndBufferContent', array($this, 'OnEndBufferContent'));
+				}
 			}
 			elseif ($this->initiateMode == self::STRING)
 			{
@@ -74,8 +82,14 @@ abstract class BaseServiceHandler
 				$content = require($templatePath);
 
 				$buffer = ob_get_contents();
-				if (strlen($buffer) > 0)
+				if ($buffer <> '')
 					$content = $buffer;
+
+				if ($this->service->getField('ENCODING') != '')
+				{
+					$encoding = Context::getCurrent()->getCulture()->getCharset();
+					$content = Text\Encoding::convertEncoding($content, $encoding, $this->service->getField('ENCODING'));
+				}
 
 				$result->setTemplate($content);
 				ob_end_clean();
@@ -84,12 +98,6 @@ abstract class BaseServiceHandler
 		else
 		{
 			$result->addError(new Error(Loc::getMessage('SALE_PS_BASE_SERVICE_TEMPLATE_ERROR')));
-		}
-
-		if ($this->service->getField('ENCODING') != '')
-		{
-			define("BX_SALE_ENCODING", $this->service->getField('ENCODING'));
-			AddEventHandler('main', 'OnEndBufferContent', array($this, 'OnEndBufferContent'));
 		}
 
 		return $result;
@@ -164,7 +172,13 @@ abstract class BaseServiceHandler
 	 */
 	protected function getBusinessValue(Payment $payment = null, $code)
 	{
-		return BusinessValue::getValueFromProvider($payment, $code, $this->service->getConsumerName());
+		$value = BusinessValue::getValueFromProvider($payment, $code, $this->service->getConsumerName());
+		if (is_string($value))
+		{
+			$value = trim($value);
+		}
+
+		return $value;
 	}
 
 	/**
@@ -176,12 +190,42 @@ abstract class BaseServiceHandler
 		$documentRoot = Application::getDocumentRoot();
 		$dirs = Manager::getHandlerDirectories();
 		$handlerDir = $dirs[$this->handlerType];
-		$file = $documentRoot.$handlerDir.$this->getName().'/.description.php';
+		$file = $documentRoot.$handlerDir.static::getName().'/.description.php';
 
 		if (IO\File::isFileExists($file))
+		{
 			require $file;
+		}
+
+		if (isset($data["CODES"]) && is_array($data["CODES"]))
+		{
+			$data["CODES"] = $this->filterDescriptionCodes($data["CODES"]);
+		}
 
 		return $data;
+	}
+
+	/**
+	 * @param $codes
+	 * @return array
+	 */
+	protected function filterDescriptionCodes($codes)
+	{
+		$psMode = $this->service->getField("PS_MODE");
+		return array_filter($codes, static function ($code) use ($psMode) {
+			if (!isset($code["HANDLER_MODE"]))
+			{
+				return true;
+			}
+
+			if (isset($code["HANDLER_MODE"]) && !is_array($code["HANDLER_MODE"]))
+			{
+				trigger_error("HANDLER_MODE must be an array", E_USER_WARNING);
+				return false;
+			}
+
+			return in_array($psMode, $code["HANDLER_MODE"], true);
+		});
 	}
 
 	/**
@@ -223,6 +267,32 @@ abstract class BaseServiceHandler
 	public abstract function getCurrencyList();
 
 	/**
+	 * The type of client that the handler can work with
+	 * 
+	 * If, depending on PS_MODE, the handler can work with different types of clients,
+	 * then you can implement validation in a similar way:
+	 * 
+	 * ```php
+	 * 	public function getClientType($psMode)
+	 * 	{
+	 * 		if ($psMode === self::MODE_ALFABANK)
+	 *		{
+	 *			return ClientType::B2B;
+	 *		}
+	 *
+	 *		return ClientType::B2C;
+	 *	}
+	 * ```
+	 *
+	 * @param string $psMode pay system type
+	 * @return string
+	 */
+	public function getClientType($psMode)
+	{
+		return ClientType::DEFAULT;
+	}
+
+	/**
 	 * @param Payment $payment
 	 * @return ServiceResult
 	 */
@@ -238,14 +308,6 @@ abstract class BaseServiceHandler
 	public function debitNoDemand(Payment $payment)
 	{
 		return new ServiceResult();
-	}
-
-	/**
-	 * @return bool
-	 */
-	public function isAffordPdf()
-	{
-		return false;
 	}
 
 	/**
@@ -362,10 +424,15 @@ abstract class BaseServiceHandler
 	 */
 	public function OnEndBufferContent(&$content)
 	{
-		global $APPLICATION;
-		header("Content-Type: text/html; charset=".BX_SALE_ENCODING);
-		$content = $APPLICATION->ConvertCharset($content, SITE_CHARSET, BX_SALE_ENCODING);
-		$content = str_replace("charset=".SITE_CHARSET, "charset=".BX_SALE_ENCODING, $content);
+		if (
+			strpos($content, 'charset=') !== false
+			&& strpos($content, "charset=".SITE_CHARSET) !== false
+		)
+		{
+			header("Content-Type: text/html; charset=".BX_SALE_ENCODING);
+			$content = Text\Encoding::convertEncoding($content, SITE_CHARSET, BX_SALE_ENCODING);
+			$content = str_replace("charset=".SITE_CHARSET, "charset=".BX_SALE_ENCODING, $content);
+		}
 	}
 
 	/**

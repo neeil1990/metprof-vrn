@@ -1,4 +1,6 @@
 <?
+$MESS["SENDER_LETTER_STAT_RESEND"] = "Erneut senden";
+$MESS["SENDER_LETTER_STAT_RESEND_HINT"] = "Nachricht erneut an die Empfänger senden, die sie beim ersten Versuch nicht erhalten haben. Die Nachricht wird nicht erneut an die gesendet, die sie erhalten haben.";
 $MESS["SENDER_LETTER_STAT_STATS_TITLE"] = "Statistik";
 $MESS["SENDER_LETTER_STAT_STATS_ANALYTICS"] = "Analytik";
 $MESS["SENDER_LETTER_STAT_STATS_NO_DATA"] = "Keine Daten.";

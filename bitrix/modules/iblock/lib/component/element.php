@@ -9,6 +9,7 @@ use Bitrix\Main\Error;
 use Bitrix\Main\Type\Collection;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Sale\Internals\FacebookConversion;
 
 /**
  * @global \CUser $USER
@@ -48,6 +49,7 @@ abstract class Element extends Base
 			$params['FROM_SECTION'] = trim($this->request->get($params['SECTION_ID_VARIABLE']));
 		}
 
+		$params['SECTIONS_CHAIN_START_FROM'] = isset($params['SECTIONS_CHAIN_START_FROM']) ? (int)$params['SECTIONS_CHAIN_START_FROM'] : 0;
 		$params['META_KEYWORDS'] = trim($params['META_KEYWORDS']);
 		$params['META_DESCRIPTION'] = trim($params['META_DESCRIPTION']);
 		$params['BROWSER_TITLE'] = trim($params['BROWSER_TITLE']);
@@ -119,6 +121,8 @@ abstract class Element extends Base
 
 	protected function getIblockParams(&$params)
 	{
+		$usePropertyFeatures = Iblock\Model\PropertyFeature::isEnabledFeatures();
+
 		if (!isset($params['PROPERTY_CODE']) || !is_array($params['PROPERTY_CODE']))
 		{
 			$params['PROPERTY_CODE'] = array();
@@ -129,19 +133,6 @@ abstract class Element extends Base
 			if ($v == '')
 			{
 				unset($params['PROPERTY_CODE'][$k]);
-			}
-		}
-
-		if (!isset($params['PRODUCT_PROPERTIES']) || !is_array($params['PRODUCT_PROPERTIES']))
-		{
-			$params['PRODUCT_PROPERTIES'] = array();
-		}
-
-		foreach ($params['PRODUCT_PROPERTIES'] as $k => $v)
-		{
-			if ($v == '')
-			{
-				unset($params['PRODUCT_PROPERTIES'][$k]);
 			}
 		}
 
@@ -189,26 +180,79 @@ abstract class Element extends Base
 			$params['OFFERS_PROPERTY_CODE'][] = 'DETAIL_PICTURE';
 		}
 
-		if (!isset($params['OFFERS_CART_PROPERTIES']) || !is_array($params['OFFERS_CART_PROPERTIES']))
+		$cartProperties = [];
+		$offersCartProperties = [];
+		$offerTreeProperties = [];
+		if (!$usePropertyFeatures)
 		{
-			$params['OFFERS_CART_PROPERTIES'] = array();
-		}
-
-		foreach ($params['OFFERS_CART_PROPERTIES'] as $i => $pid)
-		{
-			if ($pid == '')
+			if (!isset($params['PRODUCT_PROPERTIES']) || !is_array($params['PRODUCT_PROPERTIES']))
 			{
-				unset($params['OFFERS_CART_PROPERTIES'][$i]);
+				$params['PRODUCT_PROPERTIES'] = array();
 			}
+
+			foreach ($params['PRODUCT_PROPERTIES'] as $k => $v)
+			{
+				if ($v == '')
+				{
+					unset($params['PRODUCT_PROPERTIES'][$k]);
+				}
+			}
+			$cartProperties = $params['PRODUCT_PROPERTIES'];
+
+			if (!isset($params['OFFERS_CART_PROPERTIES']) || !is_array($params['OFFERS_CART_PROPERTIES']))
+			{
+				$params['OFFERS_CART_PROPERTIES'] = array();
+			}
+
+			foreach ($params['OFFERS_CART_PROPERTIES'] as $i => $pid)
+			{
+				if ($pid == '')
+				{
+					unset($params['OFFERS_CART_PROPERTIES'][$i]);
+				}
+			}
+			$offersCartProperties = $params['OFFERS_CART_PROPERTIES'];
+
+			if (!isset($params['OFFER_TREE_PROPS']))
+			{
+				$params['OFFER_TREE_PROPS'] = array();
+			}
+			elseif (!is_array($params['OFFER_TREE_PROPS']))
+			{
+				$params['OFFER_TREE_PROPS'] = array($params['OFFER_TREE_PROPS']);
+			}
+
+			foreach ($params['OFFER_TREE_PROPS'] as $key => $value)
+			{
+				$value = (string)$value;
+				if ($value == '' || $value === '-')
+				{
+					unset($params['OFFER_TREE_PROPS'][$key]);
+				}
+			}
+
+			if (empty($params['OFFER_TREE_PROPS']) && !empty($params['OFFERS_CART_PROPERTIES']))
+			{
+				$params['OFFER_TREE_PROPS'] = $params['OFFERS_CART_PROPERTIES'];
+				foreach ($params['OFFER_TREE_PROPS'] as $key => $value)
+				{
+					if ($value === '-')
+					{
+						unset($params['OFFER_TREE_PROPS'][$key]);
+					}
+				}
+			}
+			$offerTreeProperties = $params['OFFER_TREE_PROPS'];
 		}
 
 		return array(
 			$params['IBLOCK_ID'] => array(
 				'PROPERTY_CODE' => $params['PROPERTY_CODE'],
-				'CART_PROPERTIES' => $params['PRODUCT_PROPERTIES'],
+				'CART_PROPERTIES' => $cartProperties,
 				'OFFERS_FIELD_CODE' => $params['OFFERS_FIELD_CODE'],
 				'OFFERS_PROPERTY_CODE' => $params['OFFERS_PROPERTY_CODE'],
-				'OFFERS_CART_PROPERTIES' => $params['OFFERS_CART_PROPERTIES']
+				'OFFERS_CART_PROPERTIES' => $offersCartProperties,
+				'OFFERS_TREE_PROPS' => $offerTreeProperties
 			)
 		);
 	}
@@ -241,6 +285,14 @@ abstract class Element extends Base
 		if ($this->checkElementId())
 		{
 			parent::processResultData();
+			$this->arResult['IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED'] = false;
+			if (Loader::includeModule('sale'))
+			{
+				$this->arResult['IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED'] = FacebookConversion::isEventEnabled(
+					'CustomizeProduct'
+				);
+			}
+
 		}
 		else
 		{
@@ -307,6 +359,50 @@ abstract class Element extends Base
 		}
 
 		$this->arResult['USE_CATALOG_BUTTONS'] = $useCatalogButtons;
+	}
+
+	/**
+	 * @return void
+	 */
+	protected function initIblockPropertyFeatures()
+	{
+		if (!Iblock\Model\PropertyFeature::isEnabledFeatures())
+			return;
+
+		$this->loadDisplayPropertyCodes($this->arParams['IBLOCK_ID']);
+		$this->loadBasketPropertyCodes($this->arParams['IBLOCK_ID']);
+		$this->loadOfferTreePropertyCodes($this->arParams['IBLOCK_ID']);
+	}
+
+	protected function checkProductIblock(array $product): bool
+	{
+		return ($product['PRODUCT_IBLOCK_ID'] == $this->arParams['IBLOCK_ID']);
+	}
+
+	/**
+	 * @param int $iblockId
+	 * @return void
+	 */
+	protected function loadDisplayPropertyCodes($iblockId)
+	{
+		$list = Iblock\Model\PropertyFeature::getDetailPageShowProperties(
+			$iblockId,
+			['CODE' => 'Y']
+		);
+		if ($list === null)
+			$list = [];
+		$this->storage['IBLOCK_PARAMS'][$iblockId]['PROPERTY_CODE'] = $list;
+		if ($this->useCatalog)
+		{
+			$list = Iblock\Model\PropertyFeature::getDetailPageShowProperties(
+				$this->getOffersIblockId($iblockId),
+				['CODE' => 'Y']
+			);
+			if ($list === null)
+				$list = [];
+			$this->storage['IBLOCK_PARAMS'][$iblockId]['OFFERS_PROPERTY_CODE'] = $list;
+		}
+		unset($list);
 	}
 
 	protected function getSelect()
@@ -549,8 +645,8 @@ abstract class Element extends Base
 			$element['LINKED_ELEMENTS'] = array();
 
 			if (
-				strlen($this->arParams['LINK_PROPERTY_SID']) > 0
-				&& strlen($this->arParams['LINK_IBLOCK_TYPE']) > 0
+				$this->arParams['LINK_PROPERTY_SID'] <> ''
+				&& $this->arParams['LINK_IBLOCK_TYPE'] <> ''
 				&& $this->arParams['LINK_IBLOCK_ID'] > 0
 			)
 			{
@@ -623,6 +719,11 @@ abstract class Element extends Base
 					}
 
 					$this->storage['SECTION']['PATH'][] = $path;
+				}
+
+				if ($this->arParams['SECTIONS_CHAIN_START_FROM'] > 0)
+				{
+					$this->storage['SECTION']['PATH'] = array_slice($this->storage['SECTION']['PATH'], $this->arParams['SECTIONS_CHAIN_START_FROM']);
 				}
 
 				$element['SECTION'] = $this->storage['SECTION'];
@@ -1054,37 +1155,6 @@ abstract class Element extends Base
 			$params['OFFER_ADD_PICT_PROP'] = '';
 		}
 
-		if (!isset($params['OFFER_TREE_PROPS']))
-		{
-			$params['OFFER_TREE_PROPS'] = array();
-		}
-		elseif (!is_array($params['OFFER_TREE_PROPS']))
-		{
-			$params['OFFER_TREE_PROPS'] = array($params['OFFER_TREE_PROPS']);
-		}
-
-		foreach ($params['OFFER_TREE_PROPS'] as $key => $value)
-		{
-			$value = (string)$value;
-			if ($value == '' || $value === '-')
-			{
-				unset($params['OFFER_TREE_PROPS'][$key]);
-			}
-		}
-
-		if (empty($params['OFFER_TREE_PROPS']) && isset($params['OFFERS_CART_PROPERTIES']) && is_array($params['OFFERS_CART_PROPERTIES']))
-		{
-			$params['OFFER_TREE_PROPS'] = $params['OFFERS_CART_PROPERTIES'];
-			foreach ($params['OFFER_TREE_PROPS'] as $key => $value)
-			{
-				$value = (string)$value;
-				if ($value == '' || $value === '-')
-				{
-					unset($params['OFFER_TREE_PROPS'][$key]);
-				}
-			}
-		}
-
 		if (!isset($params['MAIN_BLOCK_PROPERTY_CODE']) || !is_array($params['MAIN_BLOCK_PROPERTY_CODE']))
 		{
 			$params['MAIN_BLOCK_PROPERTY_CODE'] = array();
@@ -1115,9 +1185,10 @@ abstract class Element extends Base
 		$this->storage['IBLOCK_PARAMS'][$params['IBLOCK_ID']]['LABEL_PROP_MOBILE'] = $params['LABEL_PROP_MOBILE'];
 		$this->storage['IBLOCK_PARAMS'][$params['IBLOCK_ID']]['ENLARGE_PROP'] = $params['ENLARGE_PROP'];
 		$this->storage['IBLOCK_PARAMS'][$params['IBLOCK_ID']]['OFFERS_ADD_PICT_PROP'] = $params['OFFER_ADD_PICT_PROP'];
-		$this->storage['IBLOCK_PARAMS'][$params['IBLOCK_ID']]['OFFERS_TREE_PROPS'] = $params['OFFER_TREE_PROPS'];
 		$this->storage['IBLOCK_PARAMS'][$params['IBLOCK_ID']]['MAIN_BLOCK_PROPERTY_CODE'] = $params['MAIN_BLOCK_PROPERTY_CODE'];
 		$this->storage['IBLOCK_PARAMS'][$params['IBLOCK_ID']]['MAIN_BLOCK_OFFERS_PROPERTY_CODE'] = $params['MAIN_BLOCK_OFFERS_PROPERTY_CODE'];
+
+		unset($skuTreeProperties);
 	}
 
 	protected function getTemplateDefaultParams()
@@ -1239,7 +1310,7 @@ abstract class Element extends Base
 	protected function editTemplateProductSets(&$item)
 	{
 		$result = array();
-		if (!\CBXFeatures::IsFeatureEnabled('CatCompleteSet'))
+		if (!Catalog\Config\Feature::isProductSetsEnabled())
 			return $result;
 		if (!isset($item['PRODUCT']['TYPE']))
 			return $result;
@@ -1272,7 +1343,7 @@ abstract class Element extends Base
 
 	protected function editTemplateJsOffers(&$item, $offerSet)
 	{
-		$matrix = array();
+		$matrix = [];
 		$intSelected = -1;
 
 		foreach ($item['OFFERS'] as $keyOffer => $offer)
@@ -1295,17 +1366,19 @@ abstract class Element extends Base
 			$skuProps = false;
 			if (!empty($offer['DISPLAY_PROPERTIES']))
 			{
-				$skuProps = array();
+				$skuProps = [];
 				foreach ($offer['DISPLAY_PROPERTIES'] as $oneProp)
 				{
-					if ($oneProp['PROPERTY_TYPE'] === 'F')
+					if ($oneProp['PROPERTY_TYPE'] === Iblock\PropertyTable::TYPE_FILE)
+					{
 						continue;
+					}
 
-					$skuProps[] = array(
+					$skuProps[] = [
 						'CODE' => $oneProp['CODE'],
 						'NAME' => $oneProp['NAME'],
-						'VALUE' => $oneProp['DISPLAY_VALUE']
-					);
+						'VALUE' => $oneProp['DISPLAY_VALUE'],
+					];
 				}
 				unset($oneProp);
 			}
@@ -1318,12 +1391,16 @@ abstract class Element extends Base
 
 			$ratioSelectedIndex = $offer['ITEM_MEASURE_RATIO_SELECTED'];
 			$firstPhoto = reset($offer['MORE_PHOTO']);
-			$arOneRow = array(
+			$oneRow = [
 				'ID' => $offer['ID'],
 				'CODE' => $offer['CODE'],
 				'NAME' => $offer['~NAME'],
 				'TREE' => $offer['TREE'],
 				'DISPLAY_PROPERTIES' => $skuProps,
+				'PREVIEW_TEXT' => $offer['PREVIEW_TEXT'],
+				'PREVIEW_TEXT_TYPE' => $offer['PREVIEW_TEXT_TYPE'],
+				'DETAIL_TEXT' => $offer['DETAIL_TEXT'],
+				'DETAIL_TEXT_TYPE' => $offer['DETAIL_TEXT_TYPE'],
 				'ITEM_PRICE_MODE' => $offer['ITEM_PRICE_MODE'],
 				'ITEM_PRICES' => $offer['ITEM_PRICES'],
 				'ITEM_PRICE_SELECTED' => $offer['ITEM_PRICE_SELECTED'],
@@ -1340,13 +1417,13 @@ abstract class Element extends Base
 				'MEASURE' => $offer['ITEM_MEASURE']['TITLE'],
 				'OFFER_GROUP' => (isset($offerSet[$offer['ID']]) && $offerSet[$offer['ID']]),
 				'CAN_BUY' => $offer['CAN_BUY'],
-				'CATALOG_SUBSCRIBE' => $offer['CATALOG_SUBSCRIBE'],
+				'CATALOG_SUBSCRIBE' => $offer['PRODUCT']['SUBSCRIBE'],
 				'SLIDER' => $offer['MORE_PHOTO'],
 				'SLIDER_COUNT' => $offer['MORE_PHOTO_COUNT'],
-			);
+			];
 			unset($ratioSelectedIndex);
 
-			$matrix[$keyOffer] = $arOneRow;
+			$matrix[$keyOffer] = $oneRow;
 		}
 
 		if ($intSelected == -1)
@@ -1462,7 +1539,7 @@ abstract class Element extends Base
 			}
 
 			if (
-				\CBXFeatures::IsFeatureEnabled('CatCompleteSet')
+				Catalog\Config\Feature::isProductSetsEnabled()
 				&& (
 					$item['CATALOG_TYPE'] == Catalog\ProductTable::TYPE_PRODUCT
 					|| $item['CATALOG_TYPE'] == Catalog\ProductTable::TYPE_SET

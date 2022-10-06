@@ -15,22 +15,29 @@ BX.namespace("BX.SidePanel");
  */
 BX.SidePanel.Slider = function(url, options)
 {
-	this.url = BX.util.remove_url_param(url, ["IFRAME", "IFRAME_TYPE"]);
 	options = BX.type.isPlainObject(options) ? options : {};
 	this.options = options;
 
 	this.contentCallback = BX.type.isFunction(options.contentCallback) ? options.contentCallback : null;
 	this.contentCallbackInvoved = false;
+	this.contentClassName = BX.type.isNotEmptyString(options.contentClassName) ? options.contentClassName : null;
 
-	this.zIndex = 3000;
-	this.offset = 0;
+	this.url = this.contentCallback ? url : this.refineUrl(url);
+
+	this.offset = null;
 	this.width = BX.type.isNumber(options.width) ? options.width : null;
 	this.cacheable = options.cacheable !== false;
 	this.autoFocus = options.autoFocus !== false;
 	this.printable = options.printable === true;
 	this.allowChangeHistory = options.allowChangeHistory !== false;
+	this.allowChangeTitle = BX.type.isBoolean(options.allowChangeTitle) ? options.allowChangeTitle : null;
 	this.data = new BX.SidePanel.Dictionary(BX.type.isPlainObject(options.data) ? options.data : {});
 
+	this.customLeftBoundary = null;
+	this.setCustomLeftBoundary(options.customLeftBoundary);
+
+	this.title = null;
+	this.setTitle(options.title);
 	/**
 	 *
 	 * @type {HTMLIFrameElement}
@@ -52,10 +59,11 @@ BX.SidePanel.Slider = function(url, options)
 
 	this.handleFrameKeyDown = this.handleFrameKeyDown.bind(this);
 	this.handleFrameFocus = this.handleFrameFocus.bind(this);
+	this.handlePopupInit = this.handlePopupInit.bind(this);
 
 	/**
 	 *
-	 * @type {{overlay: Element, container: Element, loader: Element, content: Element, closeBtn: Element}}
+	 * @type {{overlay: Element, container: Element, loader: Element, content: Element, label: Element, closeBtn: Element}}
 	 */
 	this.layout = {
 		overlay: null,
@@ -66,8 +74,10 @@ BX.SidePanel.Slider = function(url, options)
 		printBtn: null
 	};
 
+	this.cache = new BX.Cache.MemoryCache();
+
 	this.loader =
-		BX.type.isNotEmptyString(options.loader)
+		BX.type.isNotEmptyString(options.loader) || BX.type.isElementNode(options.loader)
 			? options.loader
 			: BX.type.isNotEmptyString(options.typeLoader) ? options.typeLoader : "default-loader"
 	;
@@ -78,6 +88,59 @@ BX.SidePanel.Slider = function(url, options)
 	this.endParams = { translateX: 0, opacity: 40 };
 	this.currentParams = null;
 	this.overlayAnimation = false;
+
+	this.label = new BX.SidePanel.Label(this, {
+		iconClass: 'side-panel-label-icon-close',
+		iconTitle: BX.Loc.getMessage('MAIN_SIDEPANEL_CLOSE'),
+		onclick: function(label, slider) {
+			slider.close();
+		}
+	});
+
+	var labelOptions = BX.type.isPlainObject(options.label) ? options.label : {};
+	this.label.setText(labelOptions.text);
+	this.label.setColor(labelOptions.color);
+	this.label.setBgColor(labelOptions.bgColor, labelOptions.opacity);
+
+	this.newWindowLabel = null;
+	this.copyLinkLabel = null;
+	if (!this.isSelfContained())
+	{
+		if (options.newWindowLabel === true)
+		{
+			this.newWindowLabel = new BX.SidePanel.Label(this, {
+				iconClass: 'side-panel-label-icon-new-window',
+				iconTitle: BX.Loc.getMessage('MAIN_SIDEPANEL_NEW_WINDOW'),
+				bgColor: ['#d9dcdf', 100],
+				onclick: function(label, slider) {
+					Object.assign(document.createElement('a'), {
+						target: '_blank',
+						href: slider.getUrl(),
+					}).click();
+				}
+			});
+		}
+
+		if (options.copyLinkLabel === true)
+		{
+			this.copyLinkLabel = new BX.SidePanel.Label(this, {
+				iconClass: 'side-panel-label-icon-copy-link',
+				iconTitle: BX.Loc.getMessage('MAIN_SIDEPANEL_COPY_LINK'),
+				bgColor: ['#d9dcdf', 100],
+			});
+
+			BX.clipboard.bindCopyClick(
+				this.copyLinkLabel.getIconBox(),
+				{
+					text: function() {
+						var link = document.createElement('a');
+						link.href = this.getUrl();
+						return link.href;
+					}.bind(this)
+				}
+			);
+		}
+	}
 
 	//Compatibility
 	if (
@@ -139,10 +202,21 @@ BX.SidePanel.Slider.prototype =
 			return false;
 		}
 
+		if (this.isDestroyed())
+		{
+			return false;
+		}
+
 		this.createLayout();
+		BX.addClass(this.getOverlay(), "side-panel-overlay-open side-panel-overlay-opening");
 		this.adjustLayout();
 
+		BX.ZIndexManager.bringToFront(this.getOverlay());
+
 		this.opened = true;
+
+		this.fireEvent("onOpenStart");
+
 		this.animateOpening();
 
 		return true;
@@ -166,7 +240,14 @@ BX.SidePanel.Slider.prototype =
 			return false;
 		}
 
+		this.fireEvent("onCloseStart");
+
 		this.opened = false;
+
+		if (this.isDestroyed())
+		{
+			return false;
+		}
 
 		if (this.animation)
 		{
@@ -231,14 +312,12 @@ BX.SidePanel.Slider.prototype =
 
 	/**
 	 * @public
+	 * @deprecated
 	 * @param {number} zIndex
 	 */
 	setZindex: function(zIndex)
 	{
-		if (BX.type.isNumber(zIndex))
-		{
-			this.zIndex = zIndex;
-		}
+
 	},
 
 	/**
@@ -247,16 +326,18 @@ BX.SidePanel.Slider.prototype =
 	 */
 	getZindex: function()
 	{
-		return this.zIndex;
+		var component = BX.ZIndexManager.getComponent(this.getOverlay());
+
+		return component.getZIndex();
 	},
 
 	/**
 	 * @public
-	 * @param {number} offset
+	 * @param {?number} offset
 	 */
 	setOffset: function(offset)
 	{
-		if (BX.type.isNumber(offset))
+		if (BX.type.isNumber(offset) || offset === null)
 		{
 			this.offset = offset;
 		}
@@ -264,7 +345,7 @@ BX.SidePanel.Slider.prototype =
 
 	/**
 	 * @public
-	 * @returns {number}
+	 * @returns {?number}
 	 */
 	getOffset: function()
 	{
@@ -290,6 +371,27 @@ BX.SidePanel.Slider.prototype =
 	getWidth: function()
 	{
 		return this.width;
+	},
+
+	/**
+	 * @public
+	 * @param {string} title
+	 */
+	setTitle: function(title)
+	{
+		if (BX.type.isNotEmptyString(title))
+		{
+			this.title = title;
+		}
+	},
+
+	/**
+	 * @public
+	 * @returns {null|string}
+	 */
+	getTitle: function()
+	{
+		return this.title;
 	},
 
 	/**
@@ -423,6 +525,21 @@ BX.SidePanel.Slider.prototype =
 		);
 	},
 
+	canChangeTitle: function()
+	{
+		if (this.allowChangeTitle === null)
+		{
+			if (this.getTitle() !== null)
+			{
+				return true;
+			}
+
+			return this.canChangeHistory();
+		}
+
+		return this.allowChangeTitle;
+	},
+
 	/**
 	 * @public
 	 * @param {boolean} [cacheable=true]
@@ -466,7 +583,7 @@ BX.SidePanel.Slider.prototype =
 	showLoader: function()
 	{
 		var loader = this.getLoader();
-		if (!this.layout.loader || this.layout.loader.dataset.loader !== loader)
+		if (!this.layout.loader)
 		{
 			this.createLoader(loader);
 		}
@@ -480,8 +597,11 @@ BX.SidePanel.Slider.prototype =
 	 */
 	closeLoader: function()
 	{
-		this.layout.loader.style.display = "none";
-		this.layout.loader.style.opacity = 0;
+		if (this.layout.loader)
+		{
+			this.layout.loader.style.display = "none";
+			this.layout.loader.style.opacity = 0;
+		}
 	},
 
 	/**
@@ -489,7 +609,7 @@ BX.SidePanel.Slider.prototype =
 	 */
 	showCloseBtn: function()
 	{
-		this.getCloseBtn().style.removeProperty("opacity");
+		this.getLabel().showIcon();
 	},
 
 	/**
@@ -497,7 +617,37 @@ BX.SidePanel.Slider.prototype =
 	 */
 	hideCloseBtn: function()
 	{
-		this.getCloseBtn().style.opacity = 0;
+		this.getLabel().hideIcon();
+	},
+
+	/**
+	 * @public
+	 */
+	showOrLightenCloseBtn: function()
+	{
+		if (BX.Type.isStringFilled(this.getLabel().getText()))
+		{
+			this.getLabel().showIcon();
+		}
+		else
+		{
+			this.getLabel().lightenIcon();
+		}
+	},
+
+	/**
+	 * @public
+	 */
+	hideOrDarkenCloseBtn: function()
+	{
+		if (BX.Type.isStringFilled(this.getLabel().getText()))
+		{
+			this.getLabel().hideIcon();
+		}
+		else
+		{
+			this.getLabel().darkenIcon();
+		}
 	},
 
 	/**
@@ -514,6 +664,42 @@ BX.SidePanel.Slider.prototype =
 	hidePrintBtn: function()
 	{
 		this.getPrintBtn().classList.remove("side-panel-print-visible");
+	},
+
+	showExtraLabels: function()
+	{
+		this.getExtraLabelsContainer().style.removeProperty('display');
+	},
+
+	hideExtraLabels: function()
+	{
+		this.getExtraLabelsContainer().style.display = 'none';
+	},
+
+	/**
+	 * @public
+	 * @param {string} className
+	 */
+	setContentClass: function(className)
+	{
+		if (BX.type.isNotEmptyString(className))
+		{
+			this.removeContentClass();
+			this.contentClassName = className;
+			this.getContentContainer().classList.add(className);
+		}
+	},
+
+	/**
+	 * @public
+	 */
+	removeContentClass: function()
+	{
+		if (this.contentClassName !== null)
+		{
+			this.getContentContainer().classList.remove(this.contentClassName);
+			this.contentClassName = null;
+		}
 	},
 
 	/**
@@ -562,6 +748,21 @@ BX.SidePanel.Slider.prototype =
 	},
 
 	/**
+	 * @protected
+	 * @return {number}
+	 */
+	calculateLeftBoundary: function()
+	{
+		var customLeftBoundary = this.getCustomLeftBoundary();
+		if (customLeftBoundary !== null)
+		{
+			return customLeftBoundary;
+		}
+
+		return this.getLeftBoundary();
+	},
+
+	/**
 	 * @public
 	 * @returns {number}
 	 */
@@ -581,6 +782,38 @@ BX.SidePanel.Slider.prototype =
 	},
 
 	/**
+	 * @internal
+	 * @returns {number}
+	 */
+	getLeftBoundaryOffset: function()
+	{
+		var offset = this.getOffset() !== null ? this.getOffset() : 0;
+
+		return Math.max(this.calculateLeftBoundary(), this.getMinLeftBoundary()) + offset;
+	},
+
+	/**
+	 * @public
+	 * @param {number} boundary
+	 */
+	setCustomLeftBoundary: function(boundary)
+	{
+		if (BX.type.isNumber(boundary) || boundary === null)
+		{
+			this.customLeftBoundary = boundary;
+		}
+	},
+
+	/**
+	 * @public
+	 * @return {number}
+	 */
+	getCustomLeftBoundary: function()
+	{
+		return this.customLeftBoundary;
+	},
+
+	/**
 	 * @public
 	 * @returns {number}
 	 */
@@ -595,6 +828,11 @@ BX.SidePanel.Slider.prototype =
 	 */
 	destroy: function()
 	{
+		if (this.isDestroyed())
+		{
+			return;
+		}
+
 		this.firePageEvent("onDestroy");
 		this.fireFrameEvent("onDestroy");
 
@@ -604,6 +842,9 @@ BX.SidePanel.Slider.prototype =
 			frameWindow.removeEventListener("keydown", this.handleFrameKeyDown);
 			frameWindow.removeEventListener("focus", this.handleFrameFocus);
 		}
+
+		BX.Event.EventEmitter.unsubscribe('BX.Main.Popup:onInit', this.handlePopupInit);
+		BX.ZIndexManager.unregister(this.layout.overlay);
 
 		BX.remove(this.layout.overlay);
 
@@ -651,6 +892,24 @@ BX.SidePanel.Slider.prototype =
 	/**
 	 * @public
 	 */
+	reload: function()
+	{
+		if (this.isSelfContained())
+		{
+			this.contentCallbackInvoved = false;
+			this.showLoader();
+			this.setContent();
+		}
+		else
+		{
+			this.showLoader();
+			this.getFrameWindow().location.reload();
+		}
+	},
+
+	/**
+	 * @public
+	 */
 	adjustLayout: function()
 	{
 		var scrollTop = window.pageYOffset || document.documentElement.scrollTop;
@@ -661,7 +920,7 @@ BX.SidePanel.Slider.prototype =
 		topBoundary = isTopBoundaryVisible ? topBoundary : scrollTop;
 
 		var height = isTopBoundaryVisible > 0 ? windowHeight - topBoundary + scrollTop : windowHeight;
-		var leftBoundary = Math.max(this.getLeftBoundary(), this.getMinLeftBoundary()) + this.getOffset();
+		var leftBoundary = this.getLeftBoundaryOffset();
 
 		this.getOverlay().style.left = window.pageXOffset + "px";
 		this.getOverlay().style.top = topBoundary + "px";
@@ -675,6 +934,8 @@ BX.SidePanel.Slider.prototype =
 		{
 			this.getContainer().style.maxWidth = this.getWidth() + "px";
 		}
+
+		this.getLabel().adjustLayout();
 	},
 
 	/**
@@ -692,6 +953,8 @@ BX.SidePanel.Slider.prototype =
 			this.getContentContainer().style.overflow = "auto";
 			document.body.appendChild(this.getOverlay());
 			this.setContent();
+
+			BX.Event.EventEmitter.subscribe('BX.Main.Popup:onInit', this.handlePopupInit);
 		}
 		else
 		{
@@ -699,6 +962,8 @@ BX.SidePanel.Slider.prototype =
 			document.body.appendChild(this.getOverlay());
 			this.setFrameSrc(); //setFrameSrc must be below than appendChild, otherwise POST method fails.
 		}
+
+		BX.ZIndexManager.register(this.getOverlay());
 	},
 
 	/**
@@ -746,10 +1011,7 @@ BX.SidePanel.Slider.prototype =
 				className: "side-panel side-panel-overlay"
 			},
 			events: {
-				click: this.handleOverlayClick.bind(this)
-			},
-			style: {
-				zIndex: this.getZindex()
+				mousedown: this.handleOverlayClick.bind(this)
 			},
 			children: [
 				this.getContainer()
@@ -767,6 +1029,16 @@ BX.SidePanel.Slider.prototype =
 	hideOverlay: function()
 	{
 		this.getOverlay().classList.add("side-panel-overlay-hidden");
+	},
+
+	hideShadow: function()
+	{
+		this.getContainer().classList.remove("side-panel-show-shadow");
+	},
+
+	showShadow: function()
+	{
+		this.getContainer().classList.add("side-panel-show-shadow");
 	},
 
 	setOverlayAnimation: function(animate)
@@ -797,12 +1069,9 @@ BX.SidePanel.Slider.prototype =
 			props: {
 				className: "side-panel side-panel-container"
 			},
-			style: {
-				zIndex: this.getZindex() + 1
-			},
 			children: [
 				this.getContentContainer(),
-				this.getCloseBtn(),
+				this.getLabelsContainer(),
 				this.getPrintBtn()
 			]
 		});
@@ -823,11 +1092,51 @@ BX.SidePanel.Slider.prototype =
 
 		this.layout.content = BX.create("div", {
 			props: {
-				className: "side-panel-content-container"
+				className:
+					"side-panel-content-container" +
+					(this.contentClassName !== null ? " " + this.contentClassName : "")
 			}
 		});
 
 		return this.layout.content;
+	},
+
+	/**
+	 *
+	 * @returns {Element}
+	 */
+	getLabelsContainer: function()
+	{
+		return this.cache.remember('labels-container', function() {
+			return BX.create('div', {
+					props: {
+						className: 'side-panel-labels'
+					},
+					children: [
+						this.getLabel().getContainer(),
+						this.getExtraLabelsContainer()
+					]
+				})
+			;
+		}.bind(this));
+	},
+
+	/**
+	 * @returns {Element}
+	 */
+	getExtraLabelsContainer: function()
+	{
+		return this.cache.remember('icon-labels', function() {
+			return BX.create('div', {
+				props: {
+					className: 'side-panel-extra-labels'
+				},
+				children: [
+					this.newWindowLabel ? this.newWindowLabel.getContainer() : null,
+					this.copyLinkLabel ? this.copyLinkLabel.getContainer() : null
+				]
+			});
+		}.bind(this));
 	},
 
 	/**
@@ -836,29 +1145,34 @@ BX.SidePanel.Slider.prototype =
 	 */
 	getCloseBtn: function()
 	{
-		if (this.layout.closeBtn !== null)
-		{
-			return this.layout.closeBtn;
-		}
+		return this.getLabel().getIconBox();
+	},
 
-		this.layout.closeBtn = BX.create("span", {
-			props: {
-				className: "side-panel-close",
-				title: BX.message("MAIN_SIDEPANEL_CLOSE")
-			},
-			children : [
-				BX.create("span", {
-					props: {
-						className: "side-panel-close-inner"
-					}
-				})
-			],
-			events: {
-				click: this.handleCloseBtnClick.bind(this)
-			}
-		});
+	/**
+	 * @public
+	 * @returns {BX.SidePanel.Label}
+	 */
+	getLabel: function()
+	{
+		return this.label;
+	},
 
-		return this.layout.closeBtn;
+	/**
+	 * @public
+	 * @returns {BX.SidePanel.Label | null}
+	 */
+	getNewWindowLabel: function()
+	{
+		return this.newWindowLabel;
+	},
+
+	/**
+	 * @public
+	 * @returns {BX.SidePanel.Label | null}
+	 */
+	getCopyLinkLabel: function()
+	{
+		return this.copyLinkLabel;
 	},
 
 	/**
@@ -897,20 +1211,47 @@ BX.SidePanel.Slider.prototype =
 
 		this.contentCallbackInvoved = true;
 
-		this.showLoader();
+		BX.cleanNode(this.getContentContainer());
 
-		var promise = new BX.Promise();
+		var promise = this.contentCallback(this);
+		var isPromiseReturned =
+				promise &&
+				(
+					Object.prototype.toString.call(promise) === "[object Promise]" ||
+					promise.toString() === "[object BX.Promise]"
+				)
+		;
 
-		promise
-			.then(this.contentCallback)
-			.then(
-				function(result)
+		if (!isPromiseReturned)
+		{
+			promise = Promise.resolve(promise);
+		}
+
+		promise.then(
+			function(result)
+			{
+				if (this.isDestroyed())
 				{
-					if (this.isDestroyed())
-					{
-						return;
-					}
+					return;
+				}
 
+				if (BX.type.isPlainObject(result) && BX.type.isNotEmptyString(result.html))
+				{
+					BX.html(this.getContentContainer(), result.html).then(
+						function() {
+							this.removeLoader();
+							this.loaded = true;
+							this.firePageEvent("onLoad");
+						}.bind(this),
+
+						function(reason) {
+							this.removeLoader();
+							this.getContentContainer().innerHTML = reason;
+						}.bind(this)
+					);
+				}
+				else
+				{
 					if (BX.type.isDomNode(result))
 					{
 						this.getContentContainer().appendChild(result);
@@ -920,20 +1261,17 @@ BX.SidePanel.Slider.prototype =
 						this.getContentContainer().innerHTML = result;
 					}
 
+					this.removeLoader();
 					this.loaded = true;
 					this.firePageEvent("onLoad");
-
-					this.closeLoader();
-
-				}.bind(this),
-				function(reason)
-				{
-					this.destroy();
-					BX.debug("error", reason);
 				}
-			);
-
-		promise.fulfill(this);
+			}.bind(this),
+			function(reason)
+			{
+				this.removeLoader();
+				this.getContentContainer().innerHTML = reason;
+			}.bind(this)
+		);
 	},
 
 	/**
@@ -969,8 +1307,6 @@ BX.SidePanel.Slider.prototype =
 			this.iframeSrc = this.getUrl();
 			this.iframe.src = url;
 		}
-
-		this.showLoader();
 	},
 
 	/**
@@ -981,7 +1317,7 @@ BX.SidePanel.Slider.prototype =
 	{
 		BX.remove(this.layout.loader);
 
-		loader = BX.type.isNotEmptyString(loader) ? loader : "default-loader";
+		loader = BX.type.isNotEmptyString(loader) || BX.type.isElementNode(loader) ? loader : "default-loader";
 
 		var oldLoaders = [
 			"task-new-loader",
@@ -995,7 +1331,12 @@ BX.SidePanel.Slider.prototype =
 		];
 
 		var matches = null;
-		if (BX.util.in_array(loader, oldLoaders) && this.loaderExists(loader))
+
+		if (BX.type.isElementNode(loader))
+		{
+			this.layout.loader = this.createHTMLLoader(loader);
+		}
+		else if (BX.util.in_array(loader, oldLoaders) && this.loaderExists(loader))
 		{
 			this.layout.loader = this.createOldLoader(loader);
 		}
@@ -1016,19 +1357,25 @@ BX.SidePanel.Slider.prototype =
 			this.layout.loader = this.createDefaultLoader();
 		}
 
-		this.layout.loader.dataset.loader = loader;
-		this.getContentContainer().appendChild(this.layout.loader);
+		this.getContainer().appendChild(this.layout.loader);
 	},
 
 	createSvgLoader: function(svg)
 	{
 		return BX.create("div", {
 			props: {
-				className: "side-panel-loader-container"
+				className: "side-panel-loader"
 			},
-			style: {
-				backgroundImage: 'url("' + svg +'")'
-			}
+			children: [
+				BX.create("div", {
+					props: {
+						className: "side-panel-loader-container"
+					},
+					style: {
+						backgroundImage: 'url("' + svg +'")'
+					}
+				})
+			]
 		});
 	},
 
@@ -1036,15 +1383,22 @@ BX.SidePanel.Slider.prototype =
 	{
 		return BX.create("div", {
 			props: {
-				className: "side-panel-default-loader-container"
+				className: "side-panel-loader"
 			},
-			html:
-				'<svg class="side-panel-default-loader-circular" viewBox="25 25 50 50">' +
-					'<circle ' +
-						'class="side-panel-default-loader-path" ' +
-						'cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"' +
-					'/>' +
-				'</svg>'
+			children: [
+				BX.create("div", {
+					props: {
+						className: "side-panel-default-loader-container"
+					},
+					html:
+						'<svg class="side-panel-default-loader-circular" viewBox="25 25 50 50">' +
+							'<circle ' +
+								'class="side-panel-default-loader-path" ' +
+								'cx="50" cy="50" r="20" fill="none" stroke-miterlimit="10"' +
+							'/>' +
+						'</svg>'
+				})
+			]
 		});
 	},
 
@@ -1141,6 +1495,20 @@ BX.SidePanel.Slider.prototype =
 		}
 	},
 
+	/**
+	 * @private
+	 * @param {HTMLElement} loader
+	 * @returns {Element}
+	 */
+	createHTMLLoader: function(loader)
+	{
+		return BX.create("div", {
+			children: [
+				loader
+			]
+		});
+	},
+
 	loaderExists: function(loader)
 	{
 		if (!BX.type.isNotEmptyString(loader))
@@ -1156,7 +1524,23 @@ BX.SidePanel.Slider.prototype =
 				continue;
 			}
 
-			var rules = style.rules || style.cssRules;
+			var rules;
+			try
+			{
+				rules = style.rules || style.cssRules;
+			}
+			catch (e)
+			{
+				try
+				{
+					rules = style.cssRules;
+				}
+				catch (e)
+				{
+					rules = [];
+				}
+			}
+
 			for (var j = 0; j < rules.length; j++)
 			{
 				var rule = rules[j];
@@ -1174,11 +1558,17 @@ BX.SidePanel.Slider.prototype =
 	/**
 	 * @private
 	 */
+	removeLoader: function()
+	{
+		BX.remove(this.layout.loader);
+		this.layout.loader = null;
+	},
+
+	/**
+	 * @private
+	 */
 	animateOpening: function()
 	{
-		BX.addClass(this.getOverlay(), "side-panel-overlay-open");
-		BX.addClass(this.getContainer(), "side-panel-container-open");
-
 		if (this.isPrintable())
 		{
 			this.showPrintBtn();
@@ -1222,6 +1612,10 @@ BX.SidePanel.Slider.prototype =
 	animateStep: function(state)
 	{
 		this.getContainer().style.transform = "translateX(" + state.translateX + "%)";
+		if(state.translateX === 0 && BX.browser.IsIE10())
+		{
+			this.getContainer().style.transform = 'none';
+		}
 		if (this.getOverlayAnimation())
 		{
 			this.getOverlay().style.backgroundColor = "rgba(0, 0, 0, " + state.opacity / 100 + ")";
@@ -1239,11 +1633,18 @@ BX.SidePanel.Slider.prototype =
 		{
 			this.currentParams = this.endParams;
 
+			BX.removeClass(this.getOverlay(), "side-panel-overlay-opening");
+
 			this.firePageEvent("onBeforeOpenComplete");
 			this.fireFrameEvent("onBeforeOpenComplete");
 
 			this.firePageEvent("onOpenComplete");
 			this.fireFrameEvent("onOpenComplete");
+
+			if (!this.isLoaded())
+			{
+				this.showLoader();
+			}
 
 			if (this.isFocusable())
 			{
@@ -1254,8 +1655,7 @@ BX.SidePanel.Slider.prototype =
 		{
 			this.currentParams = this.startParams;
 
-			BX.removeClass(this.getOverlay(), "side-panel-overlay-open");
-			BX.removeClass(this.getContainer(), "side-panel-container-open");
+			BX.removeClass(this.getOverlay(), "side-panel-overlay-open side-panel-overlay-opening");
 
 			this.getContainer().style.removeProperty("width");
 			this.getContainer().style.removeProperty("right");
@@ -1320,7 +1720,7 @@ BX.SidePanel.Slider.prototype =
 		}
 
 		var frameWindow = this.getFrameWindow();
-		if (frameWindow && frameWindow.BX)
+		if (frameWindow && frameWindow.BX && frameWindow.BX.onCustomEvent)
 		{
 			frameWindow.BX.onCustomEvent(this, event.getFullName(), [event]);
 
@@ -1333,6 +1733,12 @@ BX.SidePanel.Slider.prototype =
 		}
 
 		return event;
+	},
+
+	fireEvent: function(eventName)
+	{
+		this.firePageEvent(eventName);
+		this.fireFrameEvent(eventName);
 	},
 
 	/**
@@ -1427,7 +1833,7 @@ BX.SidePanel.Slider.prototype =
 		}
 
 		var iframeUrl = iframeLocation.pathname + iframeLocation.search + iframeLocation.hash;
-		this.iframeSrc = BX.util.remove_url_param(iframeUrl, ["IFRAME", "IFRAME_TYPE"]);
+		this.iframeSrc = this.refineUrl(iframeUrl);
 		this.url = this.iframeSrc;
 
 		if (this.isPrintable())
@@ -1493,9 +1899,26 @@ BX.SidePanel.Slider.prototype =
 			return;
 		}
 
-		if (this.canCloseByEsc())
+		this.firePageEvent("onEscapePress");
+		this.fireFrameEvent("onEscapePress");
+	},
+
+	/**
+	 * @private
+	 * @param {BaseEvent} event
+	 */
+	handlePopupInit: function(event)
+	{
+		var data = event.getCompatData();
+		var bindElement = data[1];
+		var params = data[2];
+
+		if (!BX.Type.isElementNode(params.targetContainer) && BX.Type.isElementNode(bindElement))
 		{
-			this.close();
+			if (this.getContentContainer().contains(bindElement))
+			{
+				params.targetContainer = this.getContentContainer();
+			}
 		}
 	},
 
@@ -1519,16 +1942,6 @@ BX.SidePanel.Slider.prototype =
 			return;
 		}
 
-		this.close();
-		event.stopPropagation();
-	},
-
-	/**
-	 * @private
-	 * @param {MouseEvent} event
-	 */
-	handleCloseBtnClick: function(event)
-	{
 		this.close();
 		event.stopPropagation();
 	},
@@ -1619,7 +2032,22 @@ BX.SidePanel.Slider.prototype =
 		}
 
 		frameDocument.head.appendChild(style);
-	}
+	},
+
+	/**
+	 * @public
+	 * @param {string} url
+	 * @returns {string}
+	 */
+	refineUrl: function(url)
+	{
+		if (BX.type.isNotEmptyString(url) && url.match(/IFRAME/))
+		{
+			return BX.util.remove_url_param(url, ["IFRAME", "IFRAME_TYPE"]);
+		}
+
+		return url;
+	},
 };
 
 /**
@@ -1870,6 +2298,321 @@ BX.SidePanel.Dictionary.prototype =
 	{
 		return this.data;
 	}
+};
+
+/**
+ * @internal
+ * @param {BX.SidePanel.Slider} slider
+ * @param labelOptions
+ * @constructor
+ */
+BX.SidePanel.Label = function(slider, labelOptions)
+{
+	/** @type {BX.SidePanel.Slider} */
+	this.slider = slider;
+	this.color = null;
+	this.bgColor = null;
+	this.iconClass = '';
+	this.iconTitle = '';
+	this.onclick = null;
+	this.text = null;
+	this.cache = new BX.Cache.MemoryCache();
+
+	var options = BX.Type.isPlainObject(labelOptions) ? labelOptions : {};
+	this.setBgColor(options.bgColor);
+	this.setColor(options.color);
+	this.setText(options.text);
+	this.setIconClass(options.iconClass);
+	this.setIconTitle(options.iconTitle);
+	this.setOnclick(options.onclick);
+};
+
+BX.SidePanel.Label.MIN_LEFT_OFFSET = 25;
+BX.SidePanel.Label.MIN_TOP_OFFSET = 17;
+BX.SidePanel.Label.INTERVAL_TOP_OFFSET = 50;
+
+BX.SidePanel.Label.prototype =
+{
+	/**
+	 *
+	 * @returns {Element}
+	 */
+	getContainer: function()
+	{
+		return this.cache.remember('container', function() {
+			return BX.create("div", {
+				props: {
+					className: "side-panel-label",
+				},
+				children : [
+					this.getIconBox(),
+					this.getTextContainer(),
+				],
+				events: {
+					click: this.handleClick.bind(this)
+				}
+			});
+		}.bind(this));
+	},
+
+	adjustLayout: function()
+	{
+		var maxWidth = this.getSlider().getOverlay().offsetWidth - this.getSlider().getContainer().offsetWidth;
+		if (maxWidth <= this.getSlider().getMinLeftBoundary())
+		{
+			this.hideText();
+		}
+		else
+		{
+			this.showText();
+		}
+
+		this.getContainer().style.maxWidth = (maxWidth - BX.SidePanel.Label.MIN_LEFT_OFFSET) + "px";
+	},
+
+	/**
+	 * @public
+	 * @returns {Element}
+	 */
+	getIconBox: function()
+	{
+		return this.cache.remember('icon-box', function() {
+			return BX.create('div', {
+				props: {
+					className: 'side-panel-label-icon-box'
+				},
+				children : [
+					this.getIconContainer()
+				]
+			});
+		}.bind(this));
+	},
+
+	/**
+	 * @public
+	 * @returns {Element}
+	 */
+	getIconContainer: function()
+	{
+		return this.cache.remember('icon-container', function() {
+			return BX.create('div', {
+				props: {
+					className: 'side-panel-label-icon ' + this.getIconClass()
+				}
+			});
+		}.bind(this));
+	},
+
+	/**
+	 * @private
+	 * @param {MouseEvent} event
+	 */
+	handleClick: function(event)
+	{
+		event.stopPropagation();
+
+		var fn = this.getOnclick();
+		if (fn)
+		{
+
+			fn(this, this.getSlider());
+		}
+	},
+
+	/**
+	 * @public
+	 */
+	showIcon: function()
+	{
+		this.getContainer().classList.remove("side-panel-label-icon--hide");
+	},
+
+	/**
+	 * @public
+	 */
+	hideIcon: function()
+	{
+		this.getContainer().classList.add("side-panel-label-icon--hide");
+	},
+
+	/**
+	 * @public
+	 */
+	darkenIcon: function()
+	{
+		this.getContainer().classList.add("side-panel-label-icon--darken");
+	},
+
+	/**
+	 * @public
+	 */
+	lightenIcon: function()
+	{
+		this.getContainer().classList.remove("side-panel-label-icon--darken");
+	},
+
+	hideText: function()
+	{
+		this.getTextContainer().classList.add("side-panel-label-text-hidden");
+	},
+
+	showText: function()
+	{
+		this.getTextContainer().classList.remove("side-panel-label-text-hidden");
+	},
+
+	isTextHidden: function()
+	{
+		return this.getTextContainer().classList.contains("side-panel-label-text-hidden");
+	},
+
+	getTextContainer: function()
+	{
+		return this.cache.remember('text-container', function() {
+			return BX.create("span", {
+				props: {
+					className: "side-panel-label-text"
+				}
+			});
+		}.bind(this));
+	},
+
+	setColor: function(color)
+	{
+		if (BX.type.isNotEmptyString(color))
+		{
+			this.color = color;
+			this.getTextContainer().style.color = color;
+		}
+	},
+
+	getColor: function()
+	{
+		return this.color;
+	},
+
+	setBgColor: function(bgColor, opacity)
+	{
+		if (BX.Type.isArray(bgColor))
+		{
+			opacity = bgColor[1];
+			bgColor = bgColor[0];
+		}
+
+		if (BX.type.isNotEmptyString(bgColor))
+		{
+			var matches = bgColor.match(/^#([A-Fa-f0-9]{6}|[A-Fa-f0-9]{3})$/);
+			if (matches)
+			{
+				var hex = matches[1];
+				if (hex.length === 3)
+				{
+					hex = hex.replace(/([a-f0-9])/gi, "$1$1");
+				}
+
+				opacity = BX.type.isNumber(opacity) && opacity >= 0 && opacity <= 100 ? opacity : 95;
+				var rgb = BX.util.hex2rgb(hex);
+				bgColor = "rgba(" + rgb.r + "," + rgb.g + "," + rgb.b + "," +  (opacity / 100) + ")";
+			}
+
+			this.bgColor = bgColor;
+			this.getContainer().style.backgroundColor = bgColor;
+		}
+		else if (bgColor === null)
+		{
+			this.bgColor = bgColor;
+			this.getContainer().style.removeProperty("backgroundColor");
+		}
+	},
+
+	getBgColor: function()
+	{
+		return this.bgColor;
+	},
+
+	setText: function(text)
+	{
+		if (BX.type.isNotEmptyString(text))
+		{
+			this.text = text;
+			this.getTextContainer().textContent = text;
+		}
+		else if (text === null)
+		{
+			this.text = text;
+			this.getTextContainer().textContent = "";
+		}
+	},
+
+	getText: function()
+	{
+		return this.text;
+	},
+
+	setIconClass: function(iconClass)
+	{
+		if (BX.Type.isStringFilled(iconClass))
+		{
+			BX.Dom.removeClass(this.getIconContainer(), this.iconClass);
+			this.iconClass = iconClass;
+			BX.Dom.addClass(this.getIconContainer(), this.iconClass);
+		}
+		else if (iconClass === null)
+		{
+			BX.Dom.removeClass(this.getIconContainer(), this.iconClass);
+			this.iconClass = iconClass;
+		}
+	},
+
+	getIconClass: function()
+	{
+		return this.iconClass;
+	},
+
+	setIconTitle: function(iconTitle)
+	{
+		if (BX.Type.isStringFilled(iconTitle) || iconTitle === null)
+		{
+			BX.Dom.attr(this.getIconBox(), 'title', iconTitle);
+			this.iconTitle = iconTitle;
+		}
+	},
+
+	getIconTitle: function()
+	{
+		return this.iconTitle;
+	},
+
+	setOnclick: function(fn)
+	{
+		if (BX.Type.isFunction(fn) || fn === null)
+		{
+			this.onclick = fn;
+		}
+	},
+
+	getOnclick: function()
+	{
+		return this.onclick;
+	},
+
+	/**
+	 *
+	 * @returns {BX.SidePanel.Slider}
+	 */
+	getSlider: function()
+	{
+		return this.slider;
+	},
+
+	moveAt: function(position)
+	{
+		if (BX.type.isNumber(position) && position >= 0)
+		{
+			this.getSlider().getLabelsContainer().style.top =
+				BX.SidePanel.Label.MIN_TOP_OFFSET + (position * BX.SidePanel.Label.INTERVAL_TOP_OFFSET) + "px";
+		}
+	},
 };
 
 })();

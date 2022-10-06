@@ -9,9 +9,12 @@
 namespace Bitrix\Rest\OAuth;
 
 
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Rest\Application;
 use Bitrix\Rest\AppTable;
 use Bitrix\Rest\AuthStorageInterface;
+use Bitrix\Rest\Engine\Access;
+use Bitrix\Rest\Engine\Access\HoldEntity;
 use Bitrix\Rest\Event\Session;
 use Bitrix\Rest\OAuthService;
 
@@ -76,6 +79,33 @@ class Auth
 					$error = true;
 				}
 
+				if (!$error && HoldEntity::is(HoldEntity::TYPE_APP, $tokenInfo['client_id']))
+				{
+					$tokenInfo = [
+						'error' => 'OVERLOAD_LIMIT',
+						'error_description' => 'REST API is blocked due to overload.'
+					];
+					$error = true;
+				}
+
+				if (
+					!$error
+					&& (
+						!Access::isAvailable($tokenInfo['client_id'])
+						|| (
+							Access::needCheckCount()
+							&& !Access::isAvailableCount(Access::ENTITY_TYPE_APP, $tokenInfo['client_id'])
+						)
+					)
+				)
+				{
+					$tokenInfo = [
+						'error' => 'ACCESS_DENIED',
+						'error_description' => 'REST is available only on commercial plans.'
+					];
+					$error = true;
+				}
+
 				if(!$error)
 				{
 					$clientInfo = AppTable::getByClientId($tokenInfo['client_id']);
@@ -83,7 +113,8 @@ class Auth
 					{
 						\CRestUtil::updateAppStatus($tokenInfo);
 					}
-					else
+
+					if(!is_array($clientInfo) || $clientInfo['ACTIVE'] !== 'Y')
 					{
 						$tokenInfo = array('error' => 'APPLICATION_NOT_FOUND', 'error_description' => 'Application not found');
 						$error = true;
@@ -99,6 +130,7 @@ class Auth
 				if(!$error && $scope !== \CRestUtil::GLOBAL_SCOPE && isset($tokenInfo['scope']))
 				{
 					$tokenScope = explode(',', $tokenInfo['scope']);
+					$tokenScope = \Bitrix\Rest\Engine\RestManager::fillAlternativeScope($scope, $tokenScope);
 					if(!in_array($scope, $tokenScope))
 					{
 						$tokenInfo = array('error' => 'insufficient_scope', 'error_description' => 'The request requires higher privileges than provided by the access token');
@@ -108,7 +140,19 @@ class Auth
 
 				if(!$error && $tokenInfo['user_id'] > 0)
 				{
-					if(!\CRestUtil::makeAuth($tokenInfo))
+					global $USER;
+					if ($USER instanceof \CUser && $USER->isAuthorized())
+					{
+						if ((int)$USER->getId() !== (int)$tokenInfo['user_id'])
+						{
+							$tokenInfo = [
+								'error' => 'authorization_error',
+								'error_description' => Loc::getMessage('REST_OAUTH_ERROR_LOGOUT_BEFORE'),
+							];
+							$error = true;
+						}
+					}
+					elseif (!\CRestUtil::makeAuth($tokenInfo))
 					{
 						$tokenInfo = array('error' => 'authorization_error', 'error_description' => 'Unable to authorize user');
 						$error = true;
@@ -147,12 +191,25 @@ class Auth
 	public static function getAuthKey(array $query)
 	{
 		$authKey = null;
-		foreach(static::$authQueryParams as $key)
+
+		$authHeader = \Bitrix\Main\Application::getInstance()->getContext()->getRequest()->getHeader('Authorization');
+		if($authHeader !== null)
 		{
-			if(array_key_exists($key, $query) && !is_array($query[$key]))
+			if(preg_match('/^Bearer\s+/i', $authHeader))
 			{
-				$authKey = $query[$key];
-				break;
+				$authKey = preg_replace('/^Bearer\s+/i', '', $authHeader);
+			}
+		}
+
+		if($authKey === null)
+		{
+			foreach(static::$authQueryParams as $key)
+			{
+				if(array_key_exists($key, $query) && !is_array($query[$key]))
+				{
+					$authKey = $query[$key];
+					break;
+				}
 			}
 		}
 
@@ -179,31 +236,37 @@ class Auth
 	protected static function check($accessToken)
 	{
 		$authResult = static::getStorage()->restore($accessToken);
-
 		if($authResult === false)
 		{
 			$client = OAuthService::getEngine()->getClient();
 			$tokenInfo = $client->checkAuth($accessToken);
 
-			if($tokenInfo['result'])
+			if(is_array($tokenInfo))
 			{
-				$authResult = $tokenInfo['result'];
-				$authResult['user_id'] = $authResult['parameters'][static::PARAM_LOCAL_USER];
-				unset($authResult['parameters'][static::PARAM_LOCAL_USER]);
-
-				// compatibility with old oauth response
-				if(!isset($authResult['expires']) && isset($authResult['expires_in']))
+				if($tokenInfo['result'])
 				{
-					$authResult['expires'] = time() + $authResult['expires_in'];
+					$authResult = $tokenInfo['result'];
+					$authResult['user_id'] = $authResult['parameters'][static::PARAM_LOCAL_USER];
+					unset($authResult['parameters'][static::PARAM_LOCAL_USER]);
+
+					// compatibility with old oauth response
+					if(!isset($authResult['expires']) && isset($authResult['expires_in']))
+					{
+						$authResult['expires'] = time() + $authResult['expires_in'];
+					}
 				}
+				else
+				{
+					$authResult = $tokenInfo;
+					$authResult['access_token'] = $accessToken;
+				}
+
+				static::getStorage()->store($authResult);
 			}
 			else
 			{
-				$authResult = $tokenInfo;
-				$authResult['access_token'] = $accessToken;
+				$authResult = ['access_token' => $accessToken];
 			}
-
-			static::getStorage()->store($authResult);
 		}
 
 		return $authResult;

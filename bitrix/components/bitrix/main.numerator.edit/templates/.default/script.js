@@ -57,6 +57,7 @@
 		this.addEventHandlers();
 		this.fillTemplate();
 		this.updateTemplateHiddenInput();
+		BX.UI.Hint.init(this.selectByRoles('numerator-container'));
 	};
 	BX.Numerator.prototype = {
 		addEventHandlers: function ()
@@ -299,7 +300,8 @@
 					BX.SidePanel.Instance.postMessageAll(window, "numerator-saved-event", {
 						id: response.data.id,
 						name: this.nameInput ? this.nameInput.value : '',
-						template: this.hiddenTemplateInput ? this.hiddenTemplateInput.value : ''
+						template: this.hiddenTemplateInput ? this.hiddenTemplateInput.value : '',
+						type: response.data.type
 					});
 					this.closeSlider();
 				}.bind(this),

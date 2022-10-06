@@ -1,18 +1,15 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\UI\Filter\Options as FilterOptions;
 use Bitrix\Main\Grid\Options as GridOptions;
-use Bitrix\Main\Loader;
-use Bitrix\Main\Error;
-
-use Bitrix\Sender\Entity;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Filter\Options as FilterOptions;
+use Bitrix\Sender\Access\ActionDictionary;
 use Bitrix\Sender\ContactTable;
+use Bitrix\Sender\Entity;
+use Bitrix\Sender\Internals\DataExport;
+use Bitrix\Sender\ListTable;
 use Bitrix\Sender\Recipient;
 use Bitrix\Sender\Security;
-use Bitrix\Sender\ListTable;
-
 use Bitrix\Sender\UI\PageNavigation;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
@@ -20,39 +17,21 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderContactListComponent extends CBitrixComponent
+class SenderContactListComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
-	/** @var ErrorCollection $errors */
-	protected $errors;
-
-	protected function checkRequiredParams()
-	{
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			return false;
-		}
-		return true;
-	}
-
 	protected function initParams()
 	{
-		$this->arParams['PATH_TO_LIST'] = isset($this->arParams['PATH_TO_LIST']) ? $this->arParams['PATH_TO_LIST'] : '';
-		$this->arParams['PATH_TO_USER_PROFILE'] = isset($this->arParams['PATH_TO_USER_PROFILE']) ? $this->arParams['PATH_TO_USER_PROFILE'] : '';
-		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? CSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
-
 		$this->arParams['GRID_ID'] = isset($this->arParams['GRID_ID']) ? $this->arParams['GRID_ID'] : 'SENDER_CONTACT_LIST_GRID';
-		$this->arParams['FILTER_ID'] = isset($this->arParams['FILTER_ID']) ? $this->arParams['FILTER_ID'] : $this->arParams['GRID_ID'] . '_FILTER';
 
 		$this->arParams['SHOW_SETS'] = isset($this->arParams['SHOW_SETS']) ? (bool) $this->arParams['SHOW_SETS'] : false;
-		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
-		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
-			?
-			$this->arParams['CAN_EDIT']
-			:
-			Security\Access::current()->canModifySegments();
 
 		if (isset($this->arParams['LIST_ID']))
 		{
@@ -62,12 +41,15 @@ class SenderContactListComponent extends CBitrixComponent
 		{
 			$this->arParams['LIST_ID'] = (int) $this->request->get('listId');
 		}
+
+		parent::initParams();
 	}
 
 	protected function preparePost()
 	{
 		$ids = $this->request->get('ID');
 		$action = $this->request->get('action_button_' . $this->arParams['GRID_ID']);
+
 		switch ($action)
 		{
 			case 'delete':
@@ -84,6 +66,25 @@ class SenderContactListComponent extends CBitrixComponent
 		}
 	}
 
+	protected function prepareExport()
+	{
+		$list = ContactTable::getList(array(
+			'select' => $this->getDataSelectedFields(),
+			'filter' => $this->getDataFilter(),
+			'order' => $this->getGridOrder()
+		));
+
+		DataExport::toCsv(
+			$this->getUiGridColumns(),
+			$list,
+			function ($item)
+			{
+				$item['TYPE_ID'] = Recipient\Type::getName($item['TYPE_ID']);
+				return $item;
+			}
+		);
+	}
+
 	protected function prepareResult()
 	{
 		/* Set title */
@@ -93,7 +94,7 @@ class SenderContactListComponent extends CBitrixComponent
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_CONTACT_LIST_TITLE1'));
 		}
 
-		if (!Security\Access::current()->canViewSegments())
+		if (!Security\Access::getInstance()->canViewSegments())
 		{
 			Security\AccessChecker::addError($this->errors);
 			return false;
@@ -116,16 +117,19 @@ class SenderContactListComponent extends CBitrixComponent
 		// set ui grid columns
 		$this->setUiGridColumns();
 
+		// export
+		if ($this->request->get('export'))
+		{
+			$this->prepareExport();
+		}
+
 		// create nav
 		$nav = new PageNavigation("page-sender-contact-list");
 		$nav->allowAllRecords(false)->setPageSize(10)->initFromUri();
 
 		// get rows
 		$list = ContactTable::getList(array(
-			'select' => array(
-				'ID', 'NAME', 'TYPE_ID', 'CODE', 'BLACKLISTED', 'DATE_INSERT',
-				'IS_READ', 'IS_CLICK', 'IS_UNSUB', 'IP', 'AGENT'
-			),
+			'select' => $this->getDataSelectedFields(),
 			'filter' => $this->getDataFilter(),
 			'offset' => $nav->getOffset(),
 			'limit' => $nav->getLimit(),
@@ -140,6 +144,10 @@ class SenderContactListComponent extends CBitrixComponent
 				'RECIPIENT' => str_replace('#id#', $item['ID'], $this->arParams['PATH_TO_RECIPIENT']),
 			);
 
+			$item['CONSENT_STATUS'] = $item['CONSENT_STATUS'] === 'A'
+				? Loc::getMessage('SENDER_CONTACT_LIST_UI_YES')
+				: Loc::getMessage('SENDER_CONTACT_LIST_UI_NO');
+
 			$item['HAS_STATISTICS'] = true;//$item['IS_READ'] === 'Y' || $item['IS_CLICK'] === 'Y' || $item['IS_UNSUB'] === 'Y' || $item['IP'] || $item['AGENT'];
 
 			$this->arResult['ROWS'][] = $item;
@@ -152,6 +160,22 @@ class SenderContactListComponent extends CBitrixComponent
 		$this->arResult['NAV_OBJECT'] = $nav;
 
 		return true;
+	}
+
+	protected function getDataSelectedFields()
+	{
+		return [
+			'ID',
+			'NAME',
+			'TYPE_ID',
+			'CODE',
+			'BLACKLISTED',
+			'DATE_INSERT',
+			'IS_READ',
+			'IS_CLICK',
+			'IS_UNSUB',
+			'CONSENT_STATUS',
+		];
 	}
 
 	protected function getDataFilter()
@@ -231,7 +255,7 @@ class SenderContactListComponent extends CBitrixComponent
 		$sorting = $gridOptions->getSorting(array('sort' => $defaultSort));
 
 		$by = key($sorting['sort']);
-		$order = strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
+		$order = mb_strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
 
 		$list = array();
 		foreach ($this->getUiGridColumns() as $column)
@@ -293,6 +317,11 @@ class SenderContactListComponent extends CBitrixComponent
 			array(
 				"id" => "STAT",
 				"name" => Loc::getMessage('SENDER_CONTACT_LIST_UI_COLUMN_STAT'),
+				"default" => true
+			),
+			array(
+				"id" => "CONSENT_STATUS",
+				"name" => Loc::getMessage('SENDER_CONTACT_LIST_UI_COLUMN_CONSENT_STATUS'),
 				"default" => true
 			),
 		);
@@ -445,20 +474,17 @@ class SenderContactListComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
+		parent::executeComponent();
+		parent::prepareResultAndTemplate();
+	}
 
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
+	public function getEditAction()
+	{
+		return ActionDictionary::ACTION_SEGMENT_CLIENT_VIEW;
+	}
 
-		$this->includeComponentTemplate();
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_SEGMENT_CLIENT_VIEW;
 	}
 }

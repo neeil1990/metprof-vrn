@@ -2,81 +2,107 @@
 
 namespace Bitrix\Rest\Engine;
 
+use Bitrix\Main\Config\Configuration;
+use Bitrix\Main\Context;
 use Bitrix\Main\Engine;
+use Bitrix\Main\Engine\AutoWire;
 use Bitrix\Main\Engine\Controller;
-use Bitrix\Main\Engine\Crawler;
 use Bitrix\Main\Engine\Resolver;
 use Bitrix\Main\Errorable;
 use Bitrix\Main\Error;
 use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Event;
 use Bitrix\Main\HttpResponse;
 use Bitrix\Main\Type\Contract;
 use Bitrix\Main\Type\Date;
 use Bitrix\Main\Type\DateTime;
 use Bitrix\Main\UI\PageNavigation;
 use Bitrix\Main\Web\Uri;
+use Bitrix\Rest\Engine\ScopeManager;
 use Bitrix\Rest\RestException;
 
 class RestManager extends \IRestService
 {
+	public const DONT_CALCULATE_COUNT = -1;
+
 	/** @var \CRestServer */
 	protected $restServer;
 	/** @var PageNavigation */
 	private $pageNavigation;
+	/** @var bool */
+	private $calculateTotalCount = true;
 
-	/**
-	 * Builds list of REST methods which provides modules.
-	 *
-	 * @return array
-	 */
-	public static function onRestServiceBuildDescription()
+	public static function onFindMethodDescription($potentialAction)
 	{
 		$restManager = new static();
+		$potentialActionData = ScopeManager::getInstance()->getMethodInfo($potentialAction);
 
-		$methods = array();
-		foreach ($restManager->getModules() as $module)
+		$request = new \Bitrix\Main\HttpRequest(
+			Context::getCurrent()->getServer(),
+			['action' => $potentialActionData['method']],
+			[], [], []
+		);
+
+		$router = new Engine\Router($request);
+		$controllersConfig = Configuration::getInstance($router->getModule());
+		if (empty($controllersConfig['controllers']['restIntegration']['enabled']))
 		{
-			$actions = Crawler::getInstance()->listActionsByModule($module);
-			if (!$actions)
-			{
-				continue;
-			}
-
-			$methods[$module] = array();
-			foreach ($actions as $action)
-			{
-				$methods[$module][$module . '.' . $action] = array(
-					$restManager,
-					'processMethodRequest'
-				);
-			}
+			return false;
 		}
 
-		return $methods;
+		/** @var Controller $controller */
+		list($controller) = $router->getControllerAndAction();
+		if (!$controller || $controller instanceof Engine\DefaultController)
+		{
+			return false;
+		}
+
+		return [
+			'scope' => static::getModuleScopeAlias($potentialActionData['scope']),
+			'callback' => [
+				$restManager, 'processMethodRequest'
+			]
+		];
 	}
 
-	protected function getModules()
+	public static function getModuleScopeAlias($moduleId)
 	{
-		$event = new Event('rest', 'onRestGetModule');
-		$event->send();
-
-		$modules = array();
-		foreach ($event->getResults() as $eventResult)
+		if($moduleId === 'tasks')
 		{
-			if ($eventResult->getType() == \Bitrix\Main\EventResult::ERROR)
-			{
-				continue;
-			}
+			return 'task';
+		}
 
-			$eventParams = $eventResult->getParameters();
-			if (!empty($eventParams['MODULE_ID']))
+		return $moduleId;
+	}
+
+	private static function getAlternativeScope($scope): ?array
+	{
+		if ($scope === \Bitrix\Rest\Api\User::SCOPE_USER)
+		{
+			return [
+				\Bitrix\Rest\Api\User::SCOPE_USER_BRIEF,
+				\Bitrix\Rest\Api\User::SCOPE_USER_BASIC,
+			];
+		}
+
+		return null;
+	}
+
+	public static function fillAlternativeScope($scope, $scopeList)
+	{
+		if (!in_array($scope, $scopeList, true))
+		{
+			$altScopeList = static::getAlternativeScope($scope);
+			if (is_array($altScopeList))
 			{
-				$modules[] = $eventParams['MODULE_ID'];
+				$hasScope = array_intersect($scopeList, $altScopeList);
+				if (count($hasScope) > 0)
+				{
+					$scopeList[] = $scope;
+				}
 			}
 		}
 
-		return $modules;
+		return $scopeList;
 	}
 
 	/**
@@ -92,24 +118,42 @@ class RestManager extends \IRestService
 	 */
 	public function processMethodRequest(array $params, $start, \CRestServer $restServer)
 	{
-		$this->restServer = $restServer;
+		$this->initialize($restServer, $start);
 
 		$errorCollection = new ErrorCollection();
 		$method = $restServer->getMethod();
-		$parts = explode('.', $method);
-		$module = array_shift($parts);
+		$methodData = ScopeManager::getInstance()->getMethodInfo($method);
 
-		$action = implode('.', $parts);
-		list ($controller, $action) = Resolver::getControllerAndAction($module, $action, Controller::SCOPE_REST);
-		if (!$controller)
-		{
-			throw new RestException("Unknown {$method}. There is not controller in module {$module}");
-		}
-
-		$this->registerAutoWirings($restServer, $start);
+		$request = new \Bitrix\Main\HttpRequest(
+			Context::getCurrent()->getServer(),
+			['action' => $methodData['method']],
+			[], [], []
+		);
+		$router = new Engine\Router($request);
 
 		/** @var Controller $controller */
-		$result = $controller->run($action, array($params));
+		[$controller, $action] = Resolver::getControllerAndAction(
+			$router->getVendor(),
+			$router->getModule(),
+			$router->getAction(),
+			Controller::SCOPE_REST
+		);
+		if (!$controller)
+		{
+			throw new RestException("Unknown {$method}. There is not controller in module {$router->getModule()}");
+		}
+
+		$autoWirings = $this->getAutoWirings();
+
+		$this->registerAutoWirings($autoWirings);
+		$result = $controller->run($action, [$params, ['__restServer' => $restServer]]);
+		$this->unRegisterAutoWirings($autoWirings);
+
+		if ($result instanceof Engine\Response\File)
+		{
+			return $result->send();
+		}
+
 		if ($result instanceof HttpResponse)
 		{
 			if ($result instanceof Errorable)
@@ -118,6 +162,11 @@ class RestManager extends \IRestService
 			}
 
 			$result = $result->getContent();
+		}
+
+		if ($result instanceof RestException)
+		{
+			throw $result;
 		}
 
 		if ($result === null)
@@ -129,8 +178,61 @@ class RestManager extends \IRestService
 			}
 		}
 
+		$this->calculateTotalCount = true;
+		if ((int)$start === self::DONT_CALCULATE_COUNT)
+		{
+			$this->calculateTotalCount = false;
+		}
+
 		return $this->processData($result);
 	}
+
+	/**
+	 * @param \CRestServer $restServer
+	 * @param $start
+	 */
+	private function initialize(\CRestServer $restServer, $start): void
+	{
+		$pageNavigation = new PageNavigation('nav');
+		$pageNavigation->setPageSize(static::LIST_LIMIT);
+		if ($start > 0)
+		{
+			$pageNavigation->setCurrentPage((int)($start / static::LIST_LIMIT) + 1);
+		}
+
+		$this->pageNavigation = $pageNavigation;
+		$this->restServer = $restServer;
+	}
+
+	/**
+	 * @param Engine\Response\DataType\Page $page
+	 * @see \IRestService::setNavData
+	 *
+	 * @return array
+	 */
+	private function getNavigationData(Engine\Response\DataType\Page $page): array
+	{
+		if (!$this->calculateTotalCount)
+		{
+			return [];
+		}
+
+		$result = [];
+		$offset = $this->pageNavigation->getOffset();
+		$total = $page->getTotalCount();
+
+		$currentPageSize = count($page->getItems());
+
+		if ($offset + $currentPageSize < $total)
+		{
+			$result['next'] = $offset + $currentPageSize;
+		}
+
+		$result['total'] = $total;
+
+		return $result;
+	}
+
 
 	private function processData($result)
 	{
@@ -151,10 +253,16 @@ class RestManager extends \IRestService
 
 		if ($result instanceof Engine\Response\DataType\Page)
 		{
-			return self::setNavData($this->processData($result->getIterator()), array(
-				"count" => $result->getTotalCount(),
-				"offset" => $this->pageNavigation->getOffset(),
-			));
+			if (method_exists($result, 'getId'))
+			{
+				$data = [$result->getId() => $this->processData($result->getIterator())];
+			}
+			else
+			{
+				$data = $this->processData($result->getIterator());
+			}
+
+			return array_merge($data, $this->getNavigationData($result));
 		}
 
 		if ($result instanceof Contract\Arrayable)
@@ -162,12 +270,31 @@ class RestManager extends \IRestService
 			$result = $result->toArray();
 		}
 
-		if (is_array($result) || $result instanceof \Traversable)
+		if (is_array($result))
 		{
 			foreach ($result as $key => $item)
 			{
-				$result[$key] = $this->processData($item);
+				if ($item instanceof Engine\Response\DataType\ContentUri)
+				{
+					$result[$key . "Machine"] = $this->processData($item);
+					$result[$key] = $this->processData(new Uri($item));
+				}
+				else
+				{
+					$result[$key] = $this->processData($item);
+				}
+
 			}
+		}
+		elseif ($result instanceof \Traversable)
+		{
+			$newResult = [];
+			foreach ($result as $key => $item)
+			{
+				$newResult[$key] = $this->processData($item);
+			}
+
+			$result = $newResult;
 		}
 
 		return $result;
@@ -175,8 +302,12 @@ class RestManager extends \IRestService
 
 	private function convertAjaxUriToRest(Uri $uri)
 	{
-		$endPoint = Engine\UrlManager::getInstance()->getEndPoint(Engine\UrlManager::ABSOLUTE_URL);
+		if (!($uri instanceof Engine\Response\DataType\ContentUri))
+		{
+			return $uri->getUri();
+		}
 
+		$endPoint = Engine\UrlManager::getInstance()->getEndPoint(Engine\UrlManager::ABSOLUTE_URL);
 		if ($uri->getPath() !== $endPoint->getPath())
 		{
 			return $uri->getUri();
@@ -188,56 +319,12 @@ class RestManager extends \IRestService
 		}
 
 		parse_str($uri->getQuery(), $params);
-		if (empty($params['action']) || empty($params['m']))
+		if (empty($params['action']))
 		{
 			return $uri->getUri();
 		}
 
-		//todo @see \CRestUtil::getSpecialUrl
-		$uri->addParams(array('_' => randString(32)));
-		$query = $uri->getQuery();
-
-		$scope = $this->restServer->getScope();
-		if($scope === \CRestUtil::GLOBAL_SCOPE)
-		{
-			$scope = '';
-		}
-
-		$method = "{$params['m']}.{$params['action']}";
-		$signature = $this->restServer->getTokenCheckSignature($method, $query);
-
-		$token = $scope
-				 .\CRestUtil::TOKEN_DELIMITER.$query
-				 .\CRestUtil::TOKEN_DELIMITER.$signature;
-
-
-		$authData = $this->restServer->getAuthData();
-		if($authData['password_id'])
-		{
-			$auth = $this->restServer->getAuth();
-
-			return \CRestUtil::getWebhookEndpoint(
-					$auth['ap'],
-					$auth['aplogin'],
-					$method
-				)."?".http_build_query(array(
-				   'token' => $token,
-				));
-		}
-		else
-		{
-			$urlParam = array_merge(
-				$this->restServer->getAuth(),
-				array(
-					'token' => $token,
-				)
-			);
-
-			return \CHTTP::URN2URI(
-				$this->getRestEndPoint()."/".$method.".".$this->restServer->getTransport()
-				."?".http_build_query($urlParam)
-			);
-		}
+		return \CRestUtil::getSpecialUrl($params['action'], $params, $this->restServer);
 	}
 
 	private function getRestEndPoint()
@@ -256,44 +343,59 @@ class RestManager extends \IRestService
 			return null;
 		}
 
-		$description = array();
-		/** @var Error $lastError */
-		$lastError = array_pop($errors);
-		$description[] = $lastError->getMessage() . " ({$lastError->getCode()}).";
+		$firstError = reset($errors);
 
-		foreach ($errors as $error)
-		{
-			$description[] = $error->getMessage() . " ({$error->getCode()}).";
-		}
-
-		return new RestException(implode(' ', $description), $lastError->getCode());
+		return new RestException($firstError->getMessage(), $firstError->getCode());
 	}
 
-	private function registerAutoWirings(\CRestServer $restServer, $start)
+	/**
+	 * @param array $autoWirings
+	 */
+	private function registerAutoWirings(array $autoWirings): void
 	{
-		Engine\Binder::registerParameter(
-			get_class($restServer),
-			function() use ($restServer) {
-				return $restServer;
-			}
-		);
-
-		$pageNavigation = new PageNavigation('nav');
-		$pageNavigation->setPageSize(RestManager::LIST_LIMIT);
-		if($start)
+		foreach ($autoWirings as $parameter)
 		{
-			$pageNavigation->setCurrentPage(intval($start / RestManager::LIST_LIMIT) + 1);
+			AutoWire\Binder::registerGlobalAutoWiredParameter($parameter);
+		}
+	}
+
+	/**
+	 * @param array $autoWirings
+	 */
+	private function unRegisterAutoWirings(array $autoWirings): void
+	{
+		foreach ($autoWirings as $parameter)
+		{
+			AutoWire\Binder::unRegisterGlobalAutoWiredParameter($parameter);
+		}
+	}
+
+	/**
+	 * @return array
+	 */
+	private function getAutoWirings(): array
+	{
+		$buildRules = [
+			'restServer' => [
+				'class' => get_class($this->restServer),
+				'constructor' => function() {
+					return $this->restServer;
+				},
+			],
+			'pageNavigation' => [
+				'class' => PageNavigation::class,
+				'constructor' => function() {
+					return $this->pageNavigation;
+				},
+			],
+		];
+
+		$autoWirings = [];
+		foreach ($buildRules as $rule)
+		{
+			$autoWirings[] = new AutoWire\Parameter($rule['class'], $rule['constructor']);
 		}
 
-		//php 5.3 we can't use this in \Closure.
-		$this->pageNavigation = $pageNavigation;
-
-		/** @see \Bitrix\Main\UI\PageNavigation */
-		Engine\Binder::registerParameter(
-			'\\Bitrix\\Main\\UI\\PageNavigation',
-			function() use ($pageNavigation) {
-				return $pageNavigation;
-			}
-		);
+		return $autoWirings;
 	}
 }

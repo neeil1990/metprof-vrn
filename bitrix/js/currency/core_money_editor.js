@@ -62,7 +62,13 @@
 		this.input = null;
 	};
 
-	BX.Currency.Editor.prototype.valueEdit = function(){
+	BX.Currency.Editor.prototype.valueEdit = function(e){
+		// hack to prevent selection loss while form editing with keyboard
+		if(!!e && e.type === 'keyup' && e.code === 'Tab')
+		{
+			return;
+		}
+
 		this.formatValue();
 	};
 
@@ -159,17 +165,20 @@
 		{
 			return formattedValue
 				.replace(new RegExp('[' + currentFormat['SEPARATOR'] + ']', 'g'), '')
-				.replace(currentFormat['DEC_POINT'], '.');
+				.replace(currentFormat['DEC_POINT'], '.')
+				.replace(new RegExp('[^0-9\.]', 'g'), '');
 		}
 		else if(currentFormat['SEPARATOR'].length > 1)
 		{
 			return formattedValue
 				.replace(new RegExp(this.escapeRegExp(currentFormat['SEPARATOR']), 'g'), '')
-				.replace(currentFormat['DEC_POINT'], '.');
+				.replace(currentFormat['DEC_POINT'], '.')
+				.replace(new RegExp('[^0-9\.]', 'g'), '');
 		}
 		else
 		{
-			return formattedValue.replace(currentFormat['DEC_POINT'], '.');
+			return formattedValue.replace(currentFormat['DEC_POINT'], '.')
+				.replace(new RegExp('[^0-9\.]', 'g'), '');
 		}
 	};
 

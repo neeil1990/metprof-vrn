@@ -9,6 +9,7 @@ BX.namespace('BX.Sale.PersonalOrderComponent');
 			params.paymentList = params.paymentList || {};
 			params.url = params.url || "";
 			params.templateName = params.templateName || "";
+			params.returnUrl = params.returnUrl || "";
 
 			Array.prototype.forEach.call(rowWrapper, function(wrapper)
 			{
@@ -38,7 +39,8 @@ BX.namespace('BX.Sale.PersonalOrderComponent');
 							url: event.target.href,
 							data:
 							{
-								sessid: BX.bitrix_sessid()
+								sessid: BX.bitrix_sessid(),
+								RETURN_URL: params.returnUrl
 							},
 							onsuccess: BX.proxy(function(result)
 							{
@@ -64,9 +66,13 @@ BX.namespace('BX.Sale.PersonalOrderComponent');
 					);
 					event.preventDefault();
 				}, this));
-				
+
+				var isChangingLoaded = false;
 				BX.bindDelegate(wrapper, 'click', { 'class': 'sale-order-list-change-payment' }, BX.proxy(function(event)
 				{
+					if (isChangingLoaded)
+						return;
+					isChangingLoaded = true;
 					event.preventDefault();
 
 					var block = wrapper.getElementsByClassName('sale-order-list-inner-row-body')[0];
@@ -103,6 +109,7 @@ BX.namespace('BX.Sale.PersonalOrderComponent');
 							},this),
 							onfailure: BX.proxy(function()
 							{
+								isChangingLoaded = false;
 								return this;
 							}, this)
 						}, this

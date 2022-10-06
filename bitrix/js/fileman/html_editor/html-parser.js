@@ -508,9 +508,9 @@
 				return null;
 			}
 
-			if (nodeName == 'A')
+			if (nodeName === 'A')
 			{
-				// Todo: clean block nodes from link
+				BX.onCustomEvent(this.editor, 'OnAfterLinkInserted', [oldNode.getAttribute('href')]);
 			}
 
 			// Clean class
@@ -2333,7 +2333,7 @@
 			str = str.substring(php7ArrayStyle ? 1 : 6, str.length - 1);
 			var
 				tempAr = this.GetParams(str),
-				prop_name, prop_val, p,
+				propKey, propValue, p, trimedPropValue,
 				y;
 
 			for (y = 0; y < tempAr.length; y++)
@@ -2355,20 +2355,25 @@
 				}
 				else
 				{
-					prop_name = this.TrimQuotes(tempAr[y].substr(0, p));
-					prop_val = tempAr[y].substr(p + 2);
-					if (prop_val == this.TrimQuotes(prop_val))
-						prop_val = this.WrapPhpBrackets(prop_val);
-					else
-						prop_val = this.TrimQuotes(prop_val);
+					propKey = this.TrimQuotes(tempAr[y].substr(0, p));
+					propValue = tempAr[y].substr(p + 2);
+					trimedPropValue = this.TrimQuotes(propValue);
 
-					if (prop_val.substr(0, 6).toLowerCase()=='array('
-						|| prop_val.substr(0, 1).toLowerCase()=='[')
+					if (propValue == trimedPropValue)
 					{
-						prop_val = this.GetArray(prop_val);
+						propValue = this.WrapPhpBrackets(propValue);
+						if (propValue.substr(0, 6).toLowerCase()=='array('
+							|| propValue.substr(0, 1).toLowerCase()=='[')
+						{
+							propValue = this.GetArray(propValue);
+						}
+					}
+					else
+					{
+						propValue = this.TrimQuotes(propValue);
 					}
 
-					resAr[prop_name] = prop_val;
+					resAr[propKey] = propValue;
 				}
 			}
 			return resAr;
@@ -3755,6 +3760,10 @@
 			{
 				oNode.bbTag = 'URL';
 				oNode.bbValue = this.editor.parser.GetAttributeEx(oNode.node, 'href');
+				if (!BX.type.isNotEmptyString(oNode.bbValue))
+				{
+					oNode.bbValue = '';
+				}
 				oNode.bbValue = oNode.bbValue.replace(/\[/ig, "&#91;").replace(/\]/ig, "&#93;");
 				if (oNode.bbValue === '')
 				{

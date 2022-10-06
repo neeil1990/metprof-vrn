@@ -19,7 +19,7 @@ class CAllPullStack
 			if ($newLastId < $arRes['ID'])
 				$newLastId = $arRes['ID'];
 
-			$data = unserialize($arRes['MESSAGE']);
+			$data = unserialize($arRes['MESSAGE'], ["allowed_classes" => false]);
 			$data['id'] = $arRes['ID'];
 			$data['extra'] = Array(
 				'server_time' => date('c'),
@@ -43,13 +43,18 @@ class CAllPullStack
 	{
 		global $DB;
 
+		if (!CPullOptions::GetQueueServerStatus())
+		{
+			return false;
+		}
+
 		if (!is_array($channelId))
 		{
 			$channelId = Array($channelId);
 		}
 
 		$result = false;
-		if (strlen($params['module_id']) <= 0 || strlen($params['command']) <= 0)
+		if ($params['module_id'] == '' || $params['command'] == '')
 		{
 			return false;
 		}
@@ -71,35 +76,20 @@ class CAllPullStack
 		}
 
 		$arData = Array(
-			'module_id' => strtolower($params['module_id']),
+			'module_id' => mb_strtolower($params['module_id']),
 			'command' => $params['command'],
 			'params' => is_array($params['params'])? $params['params']: Array(),
 			'extra' => $extra
 		);
-		if (CPullOptions::GetQueueServerStatus())
-		{
-			if (!is_array($channelId) && CPullOptions::GetQueueServerVersion() == 1)
-			{
-				$arData['extra']['channel'] = $channelId;
-			}
 
-			$options = array('expiry' => isset($params['expiry'])? intval($params['expiry']): 86400);
-			$res = CPullChannel::Send($channelId, \Bitrix\Pull\Common::jsonEncode($arData), $options);
-			$result = $res? true: false;
-		}
-		else
+		if (!is_array($channelId) && !CPullOptions::IsServerShared() && CPullOptions::GetQueueServerVersion() == 1)
 		{
-			foreach ($channelId as $channel)
-			{
-				$params = Array(
-					'CHANNEL_ID' => $channel,
-					'MESSAGE' => str_replace("\n", " ", serialize($arData)),
-					'~DATE_CREATE' => $DB->CurrentTimeFunction(),
-				);
-				$res = IntVal($DB->Add("b_pull_stack", $params, Array("MESSAGE")));
-				$result = $res? true: false;
-			}
+			$arData['extra']['channel'] = $channelId;
 		}
+
+		$options = array('expiry' => isset($params['expiry'])? intval($params['expiry']): 86400);
+		$res = CPullChannel::Send($channelId, \Bitrix\Pull\Common::jsonEncode($arData), $options);
+		$result = $res? true: false;
 
 		return $result;
 	}
@@ -120,6 +110,10 @@ class CAllPullStack
 			return false;
 
 		$arChannel = CPullChannel::GetChannelShared($channelType);
+		if (!$arChannel)
+		{
+			return false;
+		}
 		return self::AddByChannel($arChannel['CHANNEL_ID'], $arMessage);
 	}
 

@@ -11,7 +11,13 @@ class CBitrixBasketBasketSmallMailComponent extends CBitrixBasketComponent
 
 	public function onPrepareComponentParams($params)
 	{
+		$columnList = $params['COLUMNS_LIST'];
+		if (empty($columnList))
+		{
+			$columnList = ['NAME', 'SUM'];
+		}
 		$params = parent::onPrepareComponentParams($params);
+		$this->columns = $columnList;
 
 		$this->userId = (int)$params["USER_ID"];
 

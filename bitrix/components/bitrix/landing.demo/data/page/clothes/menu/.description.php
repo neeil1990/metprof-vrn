@@ -14,32 +14,29 @@ return array(
 	'version' => 2,
 	'fields' => array(
 		'RULE' => NULL,
-		'ADDITIONAL_FIELDS' =>
-			array(
-				'METAOG_IMAGE' => 'https://cdn.bitrix24.site/bitrix/images/demo/page/clothes/menu/preview.jpg',
-				'VIEW_USE' => 'Y',
-				'VIEW_TYPE' => 'no',
-				'THEME_CODE' => 'travel',
-				'THEME_CODE_TYPO' => 'travel',
-			),
+		'ADDITIONAL_FIELDS' => array(
+			'METAOG_IMAGE' => 'https://cdn.bitrix24.site/bitrix/images/demo/page/clothes/menu/preview.jpg',
+			'VIEW_USE' => 'Y',
+			'VIEW_TYPE' => 'no',
+			'THEME_CODE' => 'travel',
+
+		),
 	),
 	'layout' => array(
 		'code' => 'empty',
-		'ref' =>
-			array(),
+		'ref' => array(),
 	),
 	'items' => array(
-		0 =>
-			array(
-				'code' => 'store.personal.menu',
-				'cards' => array(),
-				'nodes' => array(),
-				'style' => array(
-					'#wrapper' => array(
-						0 => 'landing-block g-pt-30 g-pb-20 g-pl-20 g-pr-20'
-					),
+		0 => array(
+			'code' => 'store.personal.menu',
+			'cards' => array(),
+			'nodes' => array(),
+			'style' => array(
+				'#wrapper' => array(
+					0 => 'landing-block g-pt-30 g-pb-20 g-pl-20 g-pr-20',
 				),
-				'attrs' => array(),
 			),
+			'attrs' => array(),
+		),
 	),
 );

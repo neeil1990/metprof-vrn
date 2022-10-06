@@ -10,12 +10,17 @@
 use Bitrix\Main\Loader;
 use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Web\Json;
+use Bitrix\Iblock;
 
 if (!Loader::includeModule('iblock'))
 	return;
 
 $boolCatalog = Loader::includeModule('catalog');
 CBitrixComponent::includeComponentClass($componentName);
+
+$usePropertyFeatures = Iblock\Model\PropertyFeature::isEnabledFeatures();
+
+$iblockExists = (!empty($arCurrentValues['IBLOCK_ID']) && (int)$arCurrentValues['IBLOCK_ID'] > 0);
 
 $defaultValue = array('-' => GetMessage('CP_BCS_TPL_PROP_EMPTY'));
 $arSKU = false;
@@ -32,29 +37,19 @@ if ($boolCatalog && (isset($arCurrentValues['IBLOCK_ID']) && 0 < intval($arCurre
 	}
 }
 
-$arThemes = array();
-if (ModuleManager::isModuleInstalled('bitrix.eshop'))
-{
-	$arThemes['site'] = GetMessage('CP_BCS_TPL_THEME_SITE');
-}
 
-$arThemesList = array(
+$arThemes = array(
 	'blue' => GetMessage('CP_BCS_TPL_THEME_BLUE'),
 	'green' => GetMessage('CP_BCS_TPL_THEME_GREEN'),
 	'red' => GetMessage('CP_BCS_TPL_THEME_RED'),
 	'yellow' => GetMessage('CP_BCS_TPL_THEME_YELLOW')
 );
-$dir = trim(preg_replace("'[\\\\/]+'", '/', dirname(__FILE__).'/themes/'));
-if (is_dir($dir))
-{
-	foreach ($arThemesList as $themeID => $themeName)
-	{
-		if (!is_file($dir.$themeID.'/style.css'))
-			continue;
 
-		$arThemes[$themeID] = $themeName;
-	}
+if (ModuleManager::isModuleInstalled('bitrix.eshop'))
+{
+	$arThemes['site'] = GetMessage('CP_BCS_TPL_THEME_SITE');
 }
+
 
 $arTemplateParameters['TEMPLATE_THEME'] = array(
 	'PARENT' => 'VISUAL',
@@ -150,7 +145,7 @@ $arAllPropList = array();
 $arFilePropList = $defaultValue;
 $arListPropList = array();
 
-if (isset($arCurrentValues['IBLOCK_ID']) && intval($arCurrentValues['IBLOCK_ID']) > 0)
+if ($iblockExists)
 {
 	$rsProps = CIBlockProperty::GetList(
 		array('SORT' => 'ASC', 'ID' => 'ASC'),
@@ -178,11 +173,31 @@ if (isset($arCurrentValues['IBLOCK_ID']) && intval($arCurrentValues['IBLOCK_ID']
 		}
 	}
 
-	if (!empty($arCurrentValues['PROPERTY_CODE']))
+	$showedProperties = [];
+	if ($usePropertyFeatures)
+	{
+		if ($iblockExists)
+		{
+			$showedProperties = Iblock\Model\PropertyFeature::getListPageShowPropertyCodes(
+				$arCurrentValues['IBLOCK_ID'],
+				['CODE' => 'Y']
+			);
+			if ($showedProperties === null)
+				$showedProperties = [];
+		}
+	}
+	else
+	{
+		if (!empty($arCurrentValues['PROPERTY_CODE']) && is_array($arCurrentValues['PROPERTY_CODE']))
+		{
+			$showedProperties = $arCurrentValues['PROPERTY_CODE'];
+		}
+	}
+	if (!empty($showedProperties))
 	{
 		$selected = array();
 
-		foreach ($arCurrentValues['PROPERTY_CODE'] as $code)
+		foreach ($showedProperties as $code)
 		{
 			if (isset($arAllPropList[$code]))
 			{
@@ -198,6 +213,7 @@ if (isset($arCurrentValues['IBLOCK_ID']) && intval($arCurrentValues['IBLOCK_ID']
 			'VALUES' => $selected
 		);
 	}
+	unset($showedProperties);
 
 	if (isset($arCurrentValues['ENLARGE_PRODUCT']) && $arCurrentValues['ENLARGE_PRODUCT'] === 'PROP')
 	{
@@ -336,16 +352,19 @@ if (isset($arCurrentValues['IBLOCK_ID']) && intval($arCurrentValues['IBLOCK_ID']
 			'DEFAULT' => '-',
 			'VALUES' => $arFileOfferPropList
 		);
-		$arTemplateParameters['OFFER_TREE_PROPS'] = array(
-			'PARENT' => 'VISUAL',
-			'NAME' => GetMessage('CP_BCS_TPL_OFFER_TREE_PROPS'),
-			'TYPE' => 'LIST',
-			'MULTIPLE' => 'Y',
-			'ADDITIONAL_VALUES' => 'N',
-			'REFRESH' => 'N',
-			'DEFAULT' => '-',
-			'VALUES' => $arTreeOfferPropList
-		);
+		if (!$usePropertyFeatures)
+		{
+			$arTemplateParameters['OFFER_TREE_PROPS'] = array(
+				'PARENT' => 'VISUAL',
+				'NAME' => GetMessage('CP_BCS_TPL_OFFER_TREE_PROPS'),
+				'TYPE' => 'LIST',
+				'MULTIPLE' => 'Y',
+				'ADDITIONAL_VALUES' => 'N',
+				'REFRESH' => 'N',
+				'DEFAULT' => '-',
+				'VALUES' => $arTreeOfferPropList
+			);
+		}
 	}
 }
 
@@ -441,7 +460,7 @@ if ($boolCatalog)
 			);
 		}
 	}
-	
+
 	$arTemplateParameters['ADD_TO_BASKET_ACTION'] = array(
 		'PARENT' => 'BASKET',
 		'NAME' => GetMessage('CP_BCS_TPL_ADD_TO_BASKET_ACTION'),
@@ -476,21 +495,26 @@ $arTemplateParameters['LAZY_LOAD'] = array(
 	'DEFAULT' => 'N'
 );
 
-if (isset($arCurrentValues['LAZY_LOAD']) && $arCurrentValues['LAZY_LOAD'] === 'Y')
-{
-	$arTemplateParameters['MESS_BTN_LAZY_LOAD'] = array(
-		'PARENT' => 'PAGER_SETTINGS',
-		'NAME' => GetMessage('CP_BCS_TPL_MESS_BTN_LAZY_LOAD'),
-		'TYPE' => 'TEXT',
-		'DEFAULT' => GetMessage('CP_BCS_TPL_MESS_BTN_LAZY_LOAD_DEFAULT')
-	);
-}
+$arTemplateParameters['MESS_BTN_LAZY_LOAD'] = array(
+	'PARENT' => 'PAGER_SETTINGS',
+	'NAME' => GetMessage('CP_BCS_TPL_MESS_BTN_LAZY_LOAD'),
+	'TYPE' => 'TEXT',
+	'DEFAULT' => GetMessage('CP_BCS_TPL_MESS_BTN_LAZY_LOAD_DEFAULT'),
+	"HIDDEN" => (isset($arCurrentValues['LAZY_LOAD']) && $arCurrentValues['LAZY_LOAD'] === 'Y' ? 'N' : 'Y')
+);
 
 $arTemplateParameters['LOAD_ON_SCROLL'] = array(
 	'PARENT' => 'PAGER_SETTINGS',
 	'NAME' => GetMessage('CP_BCS_TPL_LOAD_ON_SCROLL'),
 	'TYPE' => 'CHECKBOX',
-	'DEFAULT' => 'N'
+	'DEFAULT' => 'N',
+	'HIDDEN' => (
+		(isset($arCurrentValues['LAZY_LOAD']) && $arCurrentValues['LAZY_LOAD'] === 'Y')
+		|| (isset($arCurrentValues['DISPLAY_TOP_PAGER']) && $arCurrentValues['DISPLAY_TOP_PAGER'] === 'Y')
+		|| (!isset($arCurrentValues['DISPLAY_BOTTOM_PAGER']) || $arCurrentValues['DISPLAY_BOTTOM_PAGER'] !== 'N')
+		? 'N'
+		: 'Y'
+	)
 );
 
 $arTemplateParameters['MESS_BTN_ADD_TO_BASKET'] = array(

@@ -1,4 +1,6 @@
 <?
+$MESS["CP_SBB_EMPTY_BASKET_HINT_PATH"] = "Seite zum Weiter einkaufen";
+$MESS["EMPTY_BASKET_HINT_PATH_TIP"] = "Der Link \"Weiter einkaufen\" wird angezeigt, wenn der Warenkorb leer ist.<br>Der Text wird ausgeblendet, wenn der Link leer ist.";
 $MESS["CP_SBB_TPL_PROPERTIES_RECALCULATE_BASKET"] = "Eigenschaften der Neuberechnung des Warenkorbs";
 $MESS["CP_SBB_TPL_THEME_SITE"] = "Standarddesign der Website nutzen (für bitrix.eshop)";
 $MESS["CP_SBB_TPL_THEME_BLUE"] = "Blau (Standardthema)";

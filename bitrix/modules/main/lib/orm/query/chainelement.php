@@ -3,6 +3,7 @@
 namespace Bitrix\Main\ORM\Query;
 
 use Bitrix\Main\ArgumentException;
+use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\ORM\Entity;
 use Bitrix\Main\ORM\Fields\ExpressionField;
 use Bitrix\Main\ORM\Fields\Field;
@@ -76,9 +77,19 @@ class ChainElement
 		return $this->value;
 	}
 
+	/**
+	 * @param $name
+	 *
+	 * @return mixed|null
+	 */
 	public function getParameter($name)
 	{
-		return $this->parameters[$name];
+		if (array_key_exists($name, $this->parameters))
+		{
+			return $this->parameters[$name];
+		}
+
+		return null;
 	}
 
 	public function setParameter($name, $value)
@@ -201,7 +212,10 @@ class ChainElement
 	{
 		if (is_array($this->value) || $this->value instanceof Reference || $this->value instanceof Entity)
 		{
-			throw new SystemException('Unknown value');
+			throw new SystemException(sprintf(
+				'There is no SQL definition for Entity `%s`, please use a scalar field',
+				$this->getAliasFragment()
+			));
 		}
 
 		$helper = $this->value->getEntity()->getConnection()->getSqlHelper();
@@ -209,10 +223,30 @@ class ChainElement
 		if ($this->value instanceof ExpressionField)
 		{
 			$SQLBuildFrom = [];
+			$buildFromChains = $this->value->getBuildFromChains();
 
-			foreach ($this->value->getBuildFromChains() as $chain)
+			foreach ($this->value->getBuildFrom() as $element)
 			{
-				$SQLBuildFrom[] = $chain->getSQLDefinition();
+				if ($element instanceof \Closure)
+				{
+					/** @var SqlExpression $sqlExpression */
+					$sqlExpression = $element();
+
+					if (!($sqlExpression instanceof SqlExpression))
+					{
+						throw new ArgumentException(sprintf(
+							'Expected instance of %s, got %s instead.',
+							SqlExpression::class, gettype($sqlExpression)
+						));
+					}
+
+					$SQLBuildFrom[] = $sqlExpression->compile();
+				}
+				else
+				{
+					$chain = array_shift($buildFromChains);
+					$SQLBuildFrom[] = $chain->getSQLDefinition();
+				}
 			}
 
 			$expr = $this->value->getExpression();

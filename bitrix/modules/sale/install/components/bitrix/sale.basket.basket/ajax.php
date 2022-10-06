@@ -14,6 +14,16 @@ if (isset($_REQUEST['site_id']) && is_string($_REQUEST['site_id']))
 	}
 }
 
+if (isset($_REQUEST['site_template_id']) && is_string($_REQUEST['site_template_id']))
+{
+	$siteTemplateId = trim($_REQUEST['site_template_id']);
+
+	if ($siteTemplateId !== '' && preg_match('/^[a-z0-9_]+$/i', $siteTemplateId))
+	{
+		define('SITE_TEMPLATE_ID', $siteTemplateId);
+	}
+}
+
 require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_before.php');
 
 $request = Bitrix\Main\Application::getInstance()->getContext()->getRequest();
@@ -33,11 +43,11 @@ if ($request->get('via_ajax') === 'Y')
 	try
 	{
 		$params = $signer->unsign($request->get('signedParamsString'), 'sale.basket.basket');
-		$params = unserialize(base64_decode($params));
+		$params = unserialize(base64_decode($params), ['allowed_classes' => false]);
 	}
 	catch (\Bitrix\Main\Security\Sign\BadSignatureException $e)
 	{
-		die();
+		die('Bad signature.');
 	}
 
 	try

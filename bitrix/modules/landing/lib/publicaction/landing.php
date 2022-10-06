@@ -1,8 +1,10 @@
 <?php
 namespace Bitrix\Landing\PublicAction;
 
+use \Bitrix\Landing\Hook;
 use \Bitrix\Landing\Manager;
 use \Bitrix\Landing\File;
+use \Bitrix\Landing\Site;
 use \Bitrix\Landing\Block as BlockCore;
 use \Bitrix\Landing\TemplateRef;
 use \Bitrix\Landing\Landing as LandingCore;
@@ -19,9 +21,9 @@ class Landing
 	 * @param array $fields
 	 * @return array
 	 */
-	protected static function clearDisallowFields($fields)
+	protected static function clearDisallowFields(array $fields)
 	{
-		$disallow = array('RULE');
+		$disallow = ['RULE', 'TPL_CODE', 'ACTIVE', 'INITIATOR_APP_CODE', 'VIEWS'];
 
 		if (is_array($fields))
 		{
@@ -45,7 +47,9 @@ class Landing
 	public static function getPreview($lid)
 	{
 		$result = new PublicActionResult();
-		$landing = LandingCore::createInstance($lid);
+		$landing = LandingCore::createInstance($lid, [
+			'skip_blocks' => true
+		]);
 
 		if ($landing->exist())
 		{
@@ -64,7 +68,9 @@ class Landing
 	public static function getPublicUrl($lid)
 	{
 		$result = new PublicActionResult();
-		$landing = LandingCore::createInstance($lid);
+		$landing = LandingCore::createInstance($lid, [
+			'skip_blocks' => true
+		]);
 
 		if ($landing->exist())
 		{
@@ -78,6 +84,19 @@ class Landing
 	}
 
 	/**
+	 * Returns landing id resolves by landing public url.
+	 * @param string $landingUrl Landing public url.
+	 * @param int $siteId Landing's site id.
+	 * @return PublicActionResult
+	 */
+	public static function resolveIdByPublicUrl(string $landingUrl, int $siteId): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		$result->setResult(LandingCore::resolveIdByPublicUrl($landingUrl, $siteId));
+		return $result;
+	}
+
+	/**
 	 * Get additional fields of landing.
 	 * @param int $lid Id of landing.
 	 * @return \Bitrix\Landing\PublicActionResult
@@ -85,7 +104,9 @@ class Landing
 	public static function getAdditionalFields($lid)
 	{
 		$result = new PublicActionResult();
-		$landing = LandingCore::createInstance($lid);
+		$landing = LandingCore::createInstance($lid, [
+			'skip_blocks' => true
+		]);
 
 		if ($landing->exist())
 		{
@@ -115,7 +136,9 @@ class Landing
 	public static function publication($lid)
 	{
 		$result = new PublicActionResult();
-		$landing = LandingCore::createInstance($lid);
+		$landing = LandingCore::createInstance($lid, [
+			'skip_blocks' => true
+		]);
 
 		if ($landing->exist())
 		{
@@ -131,21 +154,46 @@ class Landing
 	}
 
 	/**
+	 * Cancel publication of landing.
+	 * @param int $lid Id of landing.
+	 * @return \Bitrix\Landing\PublicActionResult
+	 */
+	public static function unpublic($lid)
+	{
+		$result = new PublicActionResult();
+		$landing = LandingCore::createInstance($lid, [
+			'skip_blocks' => true
+		]);
+
+		if ($landing->exist())
+		{
+			$result->setResult(
+				$landing->unpublic()
+			);
+		}
+
+		$result->setError($landing->getError());
+
+		return $result;
+	}
+
+	/**
 	 * Add new block to the landing.
 	 * @param int $lid Id of landing.
 	 * @param array $fields Data array of block.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function addBlock($lid, $fields)
+	public static function addBlock($lid, array $fields)
 	{
 		LandingCore::setEditMode();
+		Hook::setEditMode(true);
 
 		$result = new PublicActionResult();
 		$landing = LandingCore::createInstance($lid);
 		if ($landing->exist())
 		{
 			$data = array(
-				'PUBLIC' => 'N'
+				'PUBLIC' => 'N',
 			);
 			if (isset($fields['ACTIVE']))
 			{
@@ -153,7 +201,10 @@ class Landing
 			}
 			if (isset($fields['CONTENT']))
 			{
-				$data['CONTENT'] = Repo::sanitize($fields['CONTENT']);
+				$data['CONTENT'] = Manager::sanitize(
+					$fields['CONTENT'],
+					$bad
+				);
 			}
 			// sort
 			if (isset($fields['AFTER_ID']))
@@ -168,10 +219,7 @@ class Landing
 			{
 				$data['SORT'] = -1;
 			}
-			$newBlockId = $landing->addBlock(
-				isset($fields['CODE']) ? $fields['CODE'] : '',
-				$data
-			);
+			$newBlockId = $landing->addBlock($fields['CODE'] ?? '', $data, true);
 			// re-sort
 			$landing->resortBlocks();
 			// want return content ob block
@@ -269,7 +317,10 @@ class Landing
 			{
 				$result->setResult($landing->downBlock($block));
 			}
-			$landing->resortBlocks();
+			if ($landing->getError()->isEmpty())
+			{
+				$landing->resortBlocks();
+			}
 		}
 		$result->setError($landing->getError());
 		return $result;
@@ -297,6 +348,48 @@ class Landing
 	{
 		LandingCore::setEditMode();
 		return self::sort($lid, $block, 'down');
+	}
+
+	/**
+	 * Save the block in favorites.
+	 * @param int $lid Landing id.
+	 * @param int $block Block id.
+	 * @param array $meta Meta info.
+	 * @return PublicActionResult
+	 */
+	public static function favoriteBlock(int $lid, int $block, array $meta = []): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		LandingCore::setEditMode();
+		$landing = LandingCore::createInstance($lid);
+		if ($landing->exist())
+		{
+			$result->setResult($landing->favoriteBlock($block, $meta));
+		}
+		$result->setError($landing->getError());
+		return $result;
+	}
+
+	/**
+	 * Remove block from favorites. Only if block created by current user.
+	 * @param int $blockId - id of deleted block
+	 * @return PublicActionResult
+	 */
+	public static function unFavoriteBlock(int $blockId): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		LandingCore::setEditMode();
+		$landing = LandingCore::createInstance(0);
+		$delResult = $landing->unFavoriteBlock($blockId);
+		if ($delResult)
+		{
+			$result->setResult($delResult);
+		}
+		else
+		{
+			$result->setError($landing->getError());
+		}
+		return $result;
 	}
 
 	/**
@@ -356,7 +449,7 @@ class Landing
 	 * @param array $params Params array.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	private static function changeParentOfBlock($lid, $block, $params)
+	private static function changeParentOfBlock($lid, $block, array $params)
 	{
 		$result = new PublicActionResult();
 		$landing = LandingCore::createInstance($lid);
@@ -379,7 +472,7 @@ class Landing
 			{
 				$result->setResult(array(
 					'result' => $res > 0,
-					'content' => BlockCore::getBlockContent($res)
+					'content' => BlockCore::getBlockContent($res, true)
 				));
 			}
 			else
@@ -398,7 +491,7 @@ class Landing
 	 * @param array $params Params array.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function copyBlock($lid, $block, $params = array())
+	public static function copyBlock($lid, $block, array $params = array())
 	{
 		if (!is_array($params))
 		{
@@ -416,7 +509,7 @@ class Landing
 	 * @param array $params Params array.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function moveBlock($lid, $block, $params = array())
+	public static function moveBlock($lid, $block, array $params = array())
 	{
 		if (!is_array($params))
 		{
@@ -433,7 +526,7 @@ class Landing
 	 * @param array $data Data for remove.
 	 * @return PublicActionResult
 	 */
-	public static function removeEntities($lid, $data)
+	public static function removeEntities($lid, array $data)
 	{
 		$result = new PublicActionResult();
 
@@ -472,43 +565,82 @@ class Landing
 	/**
 	 * Get available landings.
 	 * @param array $params Params ORM array.
-	 * @return \Bitrix\Landing\PublicActionResult
+	 * @return PublicActionResult
 	 */
-	public static function getList($params = array())
+	public static function getList(array $params = []): PublicActionResult
 	{
 		$result = new PublicActionResult();
+		$params = $result->sanitizeKeys($params);
+		$landingFake = LandingCore::createInstance(0);
+		$getPreview = false;
+		$getUrls = false;
+		$checkArea = false;
 
 		if (isset($params['get_preview']))
 		{
-			$preview = !!$params['get_preview'];
+			$getPreview = !!$params['get_preview'];
 			unset($params['get_preview']);
 		}
-		else
-		{
-			$preview = false;
-		}
 
-		$params['select'] = ['*'];
-		$params['check_area'] = true;
+		if (isset($params['get_urls']))
+		{
+			$getUrls = !!$params['get_urls'];
+			unset($params['get_urls']);
+		}
 
 		if (isset($params['check_area']))
 		{
 			$checkArea = !!$params['check_area'];
 			unset($params['check_area']);
 		}
-		else
+
+		if (isset($params['filter']['CHECK_PERMISSIONS']))
 		{
-			$checkArea = false;
+			unset($params['filter']['CHECK_PERMISSIONS']);
 		}
 
-		$data = array();
+		$data = [];
+		$rows = [];
+		$publicUrls = [];
+
+		$params['select'] = $params['select'] ?? ['*'];
+		$params['select']['DOMAIN_ID'] = 'SITE.DOMAIN_ID';
 		$res = LandingCore::getList($params);
 		while ($row = $res->fetch())
 		{
-			if ($preview && isset($row['ID']))
+			$rows[$row['ID']] = $row;
+		}
+
+		if ($getPreview || $getUrls)
+		{
+			$publicUrls = LandingCore::createInstance(0)->getPublicUrl(array_keys($rows));
+		}
+
+		foreach ($rows as $row)
+		{
+			if (isset($row['DATE_CREATE']))
 			{
-				$landing = LandingCore::createInstance($row['ID']);
-				$row['PREVIEW'] = $landing->getPreview();
+				$row['DATE_CREATE'] = (string) $row['DATE_CREATE'];
+			}
+			if (isset($row['DATE_MODIFY']))
+			{
+				$row['DATE_MODIFY'] = (string) $row['DATE_MODIFY'];
+			}
+			if ($getUrls && isset($row['ID']))
+			{
+				$row['PUBLIC_URL'] = $publicUrls[$row['ID']];
+			}
+			if ($getPreview && isset($row['ID']))
+			{
+				if ($row['DOMAIN_ID'] == 0)
+				{
+					\Bitrix\Landing\Hook::setEditMode(true);
+				}
+				$row['PREVIEW'] = $landingFake->getPreview(
+					$row['ID'],
+					$row['DOMAIN_ID'] == 0,
+					$publicUrls[$row['ID']]
+				);
 			}
 			if ($checkArea && isset($row['ID']))
 			{
@@ -539,16 +671,82 @@ class Landing
 	}
 
 	/**
+	 * Checks that page also adding in some menu.
+	 * @param array $fields Landing data array.
+	 * @param bool $willAdded Flag that menu item will be added.
+	 * @return array
+	 */
+	protected static function checkAddingInMenu(array $fields, ?bool &$willAdded = null): array
+	{
+		$blockId = null;
+		$menuCode = null;
+
+		if (isset($fields['BLOCK_ID']))
+		{
+			$blockId = (int)$fields['BLOCK_ID'];
+			unset($fields['BLOCK_ID']);
+		}
+		if (isset($fields['MENU_CODE']))
+		{
+			$menuCode = $fields['MENU_CODE'];
+			unset($fields['MENU_CODE']);
+		}
+
+		if (!$blockId || !$menuCode || !is_string($menuCode))
+		{
+			return $fields;
+		}
+
+		$willAdded = true;
+
+		LandingCore::callback('OnAfterAdd',
+			function(\Bitrix\Main\Event $event) use ($blockId, $menuCode)
+			{
+				$primary = $event->getParameter('primary');
+				$fields = $event->getParameter('fields');
+
+				if ($primary)
+				{
+					$landingId = BlockCore::getLandingIdByBlockId($blockId);
+					if ($landingId)
+					{
+						$updateData = [
+							$menuCode => [
+								[
+									'text' => $fields['TITLE'],
+									'href' => '#landing' . $primary['ID']
+								]
+							]
+						];
+						Block::updateNodes(
+							$landingId,
+							$blockId,
+							$updateData,
+							['appendMenu' => true]
+						);
+					}
+				}
+			}
+		);
+
+
+		return $fields;
+	}
+
+	/**
 	 * Create new landing.
 	 * @param array $fields Landing data.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function add($fields)
+	public static function add(array $fields)
 	{
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
 
 		$fields = self::clearDisallowFields($fields);
+		$fields['ACTIVE'] = 'N';
+
+		$fields = self::checkAddingInMenu($fields);
 
 		$res = LandingCore::add($fields);
 
@@ -566,12 +764,55 @@ class Landing
 	}
 
 	/**
+	 * Create a page by template.
+	 * @param int $siteId Site id.
+	 * @param string $code Code of template.
+	 * @param array $fields Landing fields.
+	 * @return PublicActionResult
+	 */
+	public static function addByTemplate($siteId, $code, array $fields = [])
+	{
+		$result = new PublicActionResult();
+		$error = new \Bitrix\Landing\Error;
+
+		$willAdded = false;
+		$siteId = intval($siteId);
+		$fields = self::checkAddingInMenu($fields, $willAdded);
+
+		$res = LandingCore::addByTemplate($siteId, $code, $fields);
+
+		if ($res->isSuccess())
+		{
+			$result->setResult($res->getId());
+			if (
+				!$willAdded &&
+				isset($fields['ADD_IN_MENU']) &&
+				isset($fields['TITLE']) &&
+				$fields['ADD_IN_MENU'] == 'Y'
+			)
+			{
+				Site::addLandingToMenu($siteId, [
+					'ID' => $res->getId(),
+					'TITLE' => $fields['TITLE']
+				]);
+			}
+		}
+		else
+		{
+			$error->addFromResult($res);
+			$result->setError($error);
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Update landing.
 	 * @param int $lid Landing id.
 	 * @param array $fields Landing new data.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function update($lid, $fields)
+	public static function update($lid, array $fields)
 	{
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
@@ -619,74 +860,82 @@ class Landing
 	}
 
 	/**
-	 * Copy landing.
+	 * Move the page to site/folder.
 	 * @param int $lid Landing id.
-	 * @param int $toSiteId Site id (if you want copy in another site).
+	 * @param int|null $toSiteId Site id.
+	 * @param int|null $toFolderId Folder id (optional).
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function copy($lid, $toSiteId = false)
+	public static function move(int $lid, ?int $toSiteId = null, ?int $toFolderId = null): PublicActionResult
+	{
+		$result = new PublicActionResult();
+		$landing = LandingCore::createInstance($lid);
+		$result->setResult($landing->move($toSiteId ?: null, $toFolderId ?: null));
+		$result->setError($landing->getError());
+		return $result;
+	}
+
+	/**
+	 * Copy landing.
+	 * @param int $lid Landing id.
+	 * @param int|null $toSiteId Site id (if you want copy in another site).
+	 * @param int|null $toFolderId Folder id (if you want copy in some folder).
+	 * @param bool $skipSystem If true, don't copy system flag.
+	 * @return \Bitrix\Landing\PublicActionResult
+	 */
+	public static function copy(int $lid, ?int $toSiteId = null, ?int $toFolderId = null, bool $skipSystem = false): PublicActionResult
+	{
+		$result = new PublicActionResult();
+
+		LandingCore::disableCheckDeleted();
+		$landing = LandingCore::createInstance($lid);
+		$result->setResult($landing->copy($toSiteId ?: null, $toFolderId ?: null, false, Utils::isTrue($skipSystem)));
+		$result->setError($landing->getError());
+		LandingCore::enableCheckDeleted();
+
+		return $result;
+	}
+
+	/**
+	 * Mark entity as deleted.
+	 * @param int $lid Entity id.
+	 * @param boolean $mark Mark.
+	 * @return \Bitrix\Landing\PublicActionResult
+	 */
+	public static function markDelete($lid, $mark = true)
 	{
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
 
-		$landingRow = LandingCore::getList(array(
-			'filter' => array(
-				'ID' => $lid
-			)
-		))->fetch();
-
-		$landing = LandingCore::createInstance($lid);
-
-		if ($landing->exist())
+		if ($mark)
 		{
-			if (!$toSiteId)
-			{
-				$toSiteId = $landing->getSiteId();
-			}
-			$res = LandingCore::add(array(
-				'CODE' => $landingRow['CODE'],
-				'ACTIVE' => $landingRow['ACTIVE'],
-				'PUBLIC' => $landingRow['PUBLIC'],
-				'TITLE' => $landingRow['TITLE'],
-				'XML_ID' => $landingRow['XML_ID'],
-				'DESCRIPTION' => $landingRow['DESCRIPTION'],
-				'TPL_ID' => $landingRow['TPL_ID'],
-				'SITE_ID' => $toSiteId,
-				'SITEMAP' => $landingRow['SITEMAP'],
-				'FOLDER' => $landingRow['FOLDER'],
-				'FOLDER_ID' => ($toSiteId == $landing->getSiteId())
-								? $landingRow['FOLDER_ID']
-								: null
-			));
-			// landing allready create, just copy the blocks
-			if ($res->isSuccess())
-			{
-				LandingCore::setEditMode();
-				$landingNew = LandingCore::createInstance($res->getId());
-				if ($landingNew->exist())
-				{
-					$landingNew->copyAllBlocks($landing->getId());
-					// copy hook data
-					\Bitrix\Landing\Hook::copyLanding(
-						$landingRow['ID'],
-						$landingNew->getId()
-					);
-					$result->setResult($landingNew->getId());
-				}
-				$result->setError(
-					$landingNew->getError()
-				);
-			}
-			else
-			{
-				$error->addFromResult($res);
-				$result->setError($error);
-			}
+			$res = LandingCore::markDelete($lid);
+		}
+		else
+		{
+			$res = LandingCore::markUnDelete($lid);
+		}
+		if ($res->isSuccess())
+		{
+			$result->setResult($res->getId());
+		}
+		else
+		{
+			$error->addFromResult($res);
+			$result->setError($error);
 		}
 
-		$result->setError($landing->getError());
-
 		return $result;
+	}
+
+	/**
+	 * Mark entity as undeleted.
+	 * @param int $lid Entity id.
+	 * @return \Bitrix\Landing\PublicActionResult
+	 */
+	public static function markUnDelete($lid)
+	{
+		return self::markDelete($lid, false);
 	}
 
 	/**
@@ -697,14 +946,18 @@ class Landing
 	 * @param array $params Some file params.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function uploadFile($lid, $picture, $ext = false, $params = array())
+	public static function uploadFile($lid, $picture, $ext = false, array $params = array())
 	{
 		static $internal = true;
+		static $mixedParams = ['picture'];
 
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
+		$lid = intval($lid);
 
-		$landing = LandingCore::createInstance($lid);
+		$landing = LandingCore::createInstance($lid, [
+			'skip_blocks' => true
+		]);
 
 		if ($landing->exist())
 		{
@@ -735,15 +988,18 @@ class Landing
 	/**
 	 * Set some content to the Head section.
 	 * @param int $lid Landing id.
-	 * @param $content Some content.
+	 * @param string $content Some content.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
 	public static function updateHead($lid, $content)
 	{
 		static $internal = true;
 
+		$lid = intval($lid);
 		$result = new PublicActionResult();
-		$landing = LandingCore::createInstance($lid);
+		$landing = LandingCore::createInstance($lid, [
+			'skip_blocks' => true
+		]);
 		$result->setResult(false);
 
 		if ($landing->exist())
@@ -756,28 +1012,56 @@ class Landing
 				'ENTITY_ID' => $lid,
 				'ENTITY_TYPE' => \Bitrix\Landing\Hook::ENTITY_TYPE_LANDING,
 				'HOOK' => 'FONTS',
-				'CODE' => 'CODE'
+				'CODE' => 'CODE',
+				'PUBLIC' => 'N'
 			);
 			$res = HookDataTable::getList(array(
 				'select' => array(
-					'ID'
+					'ID', 'VALUE'
 				),
 				'filter' => $fields
 			));
 			if ($row = $res->fetch())
 			{
-				HookDataTable::update(
-					$row['ID'],
-					array(
-						'VALUE' => $content
-					)
+				$existsContent = $row['VALUE'];
+
+				// concat new fonts to the exists
+				$found = preg_match_all(
+					'#(<noscript>.*?<style.*?data-id="([^"]+)"[^>]*>[^<]+</style>)#is',
+					$content,
+					$newFonts
 				);
+				if ($found)
+				{
+					foreach ($newFonts[1] as $i => $newFont)
+					{
+						if (mb_strpos($existsContent, '"' . $newFonts[2][$i] . '"') === false)
+						{
+							$existsContent .= $newFont;
+						}
+					}
+				}
+
+				if ($existsContent != $row['VALUE'])
+				{
+					HookDataTable::update(
+						$row['ID'],
+						['VALUE' => $existsContent]
+					);
+				}
 			}
 			else
 			{
 				$fields['VALUE'] = $content;
 				HookDataTable::add($fields);
 			}
+
+			if (Manager::getOption('public_hook_on_save') === 'Y')
+			{
+				Hook::setEditMode();
+				Hook::publicationLanding($landing->getId());
+			}
+
 			$result->setResult(true);
 		}
 

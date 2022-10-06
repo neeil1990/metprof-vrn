@@ -1,17 +1,17 @@
-BX.namespace("BX.Landing");
+BX.namespace('BX.Landing');
 
 /**
- * Bbase script for component.
- * @param {Object} params Some params.
+ * Base script for component.
+ * @param actionCLoseId - id of close button
  * @returns {void}
  */
-BX.Landing.EditComponent = function ()
+BX.Landing.EditComponent = function (actionCLoseId)
 {
-	this.actionCloseId = BX("action-close");
+	this.actionCloseId = BX(actionCLoseId);
 
 	if (this.actionCloseId)
 	{
-		BX.bind(this.actionCloseId, "click", BX.delegate(this.actionClose, this));
+		BX.bind(this.actionCloseId, 'click', BX.delegate(this.actionClose, this));
 	}
 };
 
@@ -22,16 +22,16 @@ BX.Landing.EditComponent.prototype = {
 	 */
 	actionClose: function ()
 	{
-		if (
-			typeof top.BX.Bitrix24 !== 'undefined' &&
-			typeof top.BX.Bitrix24.PageSlider !== 'undefined'
-		)
+		if (typeof top.BX.SidePanel !== 'undefined')
 		{
-			top.BX.Bitrix24.PageSlider.close();
-		}
-		else if (typeof top.BX.SidePanel !== 'undefined')
-		{
-			top.BX.SidePanel.Instance.close();
+			setTimeout(function() {
+				top.BX.SidePanel.Instance.close();
+			}, 300);
+			top.BX.SidePanel.Instance.postMessage(
+				window,
+				'landingEditClose',
+				{}
+			);
 		}
 	}
 };
@@ -53,7 +53,19 @@ BX.Landing.SelectColor = function (params)
 BX.Landing.SelectColor.prototype = {
 	show: function ()
 	{
+		this.checkValue();
 		this.initSectionSelector();
+	},
+
+	/**
+	 * If not exist color for this value - get default (any)
+	 */
+	checkValue: function ()
+	{
+		if(!this.options[this.value])
+		{
+			this.value = Object.keys(this.options)[0];
+		}
 	},
 
 	initSectionSelector: function ()
@@ -108,7 +120,7 @@ BX.Landing.SelectColor.prototype = {
 			};
 
 			_this.sectionMenu = BX.PopupMenu.create(
-				"selectColor" + _this.id,
+				'selectColor' + _this.id,
 				_this.DOM.sectionSelect,
 				menuItems,
 				{
@@ -119,7 +131,7 @@ BX.Landing.SelectColor.prototype = {
 				}
 			);
 
-			_this.sectionMenu.popupWindow.contentContainer.style.maxHeight = "300px";
+			_this.sectionMenu.popupWindow.contentContainer.style.maxHeight = '300px';
 			_this.sectionMenu.popupWindow.setWidth(_this.DOM.sectionSelect.offsetWidth - 2);
 			_this.sectionMenu.show();
 
@@ -142,10 +154,57 @@ BX.Landing.SelectColor.prototype = {
 			{
 				BX.removeClass(_this.DOM.sectionSelect, 'active');
 				_this.sectionMenu = null;
-				BX.PopupMenu.destroy("selectColor" + _this.id);
+				BX.PopupMenu.destroy('selectColor' + _this.id);
 			});
 		}
 	}
-}
-;
+};
 
+
+// Sidepanel
+BX.ready(function()
+{
+	var domainRenameLinks = [].slice.call(
+		document.querySelectorAll('.landing-frame-btn')
+	);
+	for (var i = 0, c = domainRenameLinks.length; i < c; i++)
+	{
+		BX.bind(domainRenameLinks[i], 'click', function()
+		{
+			top.BX.SidePanel.Instance.open(
+				this.getAttribute('href'),
+				{
+					width: 1000,
+					allowChangeHistory: false,
+					events: {
+						onClose: function(event)
+						{
+							if (
+								event.slider.url.indexOf('save=Y') !== -1 ||
+								event.slider.url.indexOf('switch=Y') !== -1
+							)
+							{
+								window.location.reload();
+							}
+						}
+					}
+				}
+			);
+			BX.PreventDefault();
+		});
+	}
+});
+
+/**
+ * Show all 20 colors in setting 'corporate color'
+ * @param HTMLLinkElement link
+ * @param HTMLElement allColors
+ */
+function showAllColors(link, allColors)
+{
+	for (let i = 0; i < allColors.childNodes.length; i++)
+	{
+		allColors.childNodes[i].hidden = false;
+	}
+	link.hidden = true;
+}

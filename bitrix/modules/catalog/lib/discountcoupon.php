@@ -30,7 +30,20 @@ Loc::loadMessages(__FILE__);
  * </ul>
  *
  * @package Bitrix\Catalog
- **/
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_DiscountCoupon_Query query()
+ * @method static EO_DiscountCoupon_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_DiscountCoupon_Result getById($id)
+ * @method static EO_DiscountCoupon_Result getList(array $parameters = [])
+ * @method static EO_DiscountCoupon_Entity getEntity()
+ * @method static \Bitrix\Catalog\EO_DiscountCoupon createObject($setDefaultValues = true)
+ * @method static \Bitrix\Catalog\EO_DiscountCoupon_Collection createCollection()
+ * @method static \Bitrix\Catalog\EO_DiscountCoupon wakeUpObject($row)
+ * @method static \Bitrix\Catalog\EO_DiscountCoupon_Collection wakeUpCollection($rows)
+ */
 
 class DiscountCouponTable extends Main\Entity\DataManager
 {
@@ -323,6 +336,10 @@ class DiscountCouponTable extends Main\Entity\DataManager
 		if (self::$existCouponsManager === null)
 			self::initUseMode();
 
+		$coupon = trim($coupon);
+		if ($coupon === '')
+			return false;
+
 		$couponIterator = self::getList(array(
 			'select' => array(
 				'ID', 'COUPON', 'DISCOUNT_ID', 'TYPE', 'ACTIVE',
@@ -331,7 +348,9 @@ class DiscountCouponTable extends Main\Entity\DataManager
 			),
 			'filter' => array('=COUPON' => $coupon)
 		));
-		if ($existCoupon = $couponIterator->fetch())
+		$existCoupon = $couponIterator->fetch();
+		unset($couponIterator);
+		if (!empty($existCoupon))
 		{
 			if (!empty(self::$types))
 			{
@@ -354,11 +373,17 @@ class DiscountCouponTable extends Main\Entity\DataManager
 	 */
 	public static function isExist($coupon)
 	{
+		$coupon = trim($coupon);
+		if ($coupon === '')
+			return false;
+
 		$couponIterator = self::getList(array(
 			'select' => array('ID', 'COUPON'),
 			'filter' => array('=COUPON' => $coupon)
 		));
-		if ($existCoupon = $couponIterator->fetch())
+		$existCoupon = $couponIterator->fetch();
+		unset($couponIterator);
+		if (!empty($existCoupon))
 		{
 			return array(
 				'ID' => $existCoupon['ID'],
@@ -424,7 +449,7 @@ class DiscountCouponTable extends Main\Entity\DataManager
 				$multiCoupons[$existCoupon['COUPON']] = $existCoupon['ID'];
 			}
 		}
-		unset($existCoupon, $couponIterator, $coupons);
+		unset($existCoupon, $couponIterator);
 		if (!empty($deactivateCoupons) || !empty($multiCoupons))
 		{
 			$conn = Application::getConnection();

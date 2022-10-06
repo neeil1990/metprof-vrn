@@ -31,13 +31,13 @@
 /*}*/
 
 .ui-dropdown-inner {
-	padding: 0 9px;
+	/*padding: 0 9px;*/
 	max-height: 190px;
 	overflow-y: auto;
 }
 
 .ui-dropdown-item {
-	padding: 8px 13px 13px 13px;
+	padding: 13px 22px;
 	border-bottom: 1px solid rgba(151,151,151,.12);
 	font-size: 0;
 	transition: background .3s;
@@ -45,7 +45,7 @@
 }
 
 .ui-dropdown-item:hover,
-.ui-dropdown-alert-new:hover {
+.ui-dropdown-alert:hover {
 	background: #F6F8F9;
 }
 
@@ -55,8 +55,7 @@
 
 .ui-dropdown-item-name {
 	display: block;
-	margin: 0 0 5px 0;
-	font: 15px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 15px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #424956;
 	white-space: nowrap;
 	overflow: hidden;
@@ -65,26 +64,31 @@
 
 .ui-dropdown-item-subname {
 	display: block;
-	margin: 0 0 5px 0;
-	font: 13px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	margin: 3px 0 2px 0;
+	font: 13px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: rgba(66,73,86,.3);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
 }
 
+.ui-dropdown-item-subname:empty {
+	display: none;
+}
+
 .ui-dropdown-item-phone,
-.ui-dropdown-item-email {
+.ui-dropdown-item-email,
+.ui-dropdown-item-web {
 	display: inline-block;
-	font: 14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 14px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: rgba(66,73,86,.5);
 }
 
-.ui-dropdown-item-phone {
+.ui-dropdown-item-phone, .ui-dropdown-item-email {
 	margin: 0 5px 0 0;
 }
 
-.ui-dropdown-contact-info-item:first-child:after {
+.ui-dropdown-contact-info-item:after {
 	content: ',';
 }
 
@@ -96,7 +100,7 @@
 .crm-entity-widget-popup-desc {
 	display: inline-block;
 	padding: 14px 0 8px 0;
-	font: 14px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 14px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #90959E;
 }
 
@@ -111,7 +115,8 @@
 	display: inline-block;
 	padding: 0 10px;
 	margin: 0 0 5px 0;
-	font: 9px "OpenSans-SemiBold", "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 9px var(--ui-font-family-secondary, var(--ui-font-family-open-sans));
+	font-weight: var(--ui-font-weight-semi-bold, 600);
 	color: rgba(128,134,142,.5);
 }
 
@@ -142,7 +147,7 @@
 	position: relative;
 	height: 36px;
 	padding: 0 17px 0 30px;
-	font: 14px/36px "Helvetica Neue", Helvetica, Arial, sans-serif;
+	font: 14px/36px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #80868E;
 	transition: color .3s, background .3s;
 	cursor: pointer;
@@ -225,29 +230,65 @@
 }
 
 .ui-dropdown-alert-container {
-	padding: 0 9px;
+	margin: 0 0 -10px 0;
+	border-top: 1px solid #E6E8EA;
+	background: rgba(47,198,246,.09);
 }
 
-.ui-dropdown-alert-new {
-	padding: 13px 13px 16px 13px;
+.ui-dropdown-item-highlight.ui-dropdown-alert-container {
+	background: #F6F8F9;
+}
+
+.ui-dropdown-alert {
+	padding: 17px 22px;
 	transition: background .3s;
 	cursor: pointer;
 }
-
-.ui-dropdown-alert-new-name {
+.ui-dropdown-item-node-with-icon {
+	padding-left: 55px;
+	position: relative;
+}
+.ui-dropdown-item-icon {
+	width: 24px;
+	height: 24px;
+	display: inline-block;
+	position: absolute;
+	border-radius: 50%;
+	left: 22px;
+	background-position: center;
+	background-repeat: no-repeat;
+	background-size: contain;
+}
+.ui-dropdown-alert-name {
 	display: block;
-	margin: 0 0 5px 0;
+	margin: 0 0 15px 0;
+	max-width: 100%;
+	text-overflow: ellipsis;
+	overflow: hidden;
+	white-space: nowrap;
 }
 
-.ui-dropdown-alert-new-name:before {
+.ui-dropdown-alert-name:before {
 	content: '\00ab';
 }
 
-.ui-dropdown-alert-new-name:after {
+.ui-dropdown-alert-name:after {
 	content: '\00bb';
 }
 
-.ui-dropdown-alert-new-text {
-	font: 14px/16px "Helvetica Neue", Helvetica, Arial, sans-serif;
+.ui-dropdown-alert-text {
+	position: relative;
+	padding: 0 0 0 31px;
+	font: 14px/24px var(--ui-font-family-primary, var(--ui-font-family-helvetica));
 	color: #80868E;
+}
+.ui-dropdown-alert-text:before {
+	content: '';
+	position: absolute;
+	left: 0;
+	display: inline-block;
+	width: 24px;
+	height: 24px;
+	background-image: url('data:image/svg+xml;charset=US-ASCII,%3Csvg%20xmlns%3D%22http%3A//www.w3.org/2000/svg%22%20width%3D%2224%22%20height%3D%2224%22%3E%3Cg%20fill%3D%22none%22%20fill-rule%3D%22evenodd%22%3E%3Ccircle%20cx%3D%2212%22%20cy%3D%2212%22%20r%3D%2212%22%20fill%3D%22%232FC6F6%22/%3E%3Cpath%20fill%3D%22%23FFF%22%20d%3D%22M13%2011h4v2h-4v4h-2v-4H7v-2h4V7h2v4z%22%20opacity%3D%22.9%22/%3E%3C/g%3E%3C/svg%3E');
+	background-repeat: no-repeat;
 }

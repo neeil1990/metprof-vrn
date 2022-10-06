@@ -6,6 +6,8 @@
  * @copyright 2001-2016 Bitrix
  */
 
+use Bitrix\Main\Web\Uri;
+
 /*Tab Control*/
 class CAdminTabControl
 {
@@ -31,6 +33,7 @@ class CAdminTabControl
 	protected $tabEvent = false;
 
 	var $isSidePanel = false;
+	var $publicSidePanel = false;
 	var $isShownSidePanelFields = false;
 
 	public function __construct($name, $tabs, $bCanExpand = true, $bDenyAutoSave = false)
@@ -46,6 +49,8 @@ class CAdminTabControl
 		$this->name = $name;
 		$this->unique_name = $name."_".md5($APPLICATION->GetCurPage());
 
+		global $adminSidePanelHelper;
+		$this->publicSidePanel =  (is_object($adminSidePanelHelper) && $adminSidePanelHelper->isPublicSidePanel());
 		$this->bPublicMode = defined('BX_PUBLIC_MODE') && BX_PUBLIC_MODE == 1;
 		$this->bCanExpand = !$this->bPublicMode && (bool)$bCanExpand;
 
@@ -91,7 +96,7 @@ class CAdminTabControl
 				{
 					foreach ($arCustomTabs as $key1 => $value1)
 					{
-						if (array_key_exists("SORT", $value1) && IntVal($value1["SORT"]) == $i)
+						if (array_key_exists("SORT", $value1) && intval($value1["SORT"]) == $i)
 						{
 							$arTabs[] = array_merge($value1, array("CUSTOM" => "Y"));
 							unset($arCustomTabs[$key1]);
@@ -309,7 +314,7 @@ echo '
 
 		if ($_REQUEST['subdialog'])
 		{
-			echo '<input type="hidden" name="suffix" value="'.substr($GLOBALS['obJSPopup']->suffix, 1).'" />';
+			echo '<input type="hidden" name="suffix" value="'.mb_substr($GLOBALS['obJSPopup']->suffix, 1).'" />';
 			echo '<input type="hidden" name="subdialog" value="Y" />';
 		}
 
@@ -324,7 +329,7 @@ echo '
 
 			if ($this->bPublicMode)
 			{
-				if (strlen($_REQUEST['from_module']))
+				if($_REQUEST['from_module'] <> '')
 				{
 					echo '<input type="hidden" name="from_module" value="'.htmlspecialcharsbx($_REQUEST['from_module']).'" />';
 				}
@@ -393,7 +398,10 @@ echo '
 		if ($params["btnSaveAndAdd"] === true)
 		{
 			global $APPLICATION;
-			$addUrl = CHTTP::urlAddParams($APPLICATION->GetCurPage(), array("lang" => LANGUAGE_ID));
+			$addUrl = (new Uri($APPLICATION->GetCurPage()))
+				->addParams(["lang" => LANGUAGE_ID])
+				->getUri()
+			;
 			if ($addUrl <> '' && !preg_match('/(javascript|data)[\s\0-\13]*:/i', $addUrl))
 			{
 				$htmlAjaxButtons .= '<input type="button" name="save_and_add" value="'.GetMessage("admin_lib_edit_save_and_add").'" title="'.GetMessage("admin_lib_edit_save_and_add_title").'" class="adm-btn-add"  data-url="'.htmlspecialcharsbx(CUtil::addslashes($addUrl)).'">';
@@ -431,8 +439,10 @@ echo '
 
 		if ($this->bPublicMode)
 		{
-			if (strlen($_REQUEST['from_module']))
+			if($_REQUEST['from_module'] <> '')
+			{
 				echo '<input type="hidden" name="from_module" value="'.htmlspecialcharsbx($_REQUEST['from_module']).'" />';
+			}
 
 			if ($arJSButtons === false)
 			{
@@ -450,7 +460,7 @@ echo '
 ';
 				foreach ($arJSButtons as $key => $btn)
 				{
-					if (substr($btn, 0, 1) == '.')
+					if (mb_substr($btn, 0, 1) == '.')
 						$btn = $this->publicObject.$btn;
 					echo $key ? ',' : '', $btn, "\r\n"; // NO JSESCAPE HERE! string must contain valid js object
 				}
@@ -511,6 +521,8 @@ echo '
 			$adminTabControlParams["isPublicFrame"] = "Y";
 		if ($this->isSidePanel)
 			$adminTabControlParams["isSidePanel"] = "Y";
+		if ($this->publicSidePanel)
+			$adminTabControlParams["publicSidePanel"] = "Y";
 		echo '
 if (!window.'.$this->name.' || !BX.is_subclass_of(window.'.$this->name.', BX.adminTabControl))
 	window.'.$this->name.' = new BX.adminTabControl("'.$this->name.'", "'.$this->unique_name.

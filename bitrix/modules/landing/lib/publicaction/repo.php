@@ -1,6 +1,7 @@
 <?php
 namespace Bitrix\Landing\PublicAction;
 
+use \Bitrix\Landing\Manager;
 use \Bitrix\Main\Localization\Loc;
 use \Bitrix\Rest\Marketplace\Client;
 use \Bitrix\Rest\PlacementTable;
@@ -8,99 +9,47 @@ use \Bitrix\Landing\Placement;
 use \Bitrix\Landing\Block as BlockCore;
 use \Bitrix\Landing\Repo as RepoCore;
 use \Bitrix\Landing\PublicActionResult;
+use \Bitrix\Landing\Node\StyleImg;
 
 Loc::loadMessages(__FILE__);
 
 class Repo
 {
 	/**
-	 * Sanitize bad script.
-	 * @param string $str Very bad html with script.
-	 * @param array $params Some params.
-	 * @return string
+	 * Check content for bad substring.
+	 * @param string $content
+	 * @param string $splitter
+	 * @return PublicActionResult
 	 */
-	public static function sanitize($str, $params = array())
+	public static function checkContent($content, $splitter = '#SANITIZE#')
 	{
-		static $sanitizer = null;
-		static $internal = true;
-
-		if ($sanitizer === null)
-		{
-			$sanitizer = new \CBXSanitizer;
-			$sanitizer->setLevel($sanitizer::SECURE_LEVEL_LOW);
-			$sanitizer->addTags(array(
-				'header' => array('class'),
-				'footer' => array('class'),
-				'nav' => array('class'),
-				'menu' => array('class'),
-				'main' => array('class'),
-				'section' => array('class'),
-				'article' => array('class'),
-				'summary' => array('class'),
-				'cite' => array('class'),
-				'datalist' => array('class'),
-				'details' => array('class'),
-				'figcaption' => array('class'),
-				'figure' => array('class'),
-				'hggroup' => array('class'),
-				'mark' => array('class'),
-				'meter' => array('class'),
-				'output' => array('class'),
-				'progress' => array('class'),
-				'rt' => array('class'),
-				'rp' => array('class'),
-				'ruby' => array('class'),
-				'time' => array('class'),
-				'wbr' => array('class')
-			));
-		}
-
-		// allow some additional attributes
-		if (
-			isset($params['allowAttributes']) &&
-			is_array($params['allowAttributes']) &&
-			method_exists($sanitizer, 'allowAttributes')
-		)
-		{
-			$allowAttributes = array();
-			foreach ($params['allowAttributes'] as $attr)
-			{
-				if (preg_match('/^data\-[a-z0-9-_]+$/i', $attr))
-				{
-					$allowAttributes[$attr] = array(
-						'tag' => function ($tag)
-						{
-							return true;
-						},
-						'content' => function ($value)
-						{
-							return !preg_match("#[^\\s\\w\\-\\#\\.;\\%]#i" . BX_UTF_PCRE_MODIFIER, $value);
-						}
-					);
-				}
-			}
-			$sanitizer->allowAttributes(
-				$allowAttributes
-			);
-		}
-
-		return $sanitizer->sanitizeHtml($str);
+		$result = new PublicActionResult();
+		$content = Manager::sanitize(
+			$content,
+			$bad,
+			$splitter
+		);
+		$result->setResult(array(
+			'is_bad' => $bad,
+			'content' => $content
+		));
+		return $result;
 	}
 
 	/**
-	 * Register new block.
-	 * @param string $code Unique code of block (for one app context).
+	 * Registers new block.
+	 * @param string $code Unique code of block (unique within app).
 	 * @param array $fields Block data.
 	 * @param array $manifest Manifest data.
-	 * @return \Bitrix\Landing\PublicActionResult
+	 * @return PublicActionResult
 	 */
-	public static function register($code, $fields, $manifest = array())
+	public static function register(string $code, array $fields, array $manifest = []): PublicActionResult
 	{
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
 
 		// unset not allowed keys
-		$notAllowed = array('block', 'callbacks');
+		$notAllowed = array('callbacks');
 		foreach ($notAllowed as $key)
 		{
 			if (isset($manifest[$key]))
@@ -116,90 +65,102 @@ class Repo
 
 		$check = false;
 		$fields['XML_ID'] = trim($code);
-		$fields['MANIFEST'] = serialize((array)$manifest);
 
-		if (isset($fields['CONTENT']))
+		// check intersect item of nodes and styles for background type
+		if (is_array($manifest['nodes'] ?? null))
 		{
-			// fix module security
-			$fields['CONTENT'] = str_replace('st yle="', 'style="', $fields['CONTENT']);
-			// allow data-attrs (attrs, group attrs)
-			$allowAttributes = array();
-			if (
-				isset($manifest['attrs']) &&
-				is_array($manifest['attrs'])
-			)
+			foreach ($manifest['nodes'] as $selector => $manifestItem)
 			{
-				foreach ($manifest['attrs'] as $attr)
+				$styleItem = null;
+
+				if (isset($manifest['style'][$selector]))
 				{
-					if (isset($attr['attribute']))
+					$styleItem = $manifest['style'][$selector];
+				}
+				if (isset($manifest['style']['nodes'][$selector]))
+				{
+					$styleItem = $manifest['style']['nodes'][$selector];
+				}
+
+				if ($styleItem['type'] ?? null)
+				{
+					if (!empty(array_intersect((array)$styleItem['type'], StyleImg::STYLES_WITH_IMAGE)))
 					{
-						$allowAttributes[] = $attr['attribute'];
-					}
-					elseif (is_array($attr))
-					{
-						foreach ($attr as $attrKey => $attrIn)
-						{
-							if (
-								isset($attrIn['attrs']) &&
-								is_array($attrIn['attrs'])
-							)
-							{
-								foreach ($attrIn['attrs'] as $attrIn2)
-								{
-									$attr[] = $attrIn2;
-								}
-								unset($attrKey[$attrKey]);
-							}
-						}
-						foreach ($attr as $attrIn)
-						{
-							if (isset($attrIn['attribute']))
-							{
-								$allowAttributes[] = $attrIn['attribute'];
-							}
-						}
+						$error->addError(
+							'MANIFEST_INTERSECT_IMG',
+							Loc::getMessage('LANDING_APP_MANIFEST_INTERSECT_IMG', ['#selector#' => $selector])
+						);
+						$result->setError($error);
+						return $result;
 					}
 				}
 			}
-			// allow data-attrs (style)
+		}
+
+		if (isset($fields['CONTENT']))
+		{
+			// sanitize content
+			$fields['CONTENT'] = Manager::sanitize(
+				$fields['CONTENT'],
+				$bad
+			);
+			if ($bad)
+			{
+				$error->addError(
+					'CONTENT_IS_BAD',
+					Loc::getMessage('LANDING_APP_CONTENT_IS_BAD')
+				);
+				$result->setError($error);
+				return $result;
+			}
+			// sanitize card's content
 			if (
-				isset($manifest['style']) &&
-				is_array($manifest['style'])
+				isset($manifest['cards']) &&
+				is_array($manifest['cards'])
 			)
 			{
-				foreach ($manifest['style'] as $style)
+				foreach ($manifest['cards'] as $cardCode => &$card)
 				{
 					if (
-						isset($style['additional']) &&
-						is_array($style['additional'])
+						isset($card['presets']) &&
+						is_array($card['presets'])
 					)
 					{
-						foreach ($style['additional'] as $styleAdd)
+						foreach ($card['presets'] as $presetCode => &$preset)
 						{
-							if (
-								isset($styleAdd['attrs']) &&
-								is_array($styleAdd['attrs'])
-							)
+							foreach (['html', 'name', 'values'] as $code)
 							{
-								foreach ($styleAdd['attrs'] as $attrIn)
+								if (isset($preset[$code]))
 								{
-									if (isset($attrIn['attribute']))
+									$preset[$code] = Manager::sanitize(
+										$preset[$code],
+										$bad
+									);
+									if ($bad)
 									{
-										$allowAttributes[] = $attrIn['attribute'];
+										$error->addError(
+											'PRESET_CONTENT_IS_BAD',
+											Loc::getMessage(
+												'LANDING_APP_PRESET_CONTENT_IS_BAD',
+												array(
+													'#preset#' => $presetCode,
+													'#card#' => $cardCode
+												))
+										);
+										$result->setError($error);
+										return $result;
 									}
 								}
 							}
 						}
+						unset($preset);
 					}
 				}
+				unset($card);
 			}
-			$fields['CONTENT'] = self::sanitize(
-				$fields['CONTENT'],
-				array(
-					'allowAttributes' => $allowAttributes
-				)
-			);
 		}
+
+		$fields['MANIFEST'] = serialize($manifest);
 
 		// set app code
 		if (($app = \Bitrix\Landing\PublicAction::restApplication()))
@@ -237,6 +198,15 @@ class Repo
 		}
 		if ($res->isSuccess())
 		{
+			if (
+				isset($fields['RESET']) &&
+				$fields['RESET'] == 'Y'
+			)
+			{
+				\Bitrix\Landing\Update\Block::register(
+					'repo_' . $res->getId()
+				);
+			}
 			$result->setResult($res->getId());
 		}
 		else
@@ -249,7 +219,7 @@ class Repo
 	}
 
 	/**
-	 * Unregister new block.
+	 * Unregister block.
 	 * @param string $code Code of block.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
@@ -259,6 +229,11 @@ class Repo
 		$error = new \Bitrix\Landing\Error;
 
 		$result->setResult(false);
+
+		if (!is_string($code))
+		{
+			return $result;
+		}
 
 		// search and delete
 		if ($code)
@@ -335,6 +310,11 @@ class Repo
 		$error = new \Bitrix\Landing\Error;
 		$app = array();
 
+		if (!is_string($code))
+		{
+			return $result;
+		}
+
 		if ($appLocal = RepoCore::getAppByCode($code))
 		{
 			$app = array(
@@ -393,10 +373,11 @@ class Repo
 	 * @param array $fields Fields array.
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function bind($fields)
+	public static function bind(array $fields)
 	{
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
+		\trimArr($fields);
 
 		if (($app = \Bitrix\Landing\PublicAction::restApplication()))
 		{
@@ -413,6 +394,9 @@ class Repo
 							: false,
 				'PLACEMENT' => isset($fields['PLACEMENT'])
 							? $fields['PLACEMENT']
+							: false,
+				'PLACEMENT_HANDLER' => isset($fields['PLACEMENT_HANDLER'])
+							? $fields['PLACEMENT_HANDLER']
 							: false
 			)
 		));
@@ -461,14 +445,21 @@ class Repo
 	/**
 	 * Unbind the placement.
 	 * @param string $code Placement code.
+	 * @param string $handler Handler path (if you want delete specific).
 	 * @return \Bitrix\Landing\PublicActionResult
 	 */
-	public static function unbind($code)
+	public static function unbind($code, $handler = null)
 	{
 		$result = new PublicActionResult();
 		$error = new \Bitrix\Landing\Error;
+
+		if (!is_string($code))
+		{
+			return $result;
+		}
+
 		$code = trim($code);
-		$deleteLocal = false;
+		$wasDeleted = false;
 
 		if (($app = \Bitrix\Landing\PublicAction::restApplication()))
 		{
@@ -482,60 +473,105 @@ class Repo
 			return $result;
 		}
 
-		// get first local, if exists
-		$resLocal = Placement::getList(array(
-			'select' => array(
+		// common ORM params
+		$params = [
+			'select' => [
 				'ID'
-			),
-			'filter' => array(
+			],
+			'filter' => [
 				'APP_ID' => $fields['APP_ID'],
 				'=PLACEMENT' => $code
-			)
-		));
-		if ($rowLocal = $resLocal->fetch())
+			]
+		];
+		if ($handler)
 		{
-			$deleteLocal = true;
+			$params['filter']['=PLACEMENT_HANDLER'] = trim($handler);
 		}
 
-		// try delete from rest placements
+		// at first, delete local binds
+		$res = Placement::getList($params);
+		while ($row = $res->fetch())
+		{
+			$wasDeleted = true;
+			Placement::delete($row['ID']);
+		}
+		unset($res, $row);
+
+		// then delete from rest placements
 		if (\Bitrix\Main\Loader::includeModule('rest'))
 		{
-			$resRest = PlacementTable::getList(array(
-				'select' => array(
-					'ID'
-				),
-				'filter' => array(
-					'APP_ID' => $fields['APP_ID'],
-					'=PLACEMENT' => $code
-				)
-			));
-			if ($rowRest = $resRest->fetch())
+			$res = PlacementTable::getList($params);
+			while ($row = $res->fetch())
 			{
-				$result->setResult(true);
-				$res = PlacementTable::delete($rowRest['ID']);
-				// disable delete local if cant delete rest
-				if (!$res->isSuccess())
-				{
-					$deleteLocal = false;
-				}
+				PlacementTable::delete($row['ID']);
 			}
-			else
-			{
-				$error->addError(
-					'PLACEMENT_NO_EXIST',
-					Loc::getMessage('LANDING_APP_PLACEMENT_NO_EXIST')
-				);
-			}
+			unset($res, $row);
 		}
 
-		// finally delete local
-		if ($deleteLocal)
+		// make answer
+		if ($wasDeleted)
 		{
 			$result->setResult(true);
-			Placement::delete($rowLocal['ID']);
+		}
+		else
+		{
+			$error->addError(
+				'PLACEMENT_NO_EXIST',
+				Loc::getMessage('LANDING_APP_PLACEMENT_NO_EXIST')
+			);
+			$result->setError($error);
 		}
 
-		$result->setError($error);
+		return $result;
+	}
+
+	/**
+	 * Get items of current app.
+	 * @param array $params Params ORM array.
+	 * @return \Bitrix\Landing\PublicActionResult
+	 */
+	public static function getList(array $params = array())
+	{
+		$result = new PublicActionResult();
+		$params = $result->sanitizeKeys($params);
+
+		if (!is_array($params))
+		{
+			$params = array();
+		}
+		if (
+			!isset($params['filter']) ||
+			!is_array($params['filter'])
+		)
+		{
+			$params['filter'] = array();
+		}
+		// set app code
+		if (($app = \Bitrix\Landing\PublicAction::restApplication()))
+		{
+			$params['filter']['APP_CODE'] = $app['CODE'];
+		}
+		else
+		{
+			$params['filter']['APP_CODE'] = false;
+		}
+
+		$data = array();
+		$res = RepoCore::getList($params);
+		while ($row = $res->fetch())
+		{
+			if (isset($row['DATE_CREATE']))
+			{
+				$row['DATE_CREATE'] = (string) $row['DATE_CREATE'];
+			}
+			if (isset($row['DATE_MODIFY']))
+			{
+				$row['DATE_MODIFY'] = (string) $row['DATE_MODIFY'];
+			}
+			$row['MANIFEST'] = unserialize($row['MANIFEST'], ['allowed_classes' => false]);
+			$data[] = $row;
+		}
+		$result->setResult($data);
 
 		return $result;
 	}

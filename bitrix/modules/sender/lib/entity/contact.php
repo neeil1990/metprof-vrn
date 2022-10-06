@@ -8,6 +8,8 @@
 namespace Bitrix\Sender\Entity;
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Error;
+use Bitrix\Main\DB\SqlQueryException;
 
 use Bitrix\Sender\ContactTable;
 use Bitrix\Sender\ContactListTable;
@@ -68,6 +70,7 @@ class Contact extends Base
 	 * @param integer|null $id ID.
 	 * @param array $data Data.
 	 * @return integer|null
+	 * @throws
 	 */
 	protected function saveData($id = null, array $data)
 	{
@@ -76,7 +79,21 @@ class Contact extends Base
 		$unsubList = array_filter($data['UNSUB_LIST'], 'is_numeric');
 
 		$this->filterDataByEntityFields(ContactTable::getEntity(), $data);
-		$id = $this->saveByEntity(ContactTable::getEntity(), $id, $data);
+
+		try
+		{
+			$id = $this->saveByEntity(ContactTable::getEntity(), $id, $data);
+		}
+		catch (SqlQueryException $exception)
+		{
+			if (mb_strpos($exception->getMessage(), '(1062) Duplicate entry') !== false)
+			{
+				$this->errors->setError(new Error(Loc::getMessage('SENDER_ENTITY_CONTACT_ERROR_DUPLICATE')));
+				return $id;
+			}
+
+			throw $exception;
+		}
 
 		if ($this->hasErrors())
 		{
@@ -95,13 +112,13 @@ class Contact extends Base
 		$subList = array_unique($subList);
 		$subList = array_diff($subList, $unsubList);
 
-		ContactListTable::delete(['CONTACT_ID' => $id]);
+		ContactListTable::deleteList(['CONTACT_ID' => $id]);
 		foreach ($setList as $itemId)
 		{
 			ContactListTable::add(['CONTACT_ID' => $id, 'LIST_ID' => $itemId]);
 		}
 
-		MailingSubscriptionTable::delete(['CONTACT_ID' => $id]);
+		MailingSubscriptionTable::deleteList(['CONTACT_ID' => $id]);
 		foreach ($subList as $itemId)
 		{
 			MailingSubscriptionTable::add(['CONTACT_ID' => $id, 'MAILING_ID' => $itemId, 'IS_UNSUB' => 'N']);
@@ -190,7 +207,7 @@ class Contact extends Base
 			return false;
 		}
 
-		$campaignId = $campaignId ?: Campaign::getDefaultId();
+		$campaignId = $campaignId ?: Campaign::getDefaultId(SITE_ID);
 		return MailingSubscriptionTable::addSubscription(array(
 			'MAILING_ID' => $campaignId,
 			'CONTACT_ID' => $this->getId(),
@@ -210,7 +227,7 @@ class Contact extends Base
 			return false;
 		}
 
-		$campaignId = $campaignId ?: Campaign::getDefaultId();
+		$campaignId = $campaignId ?: Campaign::getDefaultId(SITE_ID);
 		return MailingSubscriptionTable::addUnSubscription(array(
 			'MAILING_ID' => $campaignId,
 			'CONTACT_ID' => $this->getId(),
@@ -250,6 +267,7 @@ class Contact extends Base
 	/**
 	 * Add to list.
 	 *
+	 * @param int $listId List ID.
 	 * @return bool
 	 */
 	public function addToList($listId)
@@ -265,6 +283,7 @@ class Contact extends Base
 	/**
 	 * Remove from list.
 	 *
+	 * @param int $listId List ID.
 	 * @return bool
 	 */
 	public function removeFromList($listId)

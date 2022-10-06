@@ -13,22 +13,13 @@ if ($eshop = \Bitrix\Main\ModuleManager::isModuleInstalled('bitrix.eshop'))
 {
 	$arThemes['site'] = GetMessage('THEME_SITE');
 }
-$arThemesList = array(
+
+$arThemes = array(
 	'blue' => GetMessage('THEME_BLUE'),
 	'green' => GetMessage('THEME_GREEN'),
 	'red' => GetMessage('THEME_RED'),
 	'yellow' => GetMessage('THEME_YELLOW')
 );
-$dir = $_SERVER["DOCUMENT_ROOT"]."/bitrix/css/main/themes/";
-if (is_dir($dir))
-{
-	foreach ($arThemesList as $themeID => $themeName)
-	{
-		if (!is_file($dir.$themeID.'/style.css'))
-			continue;
-		$arThemes[$themeID] = $themeName;
-	}
-}
 
 $arTemplateParameters = array(
 	"TEMPLATE_THEME" => array(
@@ -119,27 +110,6 @@ $arTemplateParameters = array(
 		"DEFAULT" => "N",
 		"PARENT" => "VISUAL",
 	),
-	"SHOW_COUPONS_BASKET" => array(
-		"NAME" => GetMessage("SHOW_COUPONS_BASKET"),
-		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
-		"DEFAULT" => "Y",
-		"PARENT" => "VISUAL",
-	),
-	"SHOW_COUPONS_DELIVERY" => array(
-		"NAME" => GetMessage("SHOW_COUPONS_DELIVERY"),
-		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
-		"DEFAULT" => "Y",
-		"PARENT" => "VISUAL",
-	),
-	"SHOW_COUPONS_PAY_SYSTEM" => array(
-		"NAME" => GetMessage("SHOW_COUPONS_PAY_SYSTEM"),
-		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
-		"DEFAULT" => "Y",
-		"PARENT" => "VISUAL",
-	),
 	"SHOW_NEAREST_PICKUP" => array(
 		"NAME" => GetMessage("SHOW_NEAREST_PICKUP"),
 		"TYPE" => "CHECKBOX",
@@ -216,6 +186,12 @@ $arTemplateParameters = array(
 		"ADDITIONAL_VALUES" => "N",
 		"PARENT" => "ADDITIONAL_SETTINGS"
 	),
+	"HIDE_ORDER_DESCRIPTION" => array(
+		"NAME" => GetMessage("HIDE_ORDER_DESCRIPTION"),
+		"TYPE" => "CHECKBOX",
+		"DEFAULT" => "N",
+		"PARENT" => "ADDITIONAL_SETTINGS"
+	),
 	"ALLOW_USER_PROFILES" => array(
 		"NAME" => GetMessage("ALLOW_USER_PROFILES"),
 		"TYPE" => "CHECKBOX",
@@ -230,6 +206,14 @@ $arTemplateParameters = array(
 		"HIDDEN" => $arCurrentValues['ALLOW_USER_PROFILES'] !== 'Y' ? 'Y' : 'N',
 		"PARENT" => "BASE"
 	),
+	"SHOW_COUPONS" => array(
+		"NAME" => GetMessage("SHOW_COUPONS"),
+		"TYPE" => "CHECKBOX",
+		"MULTIPLE" => "N",
+		"DEFAULT" => "Y",
+		"REFRESH" => "Y",
+		"PARENT" => "VISUAL",
+	),
 	"USE_YM_GOALS" => array(
 		"NAME" => GetMessage("USE_YM_GOALS1"),
 		"TYPE" => "CHECKBOX",
@@ -238,6 +222,31 @@ $arTemplateParameters = array(
 		"PARENT" => "ANALYTICS_SETTINGS"
 	)
 );
+
+if (!isset($arCurrentValues['SHOW_COUPONS']) || $arCurrentValues['SHOW_COUPONS'] === 'Y')
+{
+	$arTemplateParameters["SHOW_COUPONS_BASKET"] = [
+		"NAME" => GetMessage("SHOW_COUPONS_BASKET"),
+		"TYPE" => "CHECKBOX",
+		"MULTIPLE" => "N",
+		"DEFAULT" => "Y",
+		"PARENT" => "VISUAL",
+	];
+	$arTemplateParameters["SHOW_COUPONS_DELIVERY"] = [
+		"NAME" => GetMessage("SHOW_COUPONS_DELIVERY"),
+		"TYPE" => "CHECKBOX",
+		"MULTIPLE" => "N",
+		"DEFAULT" => "Y",
+		"PARENT" => "VISUAL",
+	];
+	$arTemplateParameters["SHOW_COUPONS_PAY_SYSTEM"] = [
+		"NAME" => GetMessage("SHOW_COUPONS_PAY_SYSTEM"),
+		"TYPE" => "CHECKBOX",
+		"MULTIPLE" => "N",
+		"DEFAULT" => "Y",
+		"PARENT" => "VISUAL",
+	];
+}
 
 if ($arCurrentValues['USE_YM_GOALS'] == 'Y')
 {

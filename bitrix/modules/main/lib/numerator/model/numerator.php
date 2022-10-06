@@ -18,6 +18,19 @@ use Bitrix\Main\Web\Json;
 /**
  * Class NumeratorTable
  * @package Bitrix\Main\Numerator\Model
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Numerator_Query query()
+ * @method static EO_Numerator_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_Numerator_Result getById($id)
+ * @method static EO_Numerator_Result getList(array $parameters = [])
+ * @method static EO_Numerator_Entity getEntity()
+ * @method static \Bitrix\Main\Numerator\Model\EO_Numerator createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\Numerator\Model\EO_Numerator_Collection createCollection()
+ * @method static \Bitrix\Main\Numerator\Model\EO_Numerator wakeUpObject($row)
+ * @method static \Bitrix\Main\Numerator\Model\EO_Numerator_Collection wakeUpCollection($rows)
  */
 class NumeratorTable extends DataManager
 {
@@ -36,22 +49,22 @@ class NumeratorTable extends DataManager
 	public static function getMap()
 	{
 		return [
-			new IntegerField('ID', [
-				'primary'      => true,
-				'autocomplete' => true,
-			]),
-			new StringField('NAME', [
-				'required' => true,
-			]),
-			new StringField('TEMPLATE', [
-				'required' => true,
-			]),
-			new StringField('SETTINGS', [
-				'required' => true,
-			]),
-			new StringField('TYPE', [
-				'default_value' => 'DEFAULT',
-			]),
+			(new IntegerField('ID'))
+				->configurePrimary(true)
+				->configureAutocomplete(true)
+			,
+			(new StringField('NAME'))
+				->configureRequired(true)
+			,
+			(new StringField('TEMPLATE'))
+				->configureRequired(true)
+			,
+			(new StringField('SETTINGS'))
+				->configureRequired(true)
+			,
+			(new StringField('TYPE'))
+				->configureDefaultValue('DEFAULT')
+			,
 			new DatetimeField('CREATED_AT'),
 			new IntegerField('CREATED_BY'),
 			new DatetimeField('UPDATED_AT'),

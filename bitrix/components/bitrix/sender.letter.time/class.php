@@ -1,30 +1,39 @@
-<?
+<?php
 
-use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Context;
 use Bitrix\Main\Error;
 use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Web\Uri;
-use Bitrix\Main\Context;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Mail\SenderSendCounter;
 use Bitrix\Main\Type;
-use Bitrix\Main\Loader;
-
+use Bitrix\Main\Web\Uri;
+use Bitrix\Main\ModuleManager;
+use Bitrix\Sender\Access\ActionDictionary;
 use Bitrix\Sender\Dispatch;
 use Bitrix\Sender\Entity;
-use Bitrix\Sender\Security;
 use Bitrix\Sender\Integration;
+use Bitrix\Sender\Internals\CommonSenderComponent;
 use Bitrix\Sender\Internals\PrettyDate;
+use Bitrix\Sender\Security;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderLetterTimeComponent extends CBitrixComponent
+class SenderLetterTimeComponent extends CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
+	protected $user_errors = [];
 
 	/** @var Entity\Letter $letter */
 	protected $letter;
@@ -41,6 +50,8 @@ class SenderLetterTimeComponent extends CBitrixComponent
 
 	protected function initParams()
 	{
+		global $USER;
+
 		if (empty($this->arParams['ID']))
 		{
 			$this->arParams['ID'] = (int) $this->request->get('ID');
@@ -48,16 +59,26 @@ class SenderLetterTimeComponent extends CBitrixComponent
 
 		$this->arParams['IS_OUTSIDE'] = isset($this->arParams['IS_OUTSIDE']) ? (bool) $this->arParams['IS_OUTSIDE'] : $this->request->get('isOutside') === 'Y';
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? $this->arParams['SET_TITLE'] == 'Y' : true;
-		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
-			?
-			$this->arParams['CAN_EDIT']
-			:
-			Security\Access::current()->canModifyLetters();
-		$this->arParams['CAN_VIEW'] = isset($this->arParams['CAN_VIEW'])
-			?
-			$this->arParams['CAN_VIEW']
-			:
-			Security\Access::current()->canViewLetters();
+		$this->arParams['IS_BX24_INSTALLED'] = Integration\Bitrix24\Service::isCloud();
+		$this->arParams['IS_PHONE_CONFIRMED'] = \Bitrix\Sender\Integration\Bitrix24\Limitation\Verification::isPhoneConfirmed();
+
+		$this->arParams['CAN_VIEW'] =
+			isset($this->arParams['CAN_VIEW'])
+				? $this->arParams['CAN_VIEW']
+				: Security\Access::getInstance()->canViewLetters()
+		;
+
+		$transportCode = self::getTransportCode($this->arParams['ID'], $this->arParams['MESSAGE_CODE_LIST']);
+		$this->arParams['IS_MAIL_TRANSPORT'] = $transportCode === \Bitrix\Sender\Transport\iBase::CODE_MAIL;
+	}
+
+	private static function getTransportCode($letterId, $transportCodesAlist): ?string
+	{
+		if ($letter = Entity\Letter::createInstanceById($letterId, $transportCodesAlist))
+		{
+			return $letter->getMessage()->getTransport()->getCode();
+		}
+		return null;
 	}
 
 	protected function preparePost()
@@ -73,8 +94,13 @@ class SenderLetterTimeComponent extends CBitrixComponent
 			$code = 'time';
 		}
 
+		$userId = Security\User::current()->getId();
+		if ($userId)
+		{
+			$this->letter->set('UPDATED_BY', $userId);
+		}
 		$method = $this->letter->getMethod();
-		if ($method->canChange())
+		if ($method->canChange() && $this->accessController->check(ActionDictionary::ACTION_MAILING_PAUSE_START_STOP))
 		{
 			switch ($code)
 			{
@@ -121,6 +147,18 @@ class SenderLetterTimeComponent extends CBitrixComponent
 			}
 
 			$method->apply();
+
+			if ($this->letter->hasErrors())
+			{
+				foreach ($this->letter->getErrorCollection() as $error)
+				{
+					/** @var \Bitrix\Main\Error $error Error. */
+					if ($error->getCode())
+						$this->user_errors[] = $error;
+				}
+				$this->errors->add($this->letter->getErrors());
+				return;
+			}
 		}
 
 		if ($this->errors->isEmpty())
@@ -160,12 +198,25 @@ class SenderLetterTimeComponent extends CBitrixComponent
 			$this->arParams['ID'],
 			$this->arParams['MESSAGE_CODE_LIST']
 		);
+
 		if (!$this->letter)
 		{
 			Security\AccessChecker::addError($this->errors, Security\AccessChecker::ERR_CODE_NOT_FOUND);
 			return false;
 		}
 
+		$email = $this->letter->getMessage()->getConfiguration()->get('EMAIL_FROM', false);
+
+		if ($email)
+		{
+			$this->arParams['DAY_LIMIT'] = Bitrix\Main\Mail\Sender::getEmailLimit($email);
+		}
+
+		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
+			?
+			$this->arParams['CAN_EDIT']
+			:
+			Security\Access::getInstance()->canStopStartPause(get_class($this->letter));
 
 		if (!$this->letter->getId())
 		{
@@ -179,6 +230,7 @@ class SenderLetterTimeComponent extends CBitrixComponent
 		{
 			$this->preparePost();
 			$this->printErrors();
+			$this->arResult['USER_ERRORS'] = $this->user_errors;
 		}
 
 		$this->arResult['SUBMIT_FORM_URL'] = Context::getCurrent()->getRequest()->getRequestUri();
@@ -199,6 +251,8 @@ class SenderLetterTimeComponent extends CBitrixComponent
 
 			case Dispatch\Method::SCHEDULE:
 				$code = Dispatch\Method::SCHEDULE;
+				$this->arResult['DATE_SEND'] = $this->letter->get('DATE_SEND') ?: $this->letter->get('AUTO_SEND_TIME');
+				$this->arResult['DATE_SEND'] = PrettyDate::formatDateTime($this->arResult['DATE_SEND']);
 				break;
 
 			case Dispatch\Method::DEFERED:
@@ -209,7 +263,7 @@ class SenderLetterTimeComponent extends CBitrixComponent
 		}
 
 		$this->arResult['LETTER_TIME'] = $code;
-		$this->arResult['CAN_CHANGE'] = $method->canChange();
+		$this->arResult['CAN_CHANGE'] = $method->canChange() && $this->arParams['CAN_EDIT'];
 		foreach (['DAYS_OF_MONTH', 'DAYS_OF_WEEK', 'MONTHS_OF_YEAR', 'TIMES_OF_DAY'] as $key)
 		{
 			$this->arResult[$key] = $this->letter->get($key) ?: $this->request->get($key);
@@ -240,34 +294,17 @@ class SenderLetterTimeComponent extends CBitrixComponent
 	{
 		foreach ($this->errors as $error)
 		{
-			ShowError($error);
+			if (!in_array($error, $this->user_errors))
+			{
+				ShowError($error);
+			}
 		}
 	}
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
-
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		$this->includeComponentTemplate();
+		parent::executeComponent();
+		parent::prepareResultAndTemplate();
 	}
 
 	public function getMessage($messageCode, $replace = [])
@@ -282,5 +319,15 @@ class SenderLetterTimeComponent extends CBitrixComponent
 			array_values($replace),
 			$this->arParams['~MESS'][$messageCode]
 		);
+	}
+
+	public function getEditAction()
+	{
+		return $this->getViewAction();
+	}
+
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_MAILING_VIEW;
 	}
 }

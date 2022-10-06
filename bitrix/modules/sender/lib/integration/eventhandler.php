@@ -9,19 +9,20 @@
 namespace Bitrix\Sender\Integration;
 
 use Bitrix\Main;
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\Loader;
-use Bitrix\Main\ModuleManager;
 use Bitrix\Main\Entity as MainEntity;
-
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ModuleManager;
 use Bitrix\Sender\ContactTable;
-use Bitrix\Sender\Message;
-use Bitrix\Sender\Entity;
 use Bitrix\Sender\Dispatch;
-use Bitrix\Sender\PostingTable;
-use Bitrix\Sender\Templates;
+use Bitrix\Sender\Entity;
+use Bitrix\Sender\Internals\Model;
 use Bitrix\Sender\Internals\Model\LetterTable;
+use Bitrix\Sender\Message;
 use Bitrix\Sender\PostingRecipientTable;
+use Bitrix\Sender\Security\Agreement;
+use Bitrix\Sender\Security\User;
+use Bitrix\Sender\Templates;
 
 Loc::loadMessages(__FILE__);
 
@@ -86,6 +87,21 @@ class EventHandler
 	}
 
 	/**
+	 * Handler of event sender/OnAfterPostingSendRecipientMultiple.
+	 *
+	 * @param array $eventDataArray Event[].
+	 * @param Entity\Letter $letter Letter.
+	 * @return void
+	 */
+	public static function onAfterPostingSendRecipientMultiple(array $eventDataArray, Entity\Letter $letter)
+	{
+		if (ModuleManager::isModuleInstalled('crm'))
+		{
+			Crm\EventHandler::onAfterPostingSendRecipientMultiple($eventDataArray, $letter);
+		}
+	}
+
+	/**
 	 * Handler of event sender/onAfterPostingRecipientUnsubscribe.
 	 *
 	 * @param array $eventData Event.
@@ -141,7 +157,7 @@ class EventHandler
 					$list[Message\iBase::CODE_MAIL][] = array(
 						'ID' => $letter['TEMPLATE_ID'],
 						'TYPE' => $letter['TEMPLATE_TYPE'],
-						'CATEGORY' => strtoupper($item['CODE']),
+						'CATEGORY' => mb_strtoupper($item['CODE']),
 						'MESSAGE_CODE' => Message\iBase::CODE_MAIL,
 						'VERSION' => 2,
 						'IS_TRIGGER' => true,
@@ -193,6 +209,22 @@ class EventHandler
 	}
 
 	/**
+	 * Handler of event sender/onTriggerList.
+	 *
+	 * @param array $data Data.
+	 * @return array
+	 */
+	public static function onTriggerList(array $data = [])
+	{
+		$data['TRIGGER'] = [
+			'Bitrix\Sender\Integration\Main\Triggers\UserAuth',
+			'Bitrix\Sender\Integration\Main\Triggers\UserDontAuth',
+		];
+
+		return $data;
+	}
+
+	/**
 	 * Handler of event sender/onSenderMessageList.
 	 *
 	 * @return array
@@ -220,6 +252,7 @@ class EventHandler
 		if (VoxImplant\Service::canUse())
 		{
 			$list[] = 'Bitrix\Sender\Integration\VoxImplant\MessageCall';
+			$list[] = 'Bitrix\Sender\Integration\VoxImplant\MessageAudioCall';
 		}
 
 		// web_hook
@@ -233,6 +266,10 @@ class EventHandler
 				'Bitrix\Sender\Integration\Seo\Ads\MessageGa',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageVk',
 				'Bitrix\Sender\Integration\Seo\Ads\MessageFb',
+				'Bitrix\Sender\Integration\Seo\Ads\MessageMarketingFb',
+				'Bitrix\Sender\Integration\Seo\Ads\MessageMarketingInstagram',
+				'Bitrix\Sender\Integration\Seo\Ads\MessageLookalikeVk',
+				'Bitrix\Sender\Integration\Seo\Ads\MessageLookalikeFb',
 			);
 			foreach ($adsList as $adsClass)
 			{
@@ -250,6 +287,11 @@ class EventHandler
 		{
 			$list[] = 'Bitrix\Sender\Integration\Crm\ReturnCustomer\MessageLead';
 			$list[] = 'Bitrix\Sender\Integration\Crm\ReturnCustomer\MessageDeal';
+		}
+
+		if(Bitrix24\Service::isTolokaVisibleInRegion())
+		{
+			$list[] = 'Bitrix\Sender\Integration\Yandex\Toloka\MessageToloka';
 		}
 
 		return $list;
@@ -273,7 +315,19 @@ class EventHandler
 
 		return $list;
 	}
-
+	public static function onSenderConsentMessageBuildersList(): array
+	{
+		$list = [];
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\ConsentBuilderMail';
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\TestConsentBuilderMail';
+		return $list;
+	}
+	public static function onSenderConsentResponseList(): array
+	{
+		$list = [];
+		$list[] = 'Bitrix\Sender\Integration\Sender\Mail\ConsentResponseMail';
+		return $list;
+	}
 	/**
 	 * Handler of event sender/onSenderTransportList.
 	 *
@@ -302,6 +356,7 @@ class EventHandler
 		if (VoxImplant\Service::canUse())
 		{
 			$list[] = 'Bitrix\Sender\Integration\VoxImplant\TransportCall';
+			$list[] = 'Bitrix\Sender\Integration\VoxImplant\TransportAudioCall';
 		}
 
 		// web_hook
@@ -314,6 +369,10 @@ class EventHandler
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportGa';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportVk';
 			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportFb';
+			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportMarketingFb';
+			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportMarketingInstagram';
+			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeVk';
+			$list[] = 'Bitrix\Sender\Integration\Seo\Ads\TransportLookalikeFb';
 		}
 
 		// Return Customer
@@ -322,6 +381,8 @@ class EventHandler
 			$list[] = 'Bitrix\Sender\Integration\Crm\ReturnCustomer\TransportLead';
 			$list[] = 'Bitrix\Sender\Integration\Crm\ReturnCustomer\TransportDeal';
 		}
+
+		$list[] = 'Bitrix\Sender\Integration\Yandex\Toloka\TransportToloka';
 
 		return $list;
 	}
@@ -340,19 +401,70 @@ class EventHandler
 		if (Bitrix24\Service::isCloud() && isset($data['fields']['STATUS']))
 		{
 			$oldRow = LetterTable::getRowById($data['primary']['ID']);
-			if ($oldRow['MESSAGE_CODE'] !== Message\iBase::CODE_MAIL)
-			{
-				return;
-			}
+			$updatedBy = $data['fields']['UPDATED_BY'] ?? $oldRow['UPDATED_BY'];
 
-			$isEmailBlocked = Bitrix24\Limitation\Rating::isBlocked();
-			if($isEmailBlocked && in_array($data['fields']['STATUS'], Dispatch\Semantics::getWorkStates()))
+			if (in_array($data['fields']['STATUS'], Dispatch\Semantics::getWorkStates()))
 			{
-				$result->addError(
-					new MainEntity\EntityError(
-						Bitrix24\Limitation\Rating::getNotifyText('blocked')
-					)
-				);
+				$user = new User($updatedBy);
+				if (!$user->isAgreementAccepted())
+				{
+					$result->addError(
+						new MainEntity\EntityError(Agreement::getErrorText(), 'NEED_ACCEPT_AGREEMENT')
+					);
+					return;
+				}
+
+				$letter = Entity\Letter::createInstanceById($data['primary']['ID']);
+
+				if (is_null($letter))
+				{
+					$result->addError(
+						new MainEntity\EntityError(
+							Loc::getMessage("SENDER_LETTER_ONBEFOREUPDATE_ERROR_LETTER_NOT_AVAILABLE"), 'FEATURE_NOT_AVAILABLE'
+						)
+					);
+					return;
+				}
+
+				if (!$letter->getMessage()->isAvailable())
+				{
+					if ($letter->getState()->isWaiting() || $letter->getState()->isSending())
+					{
+						$letter->stop();
+					}
+
+					$result->addError(
+						new MainEntity\EntityError(
+							Loc::getMessage("SENDER_LETTER_ONBEFOREUPDATE_ERROR_FEATURE_NOT_AVAILABLE"), 'FEATURE_NOT_AVAILABLE'
+						)
+					);
+					return;
+				}
+
+				$isEmail = ($oldRow['MESSAGE_CODE'] === Message\iBase::CODE_MAIL);
+				$isEmailBlocked = Bitrix24\Limitation\Rating::isBlocked();
+				if ($isEmail && $isEmailBlocked)
+				{
+					$result->addError(
+						new MainEntity\EntityError(
+							Bitrix24\Limitation\Rating::getNotifyText('blocked')
+						)
+					);
+				}
+
+				if ($isEmail)
+				{
+					// check sender email:
+					$emailFrom = $letter->getMessage()->getConfiguration()->getOption('EMAIL_FROM')->getValue();
+					if (!Sender\AllowedSender::isAllowed($emailFrom, $updatedBy))
+					{
+						$result->addError(
+							new MainEntity\EntityError(
+								Loc::getMessage("SENDER_LETTER_ONBEFOREUPDATE_ERROR_INVALID_FROM_EMAIL"), 'WRONG_EMAIL_FROM'
+							)
+						);
+					}
+				}
 			}
 		}
 	}
@@ -400,14 +512,14 @@ class EventHandler
 			}
 
 			// update recipient status
-			PostingRecipientTable::update(
-				['ID' => $result->getEntityId()],
+			Model\Posting\RecipientTable::update(
+				$result->getEntityId(),
 				['STATUS' => PostingRecipientTable::SEND_RESULT_ERROR]
 			);
 
 			// update posting counters
-			PostingTable::update(
-				['ID' => $row['POSTING_ID']],
+			Model\PostingTable::update(
+				$row['POSTING_ID'],
 				[
 					'COUNT_SEND_ERROR' => new Main\DB\SqlExpression('?# + 1', 'COUNT_SEND_ERROR'),
 					'COUNT_SEND_SUCCESS' => new Main\DB\SqlExpression('?# - 1', 'COUNT_SEND_SUCCESS')

@@ -1,4 +1,5 @@
 <?
+$MESS["REPORT_CHART_ERR_49"] = "Помилка в налаштуваннях діаграми";
 $MESS["TASKS_THIS_MONTH"] = "цей місяць";
 $MESS["TASKS_PREVIOUS_MONTH"] = "мин. місяць";
 $MESS["TASKS_THIS_WEEK"] = "цей тиждень";

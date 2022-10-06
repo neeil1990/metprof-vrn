@@ -1,4 +1,5 @@
-<?
+<?php
+
 /**
  * Bitrix Framework
  * @package bitrix
@@ -15,6 +16,8 @@
  * @global CAdminMainChain $adminChain
  * @global string $SiteExpireDate
  */
+
+use Bitrix\Main\Web\Uri;
 
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
@@ -48,20 +51,16 @@ if($bShowAdminMenu && class_exists("CUserOptions"))
 }
 
 if (!defined('ADMIN_SECTION_LOAD_AUTH') || !ADMIN_SECTION_LOAD_AUTH):
-	$direction = "";
-	$direct = CLanguage::GetByID(LANGUAGE_ID);
-	$arDirect = $direct->Fetch();
-	if($arDirect["DIRECTION"] == "N")
-		$direction = ' dir="rtl"';
 
+	$direction = \Bitrix\Main\Context::getCurrent()->getCulture()->getDirection() ? '' : ' dir="rtl"';
 ?>
 <!DOCTYPE html>
-<html<?=$aUserOpt['fix'] == 'on' ? ' class="adm-header-fixed"' : ''?><?=$direction?>>
+<html<?=$aUserOpt['fix'] == 'on' ? ' class="adm-header-fixed"' : ''?><?= $direction ?>>
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=<?=htmlspecialcharsbx(LANG_CHARSET)?>">
 <meta name="viewport" content="initial-scale=1.0, width=device-width">
 <meta http-equiv="X-UA-Compatible" content="IE=edge">
-<title><?$adminPage->ShowTitle()?> - <?echo COption::GetOptionString("main","site_name", $_SERVER["SERVER_NAME"])?></title>
+<title><?$adminPage->ShowTitle()?> - <?= htmlspecialcharsbx(COption::GetOptionString("main","site_name", $_SERVER["SERVER_NAME"])) ?></title>
 <?
 else:
 ?>
@@ -86,9 +85,17 @@ $APPLICATION->ShowHeadScripts();
 <script type="text/javascript">
 BX.message({MENU_ENABLE_TOOLTIP: <?=($aUserOptGlobal['start_menu_title'] <> 'N' ? 'true' : 'false')?>});
 BX.InitializeAdmin();
-if (!top.window["adminSidePanel"] || !BX.is_subclass_of(top.window["adminSidePanel"], top.BX.adminSidePanel))
+
+var topWindow = BX.PageObject.getRootWindow();
+if (
+	BX.Reflection.getClass('topWindow.BX.adminSidePanel')
+	&& (
+		!topWindow.window["adminSidePanel"]
+		|| !BX.is_subclass_of(topWindow.window["adminSidePanel"], topWindow.BX.adminSidePanel)
+	)
+)
 {
-	top.window["adminSidePanel"] = new top.BX.adminSidePanel();
+	topWindow.window["adminSidePanel"] = new topWindow.BX.adminSidePanel();
 }
 </script>
 <?
@@ -284,7 +291,10 @@ if ($curPage != "/bitrix/admin/index.php")
 	{
 		if ($isSidePanel)
 		{
-			$requestUri = CHTTP::urlDeleteParams($_SERVER["REQUEST_URI"], array("IFRAME", "IFRAME_TYPE"));
+			$requestUri = (new Uri($_SERVER["REQUEST_URI"]))
+				->deleteParams(["IFRAME", "IFRAME_TYPE"])
+				->getUri()
+			;
 			$currentFavId = CFavorites::getIDByUrl($requestUri);
 		}
 		else
@@ -310,7 +320,7 @@ foreach (GetModuleEvents("main", "OnPrologAdminTitle", true) as $arEvent)
 	ExecuteModuleEventEx($arEvent, $arPageParams);
 }
 
-if ($curPage != "/bitrix/admin/index.php")
+if ($curPage != "/bitrix/admin/index.php" && !$adminPage->isHideTitle())
 {
 	$isFavLink = !defined('BX_ADMIN_SECTION_404') || BX_ADMIN_SECTION_404 != 'Y';
 	if ($adminSidePanelHelper->isPublicSidePanel())
@@ -344,19 +354,23 @@ if($USER->IsAuthorized()):
 		if(isset($bxProductConfig["saas"])):
 			if($bSaas)
 			{
+				$sWarnDate = COption::GetOptionString('main', '~support_finish_date');
+				if (!empty($sWarnDate))
+					$sWarnDate = ConvertTimeStamp(MakeTimeStamp($sWarnDate, 'YYYY-MM-DD'), "SHORT");
+
 				if($daysToExpire > 0)
 				{
 					if($daysToExpire <= $bxProductConfig["saas"]["days_before_warning"])
 					{
 						$sWarn = $bxProductConfig["saas"]["warning"];
-						$sWarn = str_replace("#RENT_DATE#", COption::GetOptionString('main', '~support_finish_date'), $sWarn);
+						$sWarn = str_replace("#RENT_DATE#", $sWarnDate, $sWarn);
 						$sWarn = str_replace("#DAYS#", $daysToExpire, $sWarn);
 						echo $sWarn;
 					}
 				}
 				else
 				{
-					echo str_replace("#RENT_DATE#", COption::GetOptionString('main', '~support_finish_date'), $bxProductConfig["saas"]["warning_expired"]);
+					echo str_replace("#RENT_DATE#", $sWarnDate, $bxProductConfig["saas"]["warning_expired"]);
 				}
 			}
 			else
@@ -380,6 +394,32 @@ if($USER->IsAuthorized()):
 		endif; //saas
 		echo EndNote();
 
+	elseif(defined("TIMELIMIT_EDITION") && TIMELIMIT_EDITION == "Y"):
+
+		$delta = $SiteExpireDate - time();
+		$daysToExpire = ceil($delta / 86400);
+		$sWarnDate = ConvertTimeStamp($SiteExpireDate, "SHORT");
+
+		if ($daysToExpire >= 0 && $daysToExpire < 60)
+		{
+			echo BeginNote('style="position: relative; top: -15px;"');
+			echo GetMessage("prolog_main_timelimit11", array(
+				'#FINISH_DATE#' => $sWarnDate,
+				'#DAYS_AGO#' => $daysToExpire,
+				'#DAYS_AGO_TXT#' => ($daysToExpire == 0? GetMessage("prolog_main_today") : GetMessage('prolog_main_support_days', array('#N_DAYS_AGO#' => $daysToExpire))),
+			));
+			echo EndNote();
+		}
+		elseif ($daysToExpire < 0)
+		{
+			echo BeginNote('style="position: relative; top: -15px;"');
+			echo GetMessage("prolog_main_timelimit12", array(
+				'#FINISH_DATE#' => $sWarnDate,
+				'#DAYS_AGO#' => ((14 - abs($daysToExpire) >= 0) ? (14 - abs($daysToExpire)) : 0),
+			));
+			echo EndNote();
+		};
+
 	elseif($USER->CanDoOperation('install_updates')):
 		//show support ending warning
 
@@ -397,7 +437,7 @@ if($USER->IsAuthorized()):
 
 				if($supportDateDiff >= 0 && $supportDateDiff <= 30)
 				{
-					$sSupportMess = GetMessage("prolog_main_support11", array(
+					$sSupportMess = GetMessage("prolog_main_support11_l", array(
 						'#FINISH_DATE#' => GetTime($supportFinishStamp),
 						'#DAYS_AGO#' => ($supportDateDiff == 0? GetMessage("prolog_main_today") : GetMessage('prolog_main_support_days', array('#N_DAYS_AGO#'=>$supportDateDiff))),
 						'#LICENSE_KEY#' => md5(LICENSE_KEY),
@@ -407,7 +447,7 @@ if($USER->IsAuthorized()):
 				}
 				elseif($supportDateDiff < 0 && $supportDateDiff >= -30)
 				{
-					$sSupportMess = GetMessage("prolog_main_support21", array(
+					$sSupportMess = GetMessage("prolog_main_support21_l", array(
 						'#FINISH_DATE#' => GetTime($supportFinishStamp),
 						'#DAYS_AGO#' => (-$supportDateDiff),
 						'#LICENSE_KEY#' => md5(LICENSE_KEY),
@@ -417,7 +457,7 @@ if($USER->IsAuthorized()):
 				}
 				elseif($supportDateDiff < -30)
 				{
-					$sSupportMess = GetMessage("prolog_main_support31", array(
+					$sSupportMess = GetMessage("prolog_main_support31_l", array(
 						'#FINISH_DATE#' => GetTime($supportFinishStamp),
 						'#LICENSE_KEY#' => md5(LICENSE_KEY),
 						'#WHAT_IS_IT#' => $sSupWIT,
@@ -430,7 +470,7 @@ if($USER->IsAuthorized()):
 					if(time() > $userOption["showInformerDate"])
 					{
 						$prolongUrl = "/bitrix/admin/buy_support.php?lang=".LANGUAGE_ID;
-						if(!in_array(LANGUAGE_ID, array("ru", "ua")) || IntVal(COption::GetOptionString("main", "~PARAM_PARTNER_ID")) <= 0)
+						if(!in_array(LANGUAGE_ID, array("ru", "ua")) || intval(COption::GetOptionString("main", "~PARAM_PARTNER_ID")) <= 0)
 						{
 							require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/update_client.php");
 							$prolongUrl = "http://www.1c-bitrix.ru/buy_tmp/key_update.php?license_key=".md5(CUpdateClient::GetLicenseKey())."&tobasket=y&lang=".LANGUAGE_ID;
@@ -448,18 +488,18 @@ if($USER->IsAuthorized()):
 						{
 							BX.PopupMenu.show("prolong-popup", bindElement, [
 								{
-									text : '<b><?=GetMessageJS("prolog_main_support_menu1")?></b>'
+									html : '<b><?=GetMessageJS("prolog_main_support_menu1")?></b>'
 								},
 								{
-									text : '<?=GetMessageJS("prolog_main_support_menu2")?>',
+									html : '<?=GetMessageJS("prolog_main_support_menu2")?>',
 									onclick : function() {prolongRemind('<?=AddToTimeStamp(array("DD" => 7));?>', this)}
 								},
 								{
-									text : '<?=GetMessageJS("prolog_main_support_menu3")?>',
+									html : '<?=GetMessageJS("prolog_main_support_menu3")?>',
 									onclick : function() {prolongRemind('<?=AddToTimeStamp(array("DD" => 14));?>', this)}
 								},
 								{
-									text : '<?=GetMessageJS("prolog_main_support_menu4")?>',
+									html : '<?=GetMessageJS("prolog_main_support_menu4")?>',
 									onclick : function() {prolongRemind('<?=AddToTimeStamp(array("MM" => 1));?>', this)}
 								}
 							],
@@ -485,7 +525,7 @@ if($USER->IsAuthorized()):
 							<a href="javascript:void(0)" id="prolongmenu" onclick="showProlongMenu(this)" style="color: #716536;"><?=GetMessage("prolog_main_support_button_no_prolong2")?></a>
 						</div>
 						<?=$sSupportMess;?>
-						<div id="supdescr" style="display: none;"><br /><br /><b><?=GetMessage("prolog_main_support_wit_descr1")?></b><hr><?=GetMessage("prolog_main_support_wit_descr2".(IsModuleInstalled("intranet") ? "_cp" : ""))?></div>
+						<div id="supdescr" style="display: none;"><br /><br /><b><?=GetMessage("prolog_main_support_wit_descr1")?></b><hr><?=GetMessage("prolog_main_support_wit_descr2_l".(IsModuleInstalled("intranet") ? "_cp" : ""))?></div>
 						<?
 						echo EndNote();
 					}

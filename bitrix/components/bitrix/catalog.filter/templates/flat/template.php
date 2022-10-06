@@ -11,6 +11,8 @@
 /** @var string $componentPath */
 /** @var CBitrixComponent $component */
 $this->setFrameMode(true);
+
+\Bitrix\Main\UI\Extension::load('ui.fonts.opensans');
 $this->addExternalCss("/bitrix/css/main/bootstrap.css");
 ?>
 <div class="bx-flat-filter">
@@ -99,7 +101,7 @@ $this->addExternalCss("/bitrix/css/main/bootstrap.css");
 						<div class="row bx-filter-parameters-box-container">
 							<div class="col-xs-12 bx-filter-parameters-box-container-block">
 								<div class="bx-filter-input-container">
-									<select name="<?=$arItem["INPUT_NAME"]?>">
+									<select name="<?=$arItem["INPUT_NAME"].($arItem["MULTIPLE"] == "Y" ? "[]" : "")?>">
 										<?foreach ($arItem["LIST"] as $key => $value):?>
 											<option
 												value="<?=htmlspecialcharsBx($key)?>"

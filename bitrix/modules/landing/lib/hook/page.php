@@ -1,6 +1,8 @@
 <?php
 namespace Bitrix\Landing\Hook;
 
+use \Bitrix\Landing\Manager;
+
 abstract class Page
 {
 	/**
@@ -22,16 +24,48 @@ abstract class Page
 	protected $fieldsPage = array();
 
 	/**
+	 * This hook is instance for page.
+	 * @var bool
+	 */
+	protected $isPage = true;
+
+	/**
+	 * Custom exec method.
+	 * @var callable
+	 */
+	protected $customExec = null;
+
+	/**
+	 * Flag, if hook change required forced publication site or page
+	 * @var boolean
+	 */
+	protected $isNeedPublication = false;
+
+	/**
 	 * Class constructor.
 	 * @param boolean $editMode Edit mode if true.
+	 * @param boolean $isPage Instance of page.
 	 */
-	public function __construct($editMode = false)
+	public function __construct($editMode = false, $isPage = true)
 	{
 		if ($editMode)
 		{
 			$this->editMode = true;
 		}
+		if (!$isPage)
+		{
+			$this->isPage = false;
+		}
 		$this->fields = $this->getMap();
+	}
+
+	/**
+	 * This hook is instance for page?
+	 * @return bool
+	 */
+	public function isPage()
+	{
+		return $this->isPage;
 	}
 
 	/**
@@ -80,13 +114,39 @@ abstract class Page
 	}
 
 	/**
+	 * Locked or not current hook in free plan.
+	 * @return bool
+	 */
+	public function isLocked()
+	{
+		return false;
+	}
+
+	/**
+	 * Gets message for locked state.
+	 * @return string
+	 */
+	public function getLockedMessage()
+	{
+		return '';
+	}
+
+	/**
+	 * @return bool - true if hook change required forced page/site publication
+	 */
+	public function isNeedPublication(): bool
+	{
+		return $this->isNeedPublication;
+	}
+
+	/**
 	 * Get code of hook.
 	 * @return string
 	 */
 	public function getCode()
 	{
 		$class = new \ReflectionClass($this);
-		return strtoupper($class->getShortName());
+		return mb_strtoupper($class->getShortName());
 	}
 
 	/**
@@ -128,7 +188,7 @@ abstract class Page
 
 	/**
 	 * Get fields of current Page Hook.
-	 * @return array
+	 * @return \Bitrix\Landing\Field[]
 	 */
 	public function getFields()
 	{
@@ -137,9 +197,18 @@ abstract class Page
 
 	/**
 	 * Exec or not hook in edit mode.
-	 * @return true
+	 * @return boolean
 	 */
 	public function enabledInEditMode()
+	{
+		return true;
+	}
+
+	/**
+	 * Exec or not hook in intranet mode.
+	 * @return boolean
+	 */
+	public function enabledInIntranetMode()
 	{
 		return true;
 	}
@@ -168,12 +237,35 @@ abstract class Page
 	}
 
 	/**
-	 * Active or not the hook.
-	 * @return bool
+	 * Set custom exec method.
+	 * @param callable $callback Callback function.
+	 * @return void
 	 */
-	public function active()
+	public function setCustomExec(callable $callback)
 	{
-		return true;
+		$this->customExec = $callback;
+	}
+
+	/**
+	 * If isset custom exec method.
+	 * @return boolean
+	 */
+	public function issetCustomExec()
+	{
+		return is_callable($this->customExec);
+	}
+
+	/**
+	 * Execute custom exec method if exist.
+	 * @return boolean
+	 */
+	protected function execCustom()
+	{
+		if ($this->customExec)
+		{
+			return call_user_func_array($this->customExec, [$this]) === true;
+		}
+		return false;
 	}
 
 	/**

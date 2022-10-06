@@ -24,7 +24,7 @@
 		this.overlay.classList.add("landing-ui-panel-image");
 		this.title.appendChild(this.headerButtonsField.layout);
 		document.body.appendChild(this.layout);
-		this.title.innerText = BX.message("LANDING_IMAGE_LIBRARY_PANEL_TITLE");
+		this.title.innerText = BX.Landing.Loc.getMessage("LANDING_IMAGE_LIBRARY_PANEL_TITLE");
 	};
 
 
@@ -106,14 +106,14 @@
 			{
 				google = new BX.Landing.UI.Card.Google({
 					id: "google",
-					searchLabel: BX.message("GOOGLE_SEARCH_FIELD_LABEL"),
+					searchLabel: BX.Landing.Loc.getMessage("GOOGLE_SEARCH_FIELD_LABEL"),
 					searchTips: [
 						{name: "Nature", value: "Nature"},
 						{name: "People", value: "People"},
 						{name: "Buildings", value: "Buildings"},
 						{name: "Sunset", value: "Sunset"}
 					],
-					description: BX.message("LANDING_IMAGE_GOOGLE_DESCRIPTION"),
+					description: BX.Landing.Loc.getMessage("LANDING_IMAGE_GOOGLE_DESCRIPTION"),
 					onChange: this.onChange.bind(this),
 					params: this.uploadParams
 				});
@@ -138,14 +138,14 @@
 			{
 				unsplash = new BX.Landing.UI.Card.Unsplash({
 					id: "unsplash",
-					searchLabel: BX.message("UNSPLASH_SEARCH_FIELD_LABEL"),
+					searchLabel: BX.Landing.Loc.getMessage("UNSPLASH_SEARCH_FIELD_LABEL"),
 					searchTips: [
 						{name: "Nature", value: "Nature"},
 						{name: "People", value: "People"},
 						{name: "Buildings", value: "Buildings"},
 						{name: "Sunset", value: "Sunset"}
 					],
-					description: BX.message("LANDING_IMAGE_UNSPLASH_DESCRIPTION"),
+					description: BX.Landing.Loc.getMessage("LANDING_IMAGE_UNSPLASH_DESCRIPTION"),
 					onChange: this.onChange.bind(this)
 				});
 				this.appendCard(unsplash);
@@ -176,9 +176,9 @@
 		{
 			return new BX.Landing.UI.Field.ButtonGroup({
 				items: [
-					{name: BX.message("LANDING_CONTENT_EDIT_IMAGE_HEADER_BUTTON_UNSPLASH"), value: "unsplash", active: true},
-					{name: BX.message("LANDING_CONTENT_EDIT_IMAGE_HEADER_BUTTON_GOOGLE"), value: "google"},
-					{name: BX.message("LANDING_CONTENT_EDIT_IMAGE_HEADER_BUTTON_FROM_DISK"), value: "disk"}
+					{name: BX.Landing.Loc.getMessage("LANDING_CONTENT_EDIT_IMAGE_HEADER_BUTTON_UNSPLASH"), value: "unsplash", active: true},
+					{name: BX.Landing.Loc.getMessage("LANDING_CONTENT_EDIT_IMAGE_HEADER_BUTTON_GOOGLE"), value: "google"},
+					{name: BX.Landing.Loc.getMessage("LANDING_CONTENT_EDIT_IMAGE_HEADER_BUTTON_FROM_DISK"), value: "disk"}
 				],
 				onChange: this.onChangeView.bind(this)
 			});
@@ -189,9 +189,8 @@
 		 * Shows panel
 		 * @param {string} view
 		 * @param {?object} [params]
-		 * @param {BX.Landing.UI.Card.Loader} loader
+		 * @param {BX.Loader} loader
 		 * @param {object} uploadParams
-		 * @param {*} libraryParams
 		 * @returns {Promise}
 		 */
 		show: function(view, params, loader, uploadParams)
@@ -219,36 +218,18 @@
 
 		/**
 		 * Handles on change event
-		 * @param {object|string} value
+		 * @param {object} value
 		 */
 		onChange: function(value)
 		{
-			var data = {picture: value};
-
-			if (typeof value === "object")
-			{
-				data = {picture: value.link};
-
-				if (!!value.ext && typeof value.ext === "string")
-				{
-					data.ext = value.ext;
-				}
-			}
-
-			if (this.params)
-			{
-				data.params = this.params;
-			}
-
-			if (this.externalLoader)
-			{
-				this.externalLoader.show();
-			}
-
-			BX.Landing.Backend.getInstance()
-				.action("Block::uploadFile", data, {}, this.uploadParams).then(function(response) {
-					this.promiseResolve(response);
-				}.bind(this));
+			this.externalLoader.show();
+			BX.Landing.Utils.urlToBlob(value.link)
+				.then(function(/* File|Blob */blob) {
+					blob.lastModifiedDate = new Date();
+					blob.name = (value.name + '').split("?")[0];
+					return blob;
+				})
+				.then(this.promiseResolve.bind(this));
 
 			this.hide();
 		}

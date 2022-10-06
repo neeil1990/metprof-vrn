@@ -2,10 +2,9 @@
 
 namespace Bitrix\Main\UI\Filter;
 
-use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Text\HtmlFilter;
 use Bitrix\Main\Type\Date;
-
 
 Loc::loadMessages(__FILE__);
 
@@ -28,6 +27,27 @@ class Field
 		$field = array(
 			"ID" => "field_".$name,
 			"TYPE" => Type::STRING,
+			"NAME" => $name,
+			"VALUE" => $defaultValue,
+			"LABEL" => $label,
+			"PLACEHOLDER" => $placeholder
+		);
+
+		return $field;
+	}
+
+	/**
+	 * @param string $name
+	 * @param string $defaultValue
+	 * @param string $label
+	 * @param string $placeholder
+	 * @return array
+	 */
+	public static function textarea($name, $defaultValue = "", $label = "", $placeholder = "")
+	{
+		$field = array(
+			"ID" => "field_".$name,
+			"TYPE" => Type::TEXTAREA,
 			"NAME" => $name,
 			"VALUE" => $defaultValue,
 			"LABEL" => $label,
@@ -101,9 +121,21 @@ class Field
 	 * @param array $exclude
 	 * @param array $include
 	 * @param boolean $allowYearsSwithcer
+	 * @param array $messages
 	 * @return array
 	 */
-	public static function date($name, $type = DateType::NONE, $values = array(), $label = "", $placeholder = "", $enableTime = false, $exclude = array(), $include = array(), $allowYearsSwithcer = false)
+	public static function date(
+		$name,
+		$type = DateType::NONE,
+		$values = [],
+		$label = "",
+		$placeholder = "",
+		$enableTime = false,
+		$exclude = [],
+		$include = [],
+		$allowYearsSwithcer = false,
+		$messages = []
+	)
 	{
 		if (!is_bool($enableTime))
 		{
@@ -120,6 +152,7 @@ class Field
 		if (empty($values))
 		{
 			$values = array(
+				"_allow_year" => "",
 				"_from" => "",
 				"_to" => "",
 				"_days" => "",
@@ -137,16 +170,17 @@ class Field
 
 		foreach($sourceMonths as $key => $month)
 		{
+			$month = (string)$month;
 			$months[] = array(
 				"VALUE" => $month,
-				"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_MONTH_".$month)
+				"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_MONTH_".$month)
 			);
 
 			if ($currentMonthNumber == $month)
 			{
 				$currentMonthType = array(
 					"VALUE" => $month,
-					"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_MONTH_".$month)
+					"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_MONTH_".$month)
 				);
 			}
 		}
@@ -159,16 +193,18 @@ class Field
 
 		foreach($sourceQuarters as $key => $quarter)
 		{
+			$quarter = (string)$quarter;
+
 			$quarters[] = array(
 				"VALUE" => $quarter,
-				"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_QUARTER_".$quarter)
+				"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_QUARTER_".$quarter)
 			);
 
 			if ($quarterNumber == $quarter)
 			{
 				$currentQuarterType = array(
 					"VALUE" => $quarter,
-					"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_QUARTER_".$quarter)
+					"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_QUARTER_".$quarter)
 				);
 			}
 		}
@@ -182,14 +218,14 @@ class Field
 			if (!in_array($subtype, $exclude))
 			{
 				$subtypes[] = array(
-					"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_SUBTYPE_".$subtype),
+					"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_SUBTYPE_".$subtype),
 					"VALUE" => $subtype
 				);
 
 				if ($subtype == $type)
 				{
 					$subtypeType = array(
-						"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_SUBTYPE_".$subtype),
+						"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_SUBTYPE_".$subtype),
 						"VALUE" => $subtype
 					);
 				}
@@ -203,7 +239,7 @@ class Field
 				if ($item === AdditionalDateType::CUSTOM_DATE)
 				{
 					$subtypes[] = array(
-						"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_SUBTYPE_".$item),
+						"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_SUBTYPE_".$item),
 						"VALUE" => AdditionalDateType::CUSTOM_DATE,
 						"DECL" => static::customDate(array("id" => $name, "name" => $label))
 					);
@@ -215,7 +251,7 @@ class Field
 					$item === AdditionalDateType::AFTER_DAYS)
 				{
 					$subtypes[] = array(
-						"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_SUBTYPE_".$item),
+						"NAME" => static::getMessage($messages, "MAIN_UI_FILTER_FIELD_SUBTYPE_".$item),
 						"VALUE" => $item
 					);
 				}
@@ -229,6 +265,8 @@ class Field
 
 		foreach ($sourceYears as $key => $year)
 		{
+			$year = (string)$year;
+
 			$years[] = array(
 				"NAME" => $year,
 				"VALUE" => $year
@@ -248,11 +286,11 @@ class Field
 			array(
 				array(
 					"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_SUBTYPE_CUSTOM_DATE_YEARS_SWITCHER_YES"),
-					"VALUE" => 1
+					"VALUE" => '1'
 				),
 				array(
 					"NAME" => Loc::getMessage("MAIN_UI_FILTER_FIELD_SUBTYPE_CUSTOM_DATE_YEARS_SWITCHER_NO"),
-					"VALUE" => 0
+					"VALUE" => '0'
 				)
 			),
 			array()
@@ -291,7 +329,16 @@ class Field
 	 * @param string $placeholder
 	 * @return array
 	 */
-	public static function number($name, $type = NumberType::SINGLE, $values = array(), $label = "", $placeholder = "")
+	public static function number(
+		$name,
+		$type = NumberType::SINGLE,
+		$values = [],
+		$label = "",
+		$placeholder = "",
+		$exclude = [],
+		$include = [],
+		$messages = []
+	)
 	{
 		$selectParams = array("isMulti" => false);
 
@@ -303,18 +350,54 @@ class Field
 			);
 		}
 
-		$field = array(
+		$subtypes = [];
+		$sourceSubtypes = NumberType::getList();
+
+		foreach ($sourceSubtypes as $key => $subtype)
+		{
+			if (!is_array($exclude) || !in_array($subtype, $exclude))
+			{
+				$subtypes[] = [
+					"NAME" => static::getMessage($messages, "MAIN_UI_FILTER__NUMBER_".$key),
+					"VALUE" => $subtype,
+				];
+
+				if ($subtype == $type)
+				{
+					$subtypeType = [
+						"NAME" => static::getMessage($messages, "MAIN_UI_FILTER__NUMBER_".$key),
+						"VALUE" => $subtype,
+					];
+				}
+			}
+		}
+
+		if (is_array($include))
+		{
+			$additionalSubtypes = AdditionalNumberType::getList();
+			foreach ($additionalSubtypes as $key => $subtype)
+			{
+				if (in_array($subtype, $include))
+				{
+					$subtypes[] = [
+						"NAME" => static::getMessage($messages, "MAIN_UI_FILTER__NUMBER_".$key),
+						"VALUE" => $subtype,
+					];
+				}
+			}
+		}
+
+		return [
 			"ID" => "field_".$name,
 			"TYPE" => Type::NUMBER,
 			"NAME" => $name,
-			"SUB_TYPE" => $type,
+			"SUB_TYPE" => $subtypeType,
+			"SUB_TYPES" => $subtypes,
 			"VALUES" => $values,
 			"LABEL" => $label,
 			"PLACEHOLDER" => $placeholder,
 			"SELECT_PARAMS" => $selectParams
-		);
-
-		return $field;
+		];
 	}
 
 
@@ -468,7 +551,7 @@ class Field
 			"DAYS_PLACEHOLDER" => Loc::getMessage("MAIN_UI_FILTER_FIELD_DAYS"),
 			"MONTHS_PLACEHOLDER" => Loc::getMessage("MAIN_UI_FILTER_FIELD_MONTHS"),
 			"YEARS_PLACEHOLDER" => Loc::getMessage("MAIN_UI_FILTER_FIELD_YEARS")
- 		);
+		);
 	}
 
 
@@ -533,5 +616,150 @@ class Field
 		}
 
 		return $days;
+	}
+
+	/**
+	 * Prepares data of user field
+	 * @param string $name
+	 * @param string $label
+	 * @param string $placeholder
+	 * @param bool $multiple
+	 * @param array $params
+	 * @param bool $lightweight
+	 * @return array
+	 */
+	public static function destSelector($name, $label = "", $placeholder = "", $multiple = false, $params = array(), $lightweight = false, $filterName = '')
+	{
+		\CJSCore::init(array('socnetlogdest'));
+
+		global $APPLICATION;
+
+		$field = array(
+			"ID" => "field_".$name.($filterName <> '' ? '_'.$filterName : ''),
+			"TYPE" => Type::DEST_SELECTOR,
+			"NAME" => $name,
+			"LABEL" => $label,
+			"VALUES" => array(
+				"_label" => "",
+				"_value" => ""
+			),
+			"MULTIPLE" => $multiple,
+			"PLACEHOLDER" => $placeholder
+		);
+
+		if (!$lightweight)
+		{
+			ob_start();
+			$optionsList = array(
+				'multiple' => ($multiple ? 'Y' : 'N'),
+				'eventInit' => 'BX.Filter.DestinationSelector:openInit',
+				'eventOpen' => 'BX.Filter.DestinationSelector:open',
+				'context' => (isset($params['context']) ? $params['context'] : 'FILTER_'.$name),
+				'popupAutoHide' => 'N',
+				'useSearch' => 'N',
+				'userNameTemplate' => \CUtil::jSEscape(\CSite::getNameFormat()),
+				'useClientDatabase' => (isset($params['useClientDatabase']) && $params['useClientDatabase'] == 'N' ? 'N' : 'Y'),
+				'enableLast' => 'Y',
+				'enableUsers' => (!isset($params['enableUsers']) || $params['enableUsers'] != 'N' ? 'Y' : 'N'),
+				'enableDepartments' => (!isset($params['enableDepartments']) || $params['enableDepartments'] != 'N' ? 'Y' : 'N'),
+				'allowAddUser' => 'N',
+				'allowAddCrmContact' => 'N',
+				'allowAddSocNetGroup' => 'N',
+				'allowSearchCrmEmailUsers' => 'N',
+				'allowSearchNetworkUsers' => 'N',
+				'useNewCallback' => 'Y',
+				'focusInputOnSelectItem' => 'N',
+				'focusInputOnSwitchTab' => 'N',
+				'landing' => (isset($params['landing']) && $params['landing'] == 'Y' ? 'Y' : 'N'),
+			);
+
+			if (!empty($params['contextCode']))
+			{
+				$optionsList['contextCode'] = $params['contextCode'];
+				unset($params['contextCode']);
+			}
+
+			if (isset($params['context']))
+			{
+				unset($params['context']);
+			}
+			if (isset($params['enableUsers']))
+			{
+				unset($params['enableUsers']);
+			}
+			if (isset($params['enableDepartments']))
+			{
+				unset($params['enableDepartments']);
+			}
+
+			$optionsList = array_merge($optionsList, $params);
+
+			$APPLICATION->includeComponent(
+				"bitrix:main.ui.selector",
+				".default",
+				array(
+					'API_VERSION' => (!empty($params['apiVersion']) && intval($params['apiVersion']) >= 2 ? intval($params['apiVersion']) : 2),
+					'ID' => $name,
+					'ITEMS_SELECTED' => array(),
+					'CALLBACK' => array(
+						'select' => 'BX.Filter.DestinationSelectorManager.onSelect.bind(null, \''.(isset($params['isNumeric']) && $params['isNumeric'] == 'Y' ? 'Y' : 'N').'\', \''.(isset($params['prefix']) ? $params['prefix'] : '').'\')',
+						'unSelect' => '',
+						'openDialog' => 'BX.Filter.DestinationSelectorManager.onDialogOpen',
+						'closeDialog' => 'BX.Filter.DestinationSelectorManager.onDialogClose',
+						'openSearch' => '',
+						'closeSearch' => 'BX.Filter.DestinationSelectorManager.onDialogClose',
+					),
+					'OPTIONS' => $optionsList,
+					'LOAD_JS' => true
+				),
+				false,
+				array("HIDE_ICONS" => "Y")
+			);
+
+			$field["HTML"] = ob_get_clean();
+		}
+
+		return $field;
+	}
+
+	public static function entitySelector(
+		string $name,
+		string $label = '',
+		string $placeholder = '',
+		array $params = [],
+		string $filterName = ''
+	)
+	{
+		$multiple = $params['multiple'] ?? false;
+		$addEntityIdToResult = $params['addEntityIdToResult'] ?? false;
+		$showDialogOnEmptyInput = $params['showDialogOnEmptyInput'] ?? true;
+		$dialogOptions = $params['dialogOptions'] ?? [];
+		$field = [
+			'ID' => 'field_' . $name . ($filterName != '' ? '_' . $filterName : ''),
+			'TYPE' => Type::ENTITY_SELECTOR,
+			'NAME' => $name,
+			'LABEL' => $label,
+			'VALUES' => [
+				'_label' => '',
+				'_value' => '',
+			],
+			'MULTIPLE' => $multiple,
+			'PLACEHOLDER' => $placeholder,
+			'DIALOG_OPTIONS' => $dialogOptions,
+			'ADD_ENTITY_ID_TO_RESULT' => $addEntityIdToResult,
+			'SHOW_DIALOG_ON_EMPTY_INPUT' => $showDialogOnEmptyInput,
+		];
+
+		return $field;
+	}
+
+	protected static function getMessage($messages, $messageId)
+	{
+		if (is_array($messages) && array_key_exists($messageId, $messages))
+		{
+			return $messages[$messageId];
+		}
+
+		return Loc::getMessage($messageId);
 	}
 }

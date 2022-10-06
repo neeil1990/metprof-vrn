@@ -1,4 +1,5 @@
 <?
+
 /*patchlimitationmutatormark1*/
 CModule::AddAutoloadClasses(
 	"fileman",
@@ -27,7 +28,8 @@ include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/fileman/properties.php")
 
 CJSCore::RegisterExt('file_input', array(
 	'js' => '/bitrix/js/fileman/core_file_input.js',
-	'lang' => '/bitrix/modules/fileman/lang/'.LANGUAGE_ID.'/classes/general/file_input.php'
+	'lang' => '/bitrix/modules/fileman/lang/'.LANGUAGE_ID.'/classes/general/file_input.php',
+	'rel' => array('window') //BX.COpener
 ));
 
 CJSCore::RegisterExt('map_google', array(
@@ -42,13 +44,6 @@ CJSCore::RegisterExt('google_loader', array(
 			'GOOGLE_MAP_API_KEY' => \Bitrix\Fileman\UserField\Address::getApiKey(),
 			'GOOGLE_MAP_API_KEY_HINT' => \Bitrix\Fileman\UserField\Address::getApiKeyHint(),
 		);
-
-		$trialHint = \Bitrix\Fileman\UserField\Address::getTrialHint();
-		if(is_array($trialHint))
-		{
-			$additionalLang['GOOGLE_MAP_TRIAL_TITLE'] = $trialHint[0];
-			$additionalLang['GOOGLE_MAP_TRIAL'] = $trialHint[1];
-		}
 
 		return array(
 			'lang_additional' => $additionalLang,
@@ -86,6 +81,9 @@ CJSCore::RegisterExt('player', [
 	'css' => [
 		'/bitrix/js/fileman/player/videojs/video-js.css',
 	],
+	'rel' => [
+		'ui.design-tokens',
+	]
 ]);
 
 //on update method still not exist

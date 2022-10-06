@@ -15,7 +15,7 @@ foreach($arResult["ITEMS"] as &$arItem){
         $rsOffers = CIBlockElement::GetList(array(),array('IBLOCK_ID' => $arInfo['IBLOCK_ID'], 'PROPERTY_'.$arInfo['SKU_PROPERTY_ID'] => $ID), false, false, ['*', 'CATALOG_QUANTITY']);
         while ($arOffer = $rsOffers->GetNext())
         {
-            $arItem['OFFERS'] = $arOffer;
+            $arItem['OFFERS'][] = $arOffer;
         }
     }
 }

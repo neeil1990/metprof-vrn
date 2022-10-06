@@ -35,7 +35,7 @@ if ($USER->CanDoOperation('catalog_read')) :
 		}
 		unset($arr, $rsIBlockType);
 
-		$rsSite = CSite::GetList($by="sort", $order="asc", $arFilter=array("ACTIVE" => "Y"));
+		$rsSite = CSite::GetList("sort", "asc", $arFilter=array("ACTIVE" => "Y"));
 		$arSites = array(
 			"-" => Loc::getMessage("CAT_1C_CURRENT"),
 		);
@@ -44,7 +44,7 @@ if ($USER->CanDoOperation('catalog_read')) :
 		unset($arSite, $rsSite);
 
 		$arUGroupsEx = Array();
-		$dbUGroups = CGroup::GetList($by = "c_sort", $order = "asc");
+		$dbUGroups = CGroup::GetList();
 		while($arUGroups = $dbUGroups -> Fetch())
 		{
 			$arUGroupsEx[$arUGroups["ID"]] = $arUGroups["NAME"];
@@ -77,6 +77,12 @@ if ($USER->CanDoOperation('catalog_read')) :
 			array("1C_USE_IBLOCK_TYPE_ID", Loc::getMessage("CAT_1C_USE_IBLOCK_TYPE_ID"), "N", array("checkbox")),
 			array("1C_SKIP_ROOT_SECTION", Loc::getMessage("CAT_1C_SKIP_ROOT_SECTION_2"), "N", array("checkbox")),
 			array("1C_DISABLE_CHANGE_PRICE_NAME", Loc::getMessage("CAT_1C_DISABLE_CHANGE_PRICE_NAME"), "N", array("checkbox")),
+			array(
+				"1C_IBLOCK_CACHE_MODE",
+				Loc::getMessage("CAT_1C_IBLOCK_CACHE_MODE"),
+				"-",
+				array("list", CIBlockCMLImport::getIblockCacheModeList(true))
+			),
 			array("1C_USE_IBLOCK_PICTURE_SETTINGS", Loc::getMessage("CAT_1C_USE_IBLOCK_PICTURE_SETTINGS"), "N", array("checkbox")),
 			array("1C_GENERATE_PREVIEW", Loc::getMessage("CAT_1C_GENERATE_PREVIEW"), "Y", array("checkbox")),
 			array("1C_PREVIEW_WIDTH", Loc::getMessage("CAT_1C_PREVIEW_WIDTH"), 100, array("text", 20)),
@@ -97,7 +103,12 @@ if ($USER->CanDoOperation('catalog_read')) :
 			),
 		);
 
-		if ($_SERVER['REQUEST_METHOD'] == "POST" && strlen($Update)>0 && $USER->CanDoOperation('edit_php') && check_bitrix_sessid())
+		$optionHints = [
+			'1C_ELEMENT_ACTION' => Loc::getMessage('CAT_1C_MESS_ONLY_BASE_1C_MODULE'),
+			'1C_SECTION_ACTION' => Loc::getMessage('CAT_1C_MESS_ONLY_BASE_1C_MODULE'),
+		];
+
+		if ($_SERVER['REQUEST_METHOD'] == "POST" && $Update <> '' && $USER->CanDoOperation('edit_php') && check_bitrix_sessid())
 		{
 			$arDisableOptions = array();
 			foreach ($arOptionsDeps as $option => $subOptions)
@@ -160,7 +171,16 @@ if ($USER->CanDoOperation('catalog_read')) :
 			$strOptionName = htmlspecialcharsbx("catalog_".$Option[0]);
 			?>
 		<tr>
-			<td <? echo ('textarea' == $type[0] || 'mlist' == $type[0] ? 'valign="top"' : ''); ?> width="40%"><?	if($type[0]=="checkbox")
+			<td <? echo ('textarea' == $type[0] || 'mlist' == $type[0] ? 'valign="top"' : ''); ?> width="40%">
+				<?php
+				$id = $Option[0];
+				if (isset($optionHints[$id]))
+				{
+					?><span id="hint_<?= $strOptionName; ?>"></span>
+					<script type="text/javascript">BX.hint_replace(BX('hint_<?=$strOptionName;?>'), '<?=\CUtil::JSEscape($optionHints[$id]); ?>');</script>&nbsp;<?
+				}
+				?>
+				<?	if($type[0]=="checkbox")
 							echo '<label for="'.$strOptionName.'">'.$Option[1].'</label>';
 						else
 							echo $Option[1];?>:</td>
@@ -208,7 +228,15 @@ if ($USER->CanDoOperation('catalog_read')) :
 			$strOptionName = htmlspecialcharsbx("catalog_".$Option[0]);
 			?>
 		<tr id="tr_<?echo htmlspecialcharsbx($Option[0])?>" <?if (!$showExtOptions) echo 'style="display:none"'?>>
-			<td <? echo ('textarea' == $type[0] || 'mlist' == $type[0] ? 'valign="top"' : ''); ?> width="40%"><?	if($type[0]=="checkbox")
+			<td <? echo ('textarea' == $type[0] || 'mlist' == $type[0] ? 'valign="top"' : ''); ?> width="40%">
+				<?php
+				$id = $Option[0];
+				if (isset($optionHints[$id]))
+				{
+				?><span id="hint_<?= $strOptionName; ?>"></span>
+				<script type="text/javascript">BX.hint_replace(BX('hint_<?=$strOptionName;?>'), '<?=\CUtil::JSEscape($optionHints[$id]); ?>');</script>&nbsp;<?
+				}?>
+				<?	if($type[0]=="checkbox")
 							echo '<label for="'.$strOptionName.'">'.$Option[1].'</label>';
 						else
 							echo $Option[1];?>:</td>

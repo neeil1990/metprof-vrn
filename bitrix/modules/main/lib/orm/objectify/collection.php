@@ -10,41 +10,56 @@ namespace Bitrix\Main\ORM\Objectify;
 
 use Bitrix\Main\ArgumentException;
 use Bitrix\Main\ORM\Data\DataManager;
-use Bitrix\Main\ORM\Objectify\EntityObject;
+use Bitrix\Main\ORM\Data\Result;
 use Bitrix\Main\ORM\Entity;
+use Bitrix\Main\ORM\Fields\Relations\Relation;
+use Bitrix\Main\ORM\Fields\ScalarField;
 use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\NotImplementedException;
 use Bitrix\Main\ORM\Fields\FieldTypeMask;
 use Bitrix\Main\SystemException;
+use Bitrix\Main\Text\StringHelper;
+use Bitrix\Main\Web\Json;
 
 /**
  * Collection of entity objects. Used to hold 1:N and N:M object collections.
  *
+ * @property-read \Bitrix\Main\ORM\Entity $entity
+ *
  * @package    bitrix
  * @subpackage main
  */
-abstract class Collection implements \ArrayAccess, \Iterator
+abstract class Collection implements \ArrayAccess, \Iterator, \Countable
 {
+	/**
+	 * Entity Table class. Read-only property.
+	 * @var DataManager
+	 */
+	static public $dataClass;
+
 	/** @var Entity */
-	protected $entity;
+	protected $_entity;
+
+	/** @var EntityObject */
+	protected $_objectClass;
 
 	/** @var  EntityObject[] */
-	protected $objects;
+	protected $_objects = [];
 
 	/** @var bool */
-	protected $isFilled = false;
+	protected $_isFilled = false;
 
 	/** @var bool */
-	protected $isSinglePrimary;
+	protected $_isSinglePrimary;
 
 	/** @var array [SerializedPrimary => OBJECT_CHANGE_CODE] */
-	protected $objectsChanges;
+	protected $_objectsChanges;
 
 	/** @var  EntityObject[] */
-	protected $objectsRemoved;
+	protected $_objectsRemoved;
 
 	/** @var EntityObject[] Used for Iterator interface, allows to delete elements during foreach loop */
-	protected $iterableObjects;
+	protected $_iterableObjects;
 
 	/** @var int Code for $objectsChanged */
 	const OBJECT_ADDED = 1;
@@ -60,15 +75,15 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 * @throws ArgumentException
 	 * @throws SystemException
 	 */
-	public function __construct(Entity $entity = null)
+	final public function __construct(Entity $entity = null)
 	{
 		if (empty($entity))
 		{
 			if (__CLASS__ !== get_called_class())
 			{
 				// custom collection class
-				$dataClass = static::dataClass();
-				$this->entity = $dataClass::getEntity();
+				$dataClass = static::$dataClass;
+				$this->_entity = $dataClass::getEntity();
 			}
 			else
 			{
@@ -77,45 +92,58 @@ abstract class Collection implements \ArrayAccess, \Iterator
 		}
 		else
 		{
-			$this->entity = $entity;
+			$this->_entity = $entity;
 		}
 
-		$this->isSinglePrimary = count($this->entity->getPrimaryArray()) == 1;
+		$this->_objectClass = $this->_entity->getObjectClass();
+		$this->_isSinglePrimary = count($this->_entity->getPrimaryArray()) == 1;
 	}
 
-	/**
-	 * DataManager (Table) class. Can be overridden.
-	 *
-	 * @return string|DataManager
-	 * @throws NotImplementedException
-	 */
-	public static function dataClass()
+	public function __clone()
 	{
-		throw new NotImplementedException(sprintf(
-			'You should override static method dataClass() in %s class. Name of Table class of entity should be returned.',
-			get_called_class()
-		));
-	}
-
-	/**
-	 * @return Entity
-	 */
-	public function entity()
-	{
-		return $this->entity;
+		$this->_objects = \Bitrix\Main\Type\Collection::clone((array)$this->_objects);
+		$this->_objectsRemoved = \Bitrix\Main\Type\Collection::clone((array)$this->_objectsRemoved);
+		$this->_iterableObjects = null;
 	}
 
 	/**
 	 * @param EntityObject $object
+	 *
+	 * @throws ArgumentException
+	 * @throws SystemException
 	 */
-	public function add(EntityObject $object)
+	final public function add(EntityObject $object)
 	{
-		$srPrimary = $this->getPrimaryKey($object);
-
-		if (empty($this->objects[$srPrimary]))
+		// check object class
+		if (!($object instanceof $this->_objectClass))
 		{
-			$this->objects[$srPrimary] = $object;
-			$this->objectsChanges[$srPrimary] = static::OBJECT_ADDED;
+			throw new ArgumentException(sprintf(
+				'Invalid object class %s for %s collection, expected "%s".',
+				get_class($object), get_class($this), $this->_objectClass
+			));
+		}
+
+		$srPrimary = $this->sysGetPrimaryKey($object);
+
+		if (!$object->sysHasPrimary())
+		{
+			// object is new and there is no primary yet
+			$object->sysAddOnPrimarySetListener([$this, 'sysOnObjectPrimarySet']);
+		}
+
+		if (empty($this->_objects[$srPrimary])
+			&& (!isset($this->_objectsChanges[$srPrimary]) || $this->_objectsChanges[$srPrimary] != static::OBJECT_REMOVED))
+		{
+			$this->_objects[$srPrimary] = $object;
+			$this->_objectsChanges[$srPrimary] = static::OBJECT_ADDED;
+		}
+		elseif (isset($this->_objectsChanges[$srPrimary]) && $this->_objectsChanges[$srPrimary] == static::OBJECT_REMOVED)
+		{
+			// silent add for removed runtime
+			$this->_objects[$srPrimary] = $object;
+
+			unset($this->_objectsChanges[$srPrimary]);
+			unset($this->_objectsRemoved[$srPrimary]);
 		}
 	}
 
@@ -123,10 +151,21 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 * @param EntityObject $object
 	 *
 	 * @return bool
+	 * @throws ArgumentException
+	 * @throws SystemException
 	 */
-	public function has(EntityObject $object)
+	final public function has(EntityObject $object)
 	{
-		return array_key_exists($this->getPrimaryKey($object), $this->objects);
+		// check object class
+		if (!($object instanceof $this->_objectClass))
+		{
+			throw new ArgumentException(sprintf(
+				'Invalid object class %s for %s collection, expected "%s".',
+				get_class($object), get_class($this), $this->_objectClass
+			));
+		}
+
+		return array_key_exists($this->sysGetPrimaryKey($object), $this->_objects);
 	}
 
 	/**
@@ -135,10 +174,10 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 * @return bool
 	 * @throws ArgumentException
 	 */
-	public function hasByPrimary($primary)
+	final public function hasByPrimary($primary)
 	{
-		$normalizedPrimary = $this->normalizePrimary($primary);
-		return array_key_exists($this->serializePrimaryKey($normalizedPrimary), $this->objects);
+		$normalizedPrimary = $this->sysNormalizePrimary($primary);
+		return array_key_exists($this->sysSerializePrimaryKey($normalizedPrimary), $this->_objects);
 	}
 
 	/**
@@ -147,40 +186,90 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 * @return EntityObject
 	 * @throws ArgumentException
 	 */
-	public function getByPrimary($primary)
+	final public function getByPrimary($primary)
 	{
-		$normalizedPrimary = $this->normalizePrimary($primary);
-		return $this->objects[$this->serializePrimaryKey($normalizedPrimary)];
+		$normalizedPrimary = $this->sysNormalizePrimary($primary);
+		$serializePrimaryKey = $this->sysSerializePrimaryKey($normalizedPrimary);
+
+		if (isset($this->_objects[$serializePrimaryKey]))
+		{
+			return $this->_objects[$serializePrimaryKey];
+		}
+
+		return null;
 	}
 
 	/**
 	 * @return EntityObject[]
 	 */
-	public function getAll()
+	final public function getAll()
 	{
-		return array_values($this->objects);
+		return array_values($this->_objects);
 	}
 
 	/**
 	 * @param EntityObject $object
+	 *
+	 * @return void
+	 * @throws ArgumentException
+	 * @throws SystemException
 	 */
-	public function remove(EntityObject $object)
+	final public function remove(EntityObject $object)
 	{
-		$srPrimary = $this->getPrimaryKey($object);
+		// check object class
+		if (!($object instanceof $this->_objectClass))
+		{
+			throw new ArgumentException(sprintf(
+				'Invalid object class %s for %s collection, expected "%s".',
+				get_class($object), get_class($this), $this->_objectClass
+			));
+		}
 
-		unset($this->objects[$srPrimary]);
+		// ignore deleted objects
+		if ($object->state === State::DELETED)
+		{
+			return;
+		}
 
-		if (!isset($this->objectsChanges[$srPrimary]) || $this->objectsChanges[$srPrimary] != static::OBJECT_ADDED)
+		$srPrimary = $this->sysGetPrimaryKey($object);
+		$this->sysRemove($srPrimary);
+	}
+
+	/**
+	 * @param $primary
+	 *
+	 * @throws ArgumentException
+	 */
+	final public function removeByPrimary($primary)
+	{
+		$normalizedPrimary = $this->sysNormalizePrimary($primary);
+		$srPrimary = $this->sysSerializePrimaryKey($normalizedPrimary);
+
+		$this->sysRemove($srPrimary);
+	}
+
+	public function sysRemove($srPrimary)
+	{
+		$object = $this->_objects[$srPrimary];
+
+		if (empty($object))
+		{
+			$object = $this->entity->wakeUpObject($srPrimary);
+		}
+
+		unset($this->_objects[$srPrimary]);
+
+		if (!isset($this->_objectsChanges[$srPrimary]) || $this->_objectsChanges[$srPrimary] != static::OBJECT_ADDED)
 		{
 			// regular remove
-			$this->objectsChanges[$srPrimary] = static::OBJECT_REMOVED;
-			$this->objectsRemoved[$srPrimary] = $object;
+			$this->_objectsChanges[$srPrimary] = static::OBJECT_REMOVED;
+			$this->_objectsRemoved[$srPrimary] = $object;
 		}
-		elseif (isset($this->objectsChanges[$srPrimary]) && $this->objectsChanges[$srPrimary] == static::OBJECT_ADDED)
+		elseif (isset($this->_objectsChanges[$srPrimary]) && $this->_objectsChanges[$srPrimary] == static::OBJECT_ADDED)
 		{
 			// silent remove for added runtime
-			unset($this->objectsChanges[$srPrimary]);
-			unset($this->objectsRemoved[$srPrimary]);
+			unset($this->_objectsChanges[$srPrimary]);
+			unset($this->_objectsRemoved[$srPrimary]);
 		}
 	}
 
@@ -189,117 +278,435 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 *
 	 * @param int|string[] $fields Names of fields to fill
 	 *
+	 * @return array|Collection
 	 * @throws ArgumentException
 	 * @throws SystemException
 	 */
-	public function fill($fields = FieldTypeMask::ALL)
+	final public function fill($fields = FieldTypeMask::ALL)
 	{
-		$entityPrimary = $this->entity->getPrimaryArray();
+		$entityPrimary = $this->_entity->getPrimaryArray();
 
 		$primaryValues = [];
-		$fieldsToSelect = $entityPrimary;
+		$fieldsToSelect = [];
 
+		// if field is the only one
 		if (is_scalar($fields) && !is_numeric($fields))
 		{
 			$fields = [$fields];
 		}
 
 		// collect custom fields to select
-		if (is_array($fields))
+		foreach ($this->_objects as $object)
 		{
-			$fieldsToSelect = array_merge($fieldsToSelect, $fields);
-		}
+			$idleFields = is_array($fields)
+				? $object->sysGetIdleFields($fields)
+				: $object->sysGetIdleFieldsByMask($fields);
 
-		foreach ($this->objects as $object)
-		{
-			// collect primary
-			$objectPrimary = $object->sysRequirePrimary();
-
-			$primaryValues[] = count($objectPrimary) == 1
-				? current($objectPrimary)
-				: $objectPrimary;
-
-			// collect fields to select if there is a fields flag instead of custom list
-			if (!is_array($fields))
+			if (!empty($idleFields))
 			{
-				$diff = array_diff($object->sysGetIdleFields($fields), $fieldsToSelect);
-				$fieldsToSelect = array_merge($fieldsToSelect, $diff);
+				$fieldsToSelect = array_unique(array_merge($fieldsToSelect, $idleFields));
+
+				// add object to query
+				$objectPrimary = $object->sysRequirePrimary();
+
+				$primaryValues[] = count($objectPrimary) == 1
+					? current($objectPrimary)
+					: $objectPrimary;
 			}
 		}
 
-		// build primary filter
-		$primaryFilter = Query::filter();
-
-		if (count($entityPrimary) == 1)
+		// add primary to select
+		if (!empty($fieldsToSelect))
 		{
-			// IN for single-primary objects
-			$primaryFilter->whereIn($entityPrimary[0], $primaryValues);
-		}
-		else
-		{
-			// OR for multi-primary objects
-			$primaryFilter->logic('or');
+			$fieldsToSelect = array_unique(array_merge($entityPrimary, $fieldsToSelect));
 
-			foreach ($primaryValues as $objectPrimary)
+			// build primary filter
+			$primaryFilter = Query::filter();
+
+			if (count($entityPrimary) == 1)
 			{
-				// add each object as a separate condition
-				$oneObjectFilter = Query::filter();
+				// IN for single-primary objects
+				$primaryFilter->whereIn($entityPrimary[0], $primaryValues);
+			}
+			else
+			{
+				// OR for multi-primary objects
+				$primaryFilter->logic('or');
 
-				foreach ($objectPrimary as $primaryName => $primaryValue)
+				foreach ($primaryValues as $objectPrimary)
 				{
-					$oneObjectFilter->where($primaryName, $primaryValue);
+					// add each object as a separate condition
+					$oneObjectFilter = Query::filter();
+
+					foreach ($objectPrimary as $primaryName => $primaryValue)
+					{
+						$oneObjectFilter->where($primaryName, $primaryValue);
+					}
+
+					$primaryFilter->where($oneObjectFilter);
+				}
+			}
+
+			// build query
+			$dataClass = $this->_entity->getDataClass();
+			$result = $dataClass::query()->setSelect($fieldsToSelect)->where($primaryFilter)->exec();
+
+			// set object to identityMap of result, and it will be partially completed by fetch
+			$im = new IdentityMap;
+
+			foreach ($this->_objects as $object)
+			{
+				$im->put($object);
+			}
+
+			$result->setIdentityMap($im);
+			$result->fetchCollection();
+		}
+
+		// return field value it it was only one
+		if (is_array($fields) && count($fields) == 1 && $this->entity->hasField(current($fields)))
+		{
+			$fieldName = current($fields);
+			$field = $this->entity->getField($fieldName);
+
+			return ($field instanceof Relation)
+				? $this->sysGetCollection($fieldName)
+				: $this->sysGetList($fieldName);
+		}
+	}
+
+	final public function save($ignoreEvents = false)
+	{
+		$result = new Result;
+
+		/** @var EntityObject[] $addObjects */
+		$addObjects = [];
+
+		/** @var EntityObject[] $updateObjects */
+		$updateObjects = [];
+
+		foreach ($this->_objects as $object)
+		{
+			if ($object->sysGetState() === State::RAW)
+			{
+				$addObjects[] = ['__object' => $object];
+			}
+			elseif ($object->sysGetState() === State::CHANGED)
+			{
+				$updateObjects[] = $object;
+			}
+		}
+
+		$dataClass = static::$dataClass;
+
+		// multi add
+		if (!empty($addObjects))
+		{
+			$result = $dataClass::addMulti($addObjects, $ignoreEvents);
+		}
+
+		// multi update
+		if (!empty($updateObjects))
+		{
+			$areEqual = true;
+			$primaries = [];
+
+			$dataSample = $updateObjects[0]->collectValues(Values::CURRENT, FieldTypeMask::SCALAR | FieldTypeMask::USERTYPE);
+			asort($dataSample);
+
+			// get only scalar & uf data and check its uniqueness
+			foreach ($updateObjects as $object)
+			{
+				$objectData = $object->collectValues(Values::CURRENT, FieldTypeMask::SCALAR | FieldTypeMask::USERTYPE);
+				asort($objectData);
+
+				if ($dataSample !== $objectData)
+				{
+					$areEqual = false;
+					break;
 				}
 
-				$primaryFilter->where($oneObjectFilter);
+				$primaries[] = $object->primary;
+			}
+
+			if ($areEqual)
+			{
+				// one query
+				$result = $dataClass::updateMulti($primaries, $dataSample, $ignoreEvents);
+
+				// post save
+				foreach ($updateObjects as $object)
+				{
+					$object->sysSaveRelations($result);
+					$object->sysPostSave();
+				}
+			}
+			else
+			{
+				// each object separately
+				foreach ($updateObjects as $object)
+				{
+					$objectResult = $object->save();
+
+					if (!$objectResult->isSuccess())
+					{
+						$result->addErrors($objectResult->getErrors());
+					}
+				}
 			}
 		}
 
-		// build query
-		$dataClass = $this->entity->getDataClass();
-		$result = $dataClass::query()->setSelect($fieldsToSelect)->where($primaryFilter)->exec();
+		return $result;
+	}
 
-		// set object to identityMap of result, and it will be partially completed by fetch
-		$im = new IdentityMap;
+	/**
+	 * Constructs set of existing objects from pre-selected data, including references and relations.
+	 *
+	 * @param $rows
+	 *
+	 * @return array|static
+	 * @throws ArgumentException
+	 * @throws SystemException
+	 */
+	final public static function wakeUp($rows)
+	{
+		// define object class
+		$dataClass = static::$dataClass;
+		$objectClass = $dataClass::getObjectClass();
 
-		foreach ($this->objects as $object)
+		// complete collection
+		$collection = new static;
+
+		foreach ($rows as $row)
 		{
-			$im->put($object);
+			$collection->sysAddActual($objectClass::wakeUp($row));
 		}
 
-		$result->setIdentityMap($im);
-		$result->fetchCollection();
-	}
-
-	public function isFilled()
-	{
-		return $this->isFilled;
+		return $collection;
 	}
 
 	/**
+	 * Magic read-only properties
+	 *
+	 * @param $name
+	 *
+	 * @return array|Entity
+	 * @throws SystemException
+	 */
+	public function __get($name)
+	{
+		switch ($name)
+		{
+			case 'entity':
+				return $this->_entity;
+			case 'dataClass':
+				throw new SystemException('Property `dataClass` should be received as static.');
+		}
+
+		throw new SystemException(sprintf(
+			'Unknown property `%s` for collection `%s`', $name, get_called_class()
+		));
+	}
+
+	/**
+	 * Magic read-only properties
+	 *
+	 * @param $name
+	 * @param $value
+	 *
+	 * @throws SystemException
+	 */
+	public function __set($name, $value)
+	{
+		switch ($name)
+		{
+			case 'entity':
+			case 'dataClass':
+				throw new SystemException(sprintf(
+					'Property `%s` for collection `%s` is read-only', $name, get_called_class()
+				));
+		}
+
+		throw new SystemException(sprintf(
+			'Unknown property `%s` for collection `%s`', $name, get_called_class()
+		));
+	}
+
+	/**
+	 * Magic to handle getters, setters etc.
+	 *
+	 * @param $name
+	 * @param $arguments
+	 *
+	 * @return array
+	 * @throws ArgumentException
+	 * @throws SystemException
+	 */
+	public function __call($name, $arguments)
+	{
+		$first3 = substr($name, 0, 3);
+		$last4 = substr($name, -4);
+
+		// group getter
+		if ($first3 == 'get' && $last4 == 'List')
+		{
+			$fieldName = EntityObject::sysMethodToFieldCase(substr($name, 3, -4));
+
+			if ($fieldName == '')
+			{
+				$fieldName = StringHelper::strtoupper($arguments[0]);
+
+				// check if custom method exists
+				$personalMethodName = $first3.EntityObject::sysFieldToMethodCase($fieldName).$last4;
+
+				if (method_exists($this, $personalMethodName))
+				{
+					return $this->$personalMethodName(...array_slice($arguments, 1));
+				}
+
+				// hard field check
+				$this->entity->getField($fieldName);
+			}
+
+			// check if field exists
+			if ($this->_entity->hasField($fieldName))
+			{
+				return $this->sysGetList($fieldName);
+			}
+		}
+
+		$last10 = substr($name, -10);
+
+		if ($first3 == 'get' && $last10 == 'Collection')
+		{
+			$fieldName = EntityObject::sysMethodToFieldCase(substr($name, 3, -10));
+
+			if ($fieldName == '')
+			{
+				$fieldName = StringHelper::strtoupper($arguments[0]);
+
+				// check if custom method exists
+				$personalMethodName = $first3.EntityObject::sysFieldToMethodCase($fieldName).$last10;
+
+				if (method_exists($this, $personalMethodName))
+				{
+					return $this->$personalMethodName(...array_slice($arguments, 1));
+				}
+
+				// hard field check
+				$this->entity->getField($fieldName);
+			}
+
+			// check if field exists
+			if ($this->_entity->hasField($fieldName) && $this->_entity->getField($fieldName) instanceof Relation)
+			{
+				return $this->sysGetCollection($fieldName);
+			}
+		}
+
+		$first4 = substr($name, 0, 4);
+
+		// filler
+		if ($first4 == 'fill')
+		{
+			$fieldName = EntityObject::sysMethodToFieldCase(substr($name, 4));
+
+			// check if field exists
+			if ($this->_entity->hasField($fieldName))
+			{
+				return $this->fill([$fieldName]);
+			}
+		}
+
+		throw new SystemException(sprintf(
+			'Unknown method `%s` for object `%s`', $name, get_called_class()
+		));
+	}
+
+	/**
+	 * @internal For internal system usage only.
+	 *
+	 * @param \Bitrix\Main\ORM\Objectify\EntityObject $object
+	 *
+	 * @throws ArgumentException
+	 * @throws SystemException
+	 */
+	public function sysAddActual(EntityObject $object)
+	{
+		$this->_objects[$this->sysGetPrimaryKey($object)] = $object;
+	}
+
+	/**
+	 * Callback for object event when it gets primary
+	 *
+	 * @param $object
+	 */
+	public function sysOnObjectPrimarySet($object)
+	{
+		$srHash = spl_object_hash($object);
+		$srPrimary = $this->sysSerializePrimaryKey($object->primary);
+
+		if (isset($this->_objects[$srHash]))
+		{
+			// rewrite object
+			unset($this->_objects[$srHash]);
+			$this->_objects[$srPrimary] = $object;
+
+			// rewrite changes
+			if (isset($this->_objectsChanges[$srHash]))
+			{
+				$this->_objectsChanges[$srPrimary] = $this->_objectsChanges[$srHash];
+				unset($this->_objectsChanges[$srHash]);
+			}
+
+			// rewrite removed registry
+			if (isset($this->_objectsRemoved[$srHash]))
+			{
+				$this->_objectsRemoved[$srPrimary] = $this->_objectsRemoved[$srHash];
+				unset($this->_objectsRemoved[$srHash]);
+			}
+		}
+	}
+
+	/**
+	 * @internal For internal system usage only.
+	 *
 	 * @return bool
 	 */
-	public function isChanged()
+	public function sysIsFilled()
 	{
-		return !empty($this->objectsChanges);
+		return $this->_isFilled;
 	}
 
 	/**
+	 * @internal For internal system usage only.
+	 *
+	 * @return bool
+	 */
+	public function sysIsChanged()
+	{
+		return !empty($this->_objectsChanges);
+	}
+
+	/**
+	 * @internal For internal system usage only.
+	 *
 	 * @return array
 	 * @throws SystemException
 	 */
-	public function getChanges()
+	public function sysGetChanges()
 	{
 		$changes = [];
 
-		foreach ($this->objectsChanges as $srPrimary => $changeCode)
+		foreach ($this->_objectsChanges as $srPrimary => $changeCode)
 		{
-			if (isset($this->objects[$srPrimary]))
+			if (isset($this->_objects[$srPrimary]))
 			{
-				$changedObject = $this->objects[$srPrimary];
+				$changedObject = $this->_objects[$srPrimary];
 			}
-			elseif (isset($this->objectsRemoved[$srPrimary]))
+			elseif (isset($this->_objectsRemoved[$srPrimary]))
 			{
-				$changedObject = $this->objectsRemoved[$srPrimary];
+				$changedObject = $this->_objectsRemoved[$srPrimary];
 			}
 			else
 			{
@@ -319,111 +726,124 @@ abstract class Collection implements \ArrayAccess, \Iterator
 		return $changes;
 	}
 
-	public function resetChanges($rollback = false)
+	/**
+	 * @internal For internal system usage only.
+	 *
+	 * @param bool $rollback
+	 */
+	public function sysResetChanges($rollback = false)
 	{
 		if ($rollback)
 		{
-			foreach ($this->objectsChanges as $srPrimary => $changeCode)
+			foreach ($this->_objectsChanges as $srPrimary => $changeCode)
 			{
 				if ($changeCode === static::OBJECT_ADDED)
 				{
-					unset($this->objects[$srPrimary]);
+					unset($this->_objects[$srPrimary]);
 				}
 				elseif ($changeCode === static::OBJECT_REMOVED)
 				{
-					$this->objects[$srPrimary] = $this->objectsRemoved[$srPrimary];
+					$this->_objects[$srPrimary] = $this->_objectsRemoved[$srPrimary];
 				}
 			}
 		}
 
-		$this->objectsChanges = [];
-		$this->objectsRemoved = [];
+		$this->_objectsChanges = [];
+		$this->_objectsRemoved = [];
 	}
 
 	/**
-	 * Constructs set of existing objects from pre-selected data, including references and relations.
+	 * @param $fieldName
 	 *
-	 * @param $rows
+	 * @return array
+	 * @throws SystemException
+	 */
+	protected function sysGetList($fieldName)
+	{
+		$values = [];
+
+		// collect field values
+		foreach ($this->_objects as $objectPrimary => $object)
+		{
+			$values[] = $object->sysGetValue($fieldName);
+		}
+
+		return $values;
+	}
+
+	/**
+	 * @param $fieldName
 	 *
-	 * @return array|static
+	 * @return Collection
 	 * @throws ArgumentException
 	 * @throws SystemException
 	 */
-	public static function wakeUp($rows)
+	protected function sysGetCollection($fieldName)
 	{
-		// define object class
-		$dataClass = static::dataClass();
-		$objectClass = $dataClass::getObjectClass();
+		/** @var Relation $field */
+		$field = $this->_entity->getField($fieldName);
 
-		// complete collection
-		$collection = new static;
+		/** @var Collection $values */
+		$values = $field->getRefEntity()->createCollection();
 
-		foreach ($rows as $row)
+		// collect field values
+		foreach ($this->_objects as $objectPrimary => $object)
 		{
-			$collection->sysAddActual($objectClass::wakeUp($row));
-		}
+			$value = $object->sysGetValue($fieldName);
 
-		return $collection;
-	}
-
-	public function __call($name, $arguments)
-	{
-		$first3 = substr($name, 0, 3);
-		$last4 = substr($name, -4);
-
-		// group getter
-		if ($first3 == 'get' && $last4 == 'List')
-		{
-			$fieldName = EntityObject::sysMethodToFieldCase(substr($name, 3, -4));
-
-			// check if field exists
-			if ($this->entity->hasField($fieldName))
+			if ($value instanceof EntityObject)
 			{
-				$values = [];
-
-				// collect field values
-				foreach ($this->objects as $objectPrimary => $object)
+				$values[] = $value;
+			}
+			elseif ($value instanceof Collection)
+			{
+				foreach ($value->getAll() as $remoteObject)
 				{
-					$values[$objectPrimary] = $object->sysGetValue($fieldName);
+					$values[] = $remoteObject;
 				}
-
-				return $values;
 			}
 		}
 
-		$first4 = substr($name, 0, 4);
-
-		// filler
-		if ($first4 == 'fill')
-		{
-			$fieldName = EntityObject::sysMethodToFieldCase(substr($name, 4));
-
-			// check if field exists
-			if ($this->entity->hasField($fieldName))
-			{
-				return $this->fill([$fieldName]);
-			}
-		}
-
-		throw new SystemException(sprintf(
-			'Unknown method `%s` for object `%s`', $name, get_called_class()
-		));
+		return $values;
 	}
 
-	public function sysAddActual(EntityObject $object)
+	/**
+	 * @internal For internal system usage only.
+	 */
+	public function sysReviseDeletedObjects()
 	{
-		$this->objects[$this->getPrimaryKey($object)] = $object;
+		// clear from deleted objects
+		foreach ($this->_objects as $k => $object)
+		{
+			if ($object->state === State::DELETED)
+			{
+				unset($this->_objects[$k]);
+			}
+		}
 	}
 
+	/**
+	 * @internal For internal system usage only.
+	 *
+	 * @param bool $value
+	 */
 	public function sysSetFilled($value = true)
 	{
-		$this->isFilled = $value;
+		$this->_isFilled = $value;
 	}
 
-	protected function normalizePrimary($primary)
+	/**
+	 * @internal For internal system usage only.
+	 *
+	 * @param $primary
+	 *
+	 * @return array
+	 * @throws ArgumentException
+	 */
+	protected function sysNormalizePrimary($primary)
 	{
 		// normalize primary
-		$primaryNames = $this->entity->getPrimaryArray();
+		$primaryNames = $this->_entity->getPrimaryArray();
 
 		if (!is_array($primary))
 		{
@@ -431,7 +851,7 @@ abstract class Collection implements \ArrayAccess, \Iterator
 			{
 				throw new ArgumentException(sprintf(
 					'Only one value of primary found, when entity %s has %s primary keys',
-					$this->entity->getDataClass(), count($primaryNames)
+					$this->_entity->getDataClass(), count($primaryNames)
 				));
 			}
 
@@ -443,25 +863,51 @@ abstract class Collection implements \ArrayAccess, \Iterator
 
 		foreach ($primaryNames as $primaryName)
 		{
-			$normalizedPrimary[$primaryName] = $primary[$primaryName];
+			/** @var ScalarField $field */
+			$field = $this->_entity->getField($primaryName);
+			$normalizedPrimary[$primaryName] = $field->cast($primary[$primaryName]);
 		}
 
 		return $normalizedPrimary;
 	}
 
-	public function getPrimaryKey(EntityObject $object)
+	/**
+	 * @internal For internal system usage only.
+	 *
+	 * @param \Bitrix\Main\ORM\Objectify\EntityObject $object
+	 *
+	 * @return false|mixed|string
+	 * @throws ArgumentException
+	 * @throws SystemException
+	 */
+	protected function sysGetPrimaryKey(EntityObject $object)
 	{
-		return $this->serializePrimaryKey($object->primary());
+		if ($object->sysHasPrimary())
+		{
+			return $this->sysSerializePrimaryKey($object->primary);
+		}
+		else
+		{
+			return spl_object_hash($object);
+		}
 	}
 
-	protected function serializePrimaryKey($primary)
+	/**
+	 * @internal For internal system usage only.
+	 *
+	 * @param $primary
+	 *
+	 * @return false|mixed|string
+	 * @throws ArgumentException
+	 */
+	protected function sysSerializePrimaryKey($primary)
 	{
-		if ($this->isSinglePrimary)
+		if ($this->_isSinglePrimary)
 		{
 			return current($primary);
 		}
 
-		return json_encode(array_values($primary));
+		return Json::encode(array_values($primary));
 	}
 
 	/**
@@ -469,8 +915,11 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 *
 	 * @param mixed $offset
 	 * @param mixed $value
+	 *
+	 * @throws ArgumentException
+	 * @throws SystemException
 	 */
-	public function offsetSet($offset, $value)
+	public function offsetSet($offset, $value): void
 	{
 		$this->add($value);
 	}
@@ -480,10 +929,10 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 *
 	 * @param mixed $offset
 	 *
-	 * @return bool|void
+	 * @return bool
 	 * @throws NotImplementedException
 	 */
-	public function offsetExists($offset)
+	public function offsetExists($offset): bool
 	{
 		throw new NotImplementedException;
 	}
@@ -495,7 +944,7 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 *
 	 * @throws NotImplementedException
 	 */
-	public function offsetUnset($offset)
+	public function offsetUnset($offset): void
 	{
 		throw new NotImplementedException;
 	}
@@ -508,6 +957,7 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 * @return mixed|void
 	 * @throws NotImplementedException
 	 */
+	#[\ReturnTypeWillChange]
 	public function offsetGet($offset)
 	{
 		throw new NotImplementedException;
@@ -516,10 +966,10 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	/**
 	 * Iterator implementation
 	 */
-	public function rewind()
+	public function rewind(): void
 	{
-		$this->iterableObjects = $this->objects;
-		reset($this->iterableObjects);
+		$this->_iterableObjects = $this->_objects;
+		reset($this->_iterableObjects);
 	}
 
 	/**
@@ -527,27 +977,34 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 *
 	 * @return EntityObject|mixed
 	 */
+	#[\ReturnTypeWillChange]
 	public function current()
 	{
-		return current($this->iterableObjects);
+		if ($this->_iterableObjects === null)
+		{
+			$this->_iterableObjects = $this->_objects;
+		}
+
+		return current($this->_iterableObjects);
 	}
 
 	/**
 	 * Iterator implementation
 	 *
-	 * @return int|mixed|null|string
+	 * @return mixed
 	 */
+	#[\ReturnTypeWillChange]
 	public function key()
 	{
-		return key($this->iterableObjects);
+		return key($this->_iterableObjects);
 	}
 
 	/**
 	 * Iterator implementation
 	 */
-	public function next()
+	public function next(): void
 	{
-		next($this->iterableObjects);
+		next($this->_iterableObjects);
 	}
 
 	/**
@@ -555,8 +1012,18 @@ abstract class Collection implements \ArrayAccess, \Iterator
 	 *
 	 * @return bool
 	 */
-	public function valid()
+	public function valid(): bool
 	{
-		return key($this->iterableObjects) !== null;
+		return key($this->_iterableObjects) !== null;
+	}
+
+	/**
+	 * Countable implementation
+	 *
+	 * @return int
+	 */
+	public function count(): int
+	{
+		return count($this->_objects);
 	}
 }

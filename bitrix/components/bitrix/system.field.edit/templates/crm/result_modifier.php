@@ -65,6 +65,8 @@ if (isset($arSettings['PRODUCT']) && $arSettings['PRODUCT'] === 'Y')
 	}
 }
 
+$arResult['PERMISSION_DENIED'] = (empty($arParams['ENTITY_TYPE']) ? true : false);
+
 $arResult['PREFIX'] = count($arSupportedTypes) > 1 ? 'Y' : 'N';
 if(!empty($arParams['usePrefix']))
 	$arResult['PREFIX'] = 'Y';
@@ -83,6 +85,27 @@ else
 }
 
 $arResult['SELECTED'] = array();
+$arResult['SELECTED_LIST'] = [];
+
+$selectorEntityTypes = array();
+
+$arResult['USE_SYMBOLIC_ID'] = (count($arParams['ENTITY_TYPE']) > 1);
+
+$arResult['LIST_PREFIXES'] = [
+	'DEAL' => 'D',
+	'CONTACT' => 'C',
+	'COMPANY' => 'CO',
+	'LEAD' => 'L',
+	'ORDER' => 'O'
+];
+$arResult['SELECTOR_ENTITY_TYPES'] = [
+	'DEAL' => 'deals',
+	'CONTACT' => 'contacts',
+	'COMPANY' => 'companies',
+	'LEAD' => 'leads',
+	'ORDER' => 'orders'
+];
+
 foreach ($arResult['VALUE'] as $key => $value)
 {
 	if (empty($value))
@@ -90,9 +113,40 @@ foreach ($arResult['VALUE'] as $key => $value)
 		continue;
 	}
 
+	if ($arResult['USE_SYMBOLIC_ID'])
+	{
+		$code = '';
+		foreach($arResult['LIST_PREFIXES'] as $type => $prefix)
+		{
+			if (preg_match('/^'.$prefix.'_(\d+)$/i', $value, $matches))
+			{
+				$code = $arResult['SELECTOR_ENTITY_TYPES'][$type];
+				break;
+			}
+		}
+	}
+	elseif (preg_match('/(\d+)$/i', $value, $matches))
+	{
+		foreach($arParams['ENTITY_TYPE'] as $entityType)
+		{
+			if (!empty($entityType))
+			{
+				$value = $arResult['LIST_PREFIXES'][$entityType].'_'.$matches[1];
+				$code = $arResult['SELECTOR_ENTITY_TYPES'][$entityType];
+				break;
+			}
+		}
+	}
+
+	if (!empty($code))
+	{
+		$arResult['SELECTED_LIST'][$value] = $code;
+	}
+
 	if($arResult['PREFIX'] === 'Y')
 	{
 		$arResult['SELECTED'][$value] = $value;
+
 	}
 	else
 	{
@@ -202,9 +256,9 @@ if (in_array('CONTACT', $arParams['ENTITY_TYPE'], true))
 	$hasNameFormatter = method_exists("CCrmContact", "PrepareFormattedName");
 	$arResult['ENTITY_TYPE'][] = 'contact';
 
-	if (method_exists('CCrmContact', 'GetTopIDs'))
+	if (method_exists('CCrmContact', 'GetTopIDsInCategory'))
 	{
-		$IDs = CCrmContact::GetTopIDs(50, 'DESC', $userPermissions);
+		$IDs = CCrmContact::GetTopIDsInCategory(0, 50, 'DESC', $userPermissions);
 		if (empty($IDs))
 		{
 			$obRes = new CDBResult();
@@ -225,7 +279,7 @@ if (in_array('CONTACT', $arParams['ENTITY_TYPE'], true))
 	{
 		$obRes = CCrmContact::GetListEx(
 			array('ID' => 'DESC'),
-			array(),
+			array('@CATEGORY_ID' => 0,),
 			false,
 			array('nTopCount' => 50),
 			$hasNameFormatter
@@ -299,9 +353,9 @@ if (in_array('COMPANY', $arParams['ENTITY_TYPE'], true))
 {
 	$arResult['ENTITY_TYPE'][] = 'company';
 
-	if (method_exists('CCrmCompany', 'GetTopIDs'))
+	if (method_exists('CCrmCompany', 'GetTopIDsInCategory'))
 	{
-		$IDs = CCrmCompany::GetTopIDs(50, 'DESC', $userPermissions);
+		$IDs = CCrmCompany::GetTopIDsInCategory(0, 50, 'DESC', $userPermissions);
 		if (empty($IDs))
 		{
 			$obRes = new CDBResult();
@@ -322,7 +376,7 @@ if (in_array('COMPANY', $arParams['ENTITY_TYPE'], true))
 	{
 		$obRes = CCrmCompany::GetListEx(
 			array('ID' => 'DESC'),
-			array(),
+			array('@CATEGORY_ID' => 0,),
 			false,
 			array('nTopCount' => 50),
 			array('ID', 'TITLE', 'COMPANY_TYPE', 'INDUSTRY',  'LOGO')
@@ -621,11 +675,8 @@ if (in_array('ORDER', $arParams['ENTITY_TYPE'], true))
 			'title' => $arRes['ACCOUNT_NUMBER'],
 			'desc' => $arRes['ACCOUNT_NUMBER'],
 			'id' => $arRes['SID'],
-			'url' => CComponentEngine::MakePathFromTemplate(COption::GetOptionString('crm', 'path_to_order_details'),
-				array(
-					'order_id' => $arRes['ID']
-				)
-			),
+			'url' => Bitrix\Crm\Service\Sale\EntityLinkBuilder\EntityLinkBuilder::getInstance()
+				->getOrderDetailsLink($arRes['ID']),
 			'type'  => 'order',
 			'selected' => $sSelected
 		);
@@ -928,11 +979,8 @@ if (!empty($arResult['SELECTED']))
 				'title' => (str_replace(array(';', ','), ' ', $arRes['ACCOUNT_NUMBER'])),
 				'desc' => $arRes['ACCOUNT_NUMBER'],
 				'id' => $arRes['SID'],
-				'url' => CComponentEngine::MakePathFromTemplate(COption::GetOptionString('crm', 'path_to_order_details'),
-					array(
-						'order_id' => $arRes['ID']
-					)
-				),
+				'url' => Bitrix\Crm\Service\Sale\EntityLinkBuilder\EntityLinkBuilder::getInstance()
+					->getOrderDetailsLink($arRes['ID']),
 				'type'  => 'order',
 				'selected' => $sSelected
 			);
@@ -1051,6 +1099,8 @@ if (!empty($arResult['SELECTED']))
 	}
 }
 
+$arParams['createNewEntity'] = ($arParams['createNewEntity'] && \Bitrix\Crm\Settings\LayoutSettings::getCurrent()->isSliderEnabled());
+
 if(!empty($arParams['createNewEntity']))
 {
 	if(!empty($arResult['ENTITY_TYPE']))
@@ -1069,9 +1119,16 @@ if(!empty($arParams['createNewEntity']))
 	$arResult['LIST_ENTITY_CREATE_URL'] = array();
 	foreach($arResult['ENTITY_TYPE'] as $entityType)
 	{
-		$arResult['LIST_ENTITY_CREATE_URL'][$entityType] =
-			CCrmOwnerType::GetEditUrl(CCrmOwnerType::ResolveID($entityType), 0, false);
+
+		$arResult['LIST_ENTITY_CREATE_URL'][$entityType] = \CCrmUrlUtil::addUrlParams(
+			\CCrmOwnerType::getDetailsUrl(
+				CCrmOwnerType::resolveID($entityType),
+				0,
+				false,
+				array('ENABLE_SLIDER' => true)
+			),
+			array('init_mode' => 'edit')
+		);
 	}
-	
 }
 ?>

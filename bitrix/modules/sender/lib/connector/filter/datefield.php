@@ -10,6 +10,7 @@ namespace Bitrix\Sender\Connector\Filter;
 use Bitrix\Main\Type\Date;
 use Bitrix\Main\UI\Filter\Options as FilterOptions;
 use Bitrix\Main\UI\Filter\AdditionalDateType;
+use Bitrix\Main\UserFieldTable;
 
 /**
  * Class DateField
@@ -20,6 +21,7 @@ class DateField extends AbstractField
 	/**
 	 * Fetch field value.
 	 *
+	 * @param array $filterFields Filter fields.
 	 * @return array
 	 */
 	public function fetchFieldValue($filterFields)
@@ -69,8 +71,8 @@ class DateField extends AbstractField
 	public function applyFilter(array &$filter = array())
 	{
 		$filterKey = $this->getFilterKey();
-		$from = $this->getFrom();
-		$to = $this->getTo();
+		$from = $this->isMoreThanDaysAgo() ? null : $this->getFrom();
+		$to = $this->isAfterDays() ? null : $this->getTo();
 
 		if ($from)
 		{
@@ -198,19 +200,8 @@ class DateField extends AbstractField
 
 	private function getCustomDateData($key)
 	{
-		$key = $this->getId() . '_' . $key;
-		$value = $this->getValue();
-		if (!is_array($value) || count($value) === 0)
-		{
-			return [];
-		}
-
-		if (empty($value[$key]))
-		{
-			return [];
-		}
-
-		if (!is_array($value[$key]))
+		$value = $this->getDateDataByKey($key);
+		if (!$value || !is_array($value))
 		{
 			return [];
 		}
@@ -220,8 +211,35 @@ class DateField extends AbstractField
 			{
 				return (int) $item;
 			},
-			$value[$key]
+			$value
 		);
+	}
+
+	private function isMoreThanDaysAgo()
+	{
+		return $this->getDateDataByKey('datesel') === AdditionalDateType::MORE_THAN_DAYS_AGO;
+	}
+
+	private function isAfterDays()
+	{
+		return $this->getDateDataByKey('datesel') === AdditionalDateType::AFTER_DAYS;
+	}
+
+	private function getDateDataByKey($key)
+	{
+		$key = $this->getId() . '_' . $key;
+		$value = $this->getValue();
+		if (!is_array($value) || count($value) === 0)
+		{
+			return null;
+		}
+
+		if (empty($value[$key]))
+		{
+			return null;
+		}
+
+		return $value[$key];
 	}
 
 	private function getDate($defaultValue = null, $isFrom = true)
@@ -280,21 +298,49 @@ class DateField extends AbstractField
 		}
 
 		$fieldId = $this->getId();
-		$filterKey = $fieldId . "_YEAR_LESS_" . $tag;
+		$expressionFieldName = $fieldId . "_YEAR_LESS_" . $tag;
+		$filterKey = $this->getFilterKey();
+
+		// hack for multiple user field of `date` type.
+		$uf = explode('.', $filterKey);
+		foreach ($uf as $item)
+		{
+			if (mb_strpos($item, 'UF_') !== 0)
+			{
+				continue;
+			}
+
+			$userField = UserFieldTable::getRow([
+				'select' => ['USER_TYPE_ID', 'MULTIPLE'],
+				'filter' => ['=FIELD_NAME' => $item]
+			]);
+			if (!$userField || $userField['USER_TYPE_ID'] != 'date')
+			{
+				continue;
+			}
+			if ($userField['MULTIPLE'] != 'Y')
+			{
+				continue;
+			}
+
+			$filterKey .= '_SINGLE'; // Magic ORM postfix
+		}
+		// end hack
+
 		return (new RuntimeFilter())
 			->setFilter(
-				"=$filterKey",
+				"=$expressionFieldName",
 				1
 			)
 			->addRuntime([
-				'name' => $filterKey,
+				'name' => $expressionFieldName,
 				'expression' => "
 					case when %s $operation concat(YEAR(%s) $addOneYear, '-{$date->format('m')}-{$date->format('d')}')
 					then 1 else 0 end
 				",
 				'buildFrom' => [
-					$this->getFilterKey(),
-					$this->getFilterKey()
+					$filterKey,
+					$filterKey
 				],
 				'parameters' => []
 			]);

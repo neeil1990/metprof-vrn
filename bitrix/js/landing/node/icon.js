@@ -3,6 +3,10 @@
 
 	BX.namespace("BX.Landing.Block.Node");
 
+	var encodeDataValue = BX.Landing.Utils.encodeDataValue;
+	var decodeDataValue = BX.Landing.Utils.decodeDataValue;
+	var data = BX.Landing.Utils.data;
+	var attr = BX.Landing.Utils.attr;
 
 	/**
 	 * @extends {BX.Landing.Block.Node.Img}
@@ -12,7 +16,14 @@
 	BX.Landing.Block.Node.Icon = function(options)
 	{
 		BX.Landing.Block.Node.Img.apply(this, arguments);
+		this.type = "icon";
 	};
+
+	function getPseudoUrl(node)
+	{
+		var url = data(node.node, "data-pseudo-url");
+		return !!url ? url : "";
+	}
 
 	/**
 	 * Gets icon class list
@@ -29,26 +40,41 @@
 	 * Sets icon value or converts to span and sets value
 	 * @param {BX.Landing.Block.Node.Icon} node
 	 * @param {object} value
+	 * @return {Promise<any>}
 	 */
 	function setIconValue(node, value)
 	{
-		BX.Landing.UI.Panel.Icon.getInstance().libraries.forEach(function(library) {
-			library.categories.forEach(function(category) {
-				category.items.forEach(function(item) {
-					var classList = item.split(" ");
-					classList.forEach(function(className) {
-						if (className)
-						{
-							node.node.classList.remove(className);
-						}
+		return BX.Landing.UI.Panel.IconPanel
+			.getLibraries()
+			.then(function(libraries) {
+				libraries.forEach(function(library) {
+					library.categories.forEach(function(category) {
+						category.items.forEach(function(item) {
+							var className = '';
+							if (BX.Type.isObject(item))
+							{
+								className = item.options.join(' ');
+							}
+							else
+							{
+								className = item;
+							}
+
+							var classList = className.split(" ");
+							classList.forEach(function(className) {
+								if (className)
+								{
+									node.node.classList.remove(className);
+								}
+							});
+						});
 					});
 				});
-			});
-		});
 
-		value.classList.forEach(function(className) {
-			node.node.classList.add(className);
-		});
+				value.classList.forEach(function(className) {
+					node.node.classList.add(className);
+				});
+			});
 	}
 
 
@@ -64,10 +90,16 @@
 		{
 			if (!this.field)
 			{
+				var value = this.getValue();
+				value.url = decodeDataValue(value.url);
+
+				var disableLink = !!this.node.closest("a");
+
 				this.field = new BX.Landing.UI.Field.Icon({
 					selector: this.selector,
 					title: this.manifest.name,
-					content: this.getValue(),
+					disableLink: disableLink,
+					content: value,
 					dimensions: !!this.manifest.dimensions ? this.manifest.dimensions : {}
 				});
 			}
@@ -85,28 +117,36 @@
 		 * @param value - Path to image
 		 * @param {?boolean} [preventSave = false]
 		 * @param {?boolean} [preventHistory = false]
+		 * @return {Promise<any>}
 		 */
 		setValue: function(value, preventSave, preventHistory)
 		{
 			this.lastValue = this.lastValue || this.getValue();
 			this.preventSave(preventSave);
-			setIconValue(this, value);
-			this.onChange();
 
-			if (!preventHistory)
-			{
-				BX.Landing.History.getInstance().push(
-					new BX.Landing.History.Entry({
-						block: top.BX.Landing.Block.storage.getByChildNode(this.node).id,
-						selector: this.selector,
-						command: "editIcon",
-						undo: this.lastValue,
-						redo: this.getValue()
-					})
-				);
-			}
+			return setIconValue(this, value)
+				.then(function() {
+					if (value.url)
+					{
+						attr(this.node, "data-pseudo-url", value.url);
+					}
+					this.onChange();
 
-			this.lastValue = this.getValue();
+					if (!preventHistory)
+					{
+						BX.Landing.History.getInstance().push(
+							new BX.Landing.History.Entry({
+								block: this.getBlock().id,
+								selector: this.selector,
+								command: "editIcon",
+								undo: this.lastValue,
+								redo: this.getValue()
+							})
+						);
+					}
+
+					this.lastValue = this.getValue();
+				}.bind(this));
 		},
 
 
@@ -121,7 +161,8 @@
 				src: "",
 				id: -1,
 				alt: "",
-				classList: getIconClassList(this)
+				classList: getIconClassList(this),
+				url: encodeDataValue(getPseudoUrl(this))
 			};
 		}
 	};

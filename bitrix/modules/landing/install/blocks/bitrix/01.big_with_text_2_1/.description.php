@@ -7,36 +7,39 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true)
 use \Bitrix\Main\Localization\Loc;
 
 return array(
-	'block' =>
-		array(
-			'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_NAME'),
-			'section' => array('cover'),
+	'block' => array(
+		'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_NAME'),
+		'section' => array('cover'),
+		'dynamic' => false,
+	),
+	'nodes' => array(
+		'.landing-block-img' => array(
+			'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_NODES_LANDINGBLOCKIMG'),
+			'type' => 'img',
+			'editInStyle' => true,
+			'allowInlineEdit' => false,
+			'dimensions' => array('width' => 1920, 'height' => 800),
+			'create2xByDefault' => false,
+			'isWrapper' => true,
 		),
-	'nodes' =>
-		array(
-			'.landing-block-title' =>
-				array(
-					'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_NODES_LANDINGBLOCKTITLE'),
-					'type' => 'text',
-				),
-			'.landing-block-img' =>
-				array(
-					'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_NODES_LANDINGBLOCKIMG'),
-					'type' => 'img',
-					'dimensions' => array('width' => 1920, 'height' => 800),
-				),
+		'.landing-block-title' => array(
+			'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_NODES_LANDINGBLOCKTITLE'),
+			'type' => 'text',
 		),
-	'style' =>
-		array(
-			'block' => array(
-				'type' => array('block-default-wo-background'),
+	),
+	'style' => array(
+		'block' => array(
+			'type' => ['block-default-background-height-vh'],
+		),
+		'nodes' => array(
+			'.landing-block-title' => array(
+				'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_STYLE_LANDINGBLOCKTITLE'),
+				'type' => ['typo', 'animation', 'heading'],
 			),
-			'nodes' => array(
-				'.landing-block-title' =>
-					array(
-						'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_STYLE_LANDINGBLOCKTITLE'),
-						'type' => array('typo', 'animation'),
-					),
-			)
+			'.landing-block-background' => array(
+				'name' => Loc::getMessage('LANDING_BLOCK_1_BIG_WITH_TEXT_2_1_BACKGROUND'),
+				'type' => array('background-overlay'),
+			),
 		),
+	),
 );

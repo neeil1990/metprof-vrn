@@ -143,8 +143,8 @@ HTML
 
 								<div style="clear: both;"></div>
 								<div class="block-pager adm-nav-pages-block">
-									<span class="adm-nav-page adm-nav-page-prev"></span>
-									<span class="adm-nav-page adm-nav-page-next"></span>
+									<span class="adm-nav-page adm-nav-page-prev #nav-display#"></span>
+									<span class="adm-nav-page adm-nav-page-next #nav-display#"></span>
 								</div>
 
 							</div>
@@ -481,8 +481,9 @@ HTML
 					'arSmilesSet' => array(),
 					'arSmiles' => array(),
 					'content' => '',
-					'iframeCss' => 'body{font-family: "Helvetica Neue",Helvetica,Arial,sans-serif; font-size: 13px;}'.
-						'.bx-spoiler {border:1px solid #C0C0C0;background-color:#fff4ca;padding: 4px 4px 4px 24px;color:#373737;border-radius:2px;min-height:1em;margin: 0;}',
+					'fontSize' => '14px',
+					'iframeCss' =>
+						'.bx-spoiler {border:1px solid #cecece;background-color:#f6f6f6;padding: 8px 8px 8px 24px;color:#373737;border-radius:var(--ui-border-radius-sm, 2px);min-height:1em;margin: 0;}',
 				)
 			);
 			$editor->Show($res);
@@ -890,7 +891,7 @@ HTML
 	 */
 	public function getUI($id, array $values)
 	{
-		if(!array_key_exists($id, $this->uiPatterns) || strlen(trim($this->uiPatterns[$id])) === 0)
+		if(!array_key_exists($id, $this->uiPatterns) || trim($this->uiPatterns[$id]) == '')
 		{
 			return '';
 		}
@@ -948,7 +949,7 @@ HTML
 		foreach($this->previewModes as $mode)
 		{
 			$devices .= $this->getUI('device', array(
-				'MESS_NAME' => strtoupper(htmlspecialcharsbx($mode['NAME'])),
+				'MESS_NAME' => mb_strtoupper(htmlspecialcharsbx($mode['NAME'])),
 				'class' => htmlspecialcharsbx($mode['CLASS']),
 				'width' => htmlspecialcharsbx($mode['WIDTH']),
 				'height' => htmlspecialcharsbx($mode['HEIGHT']),
@@ -981,6 +982,7 @@ HTML
 				'blocks' => $blocks,
 				'tools' => $tools,
 				'devices' => $devices,
+				'nav-display' => count($this->blocks) <= static::BLOCK_COUNT_PER_PAGE ? 'bx-block-hide' : '',
 				'MESS_ACCESS_DENIED' => Loc::getMessage('ACCESS_DENIED'),
 				'MESS_STYLES' => Loc::getMessage('BLOCK_EDITOR_UI_STYLES'),
 				'MESS_BLOCKS' => Loc::getMessage('BLOCK_EDITOR_UI_BLOCKS'),
@@ -1003,7 +1005,6 @@ HTML
 
 		return $this->getUI('main', array(
 			'TEXTAREA' => $textArea,
-			'id' => htmlspecialcharsbx($this->id),
 			'id' => htmlspecialcharsbx($this->id),
 			'tabs' => $tabs,
 			'panels' => $panels,
@@ -1028,6 +1029,7 @@ HTML
 				'/bitrix/js/fileman/block_editor/editor.js',
 			),
 			'css' => '/bitrix/js/fileman/block_editor/dialog.css',
+			'rel' => ['ui.design-tokens', 'ui.fonts.opensans'],
 			'lang' => '/bitrix/modules/fileman/lang/' . LANGUAGE_ID . '/js_block_editor.php',
 		));
 		\CJSCore::Init(array("block_editor", "color_picker", "clipboard"));
@@ -1179,7 +1181,7 @@ HTML
 	 */
 	public static function isContentSupported($content)
 	{
-		if(!$content || strpos($content, Content\Engine::BLOCK_PLACE_ATTR) === false)
+		if(!$content || mb_strpos($content, Content\Engine::BLOCK_PLACE_ATTR) === false)
 		{
 			return false;
 		}
@@ -1198,16 +1200,16 @@ HTML
 	public static function isHtmlDocument($content)
 	{
 		$result = true;
-		$content = strtoupper($content);
-		if(strpos($content, '<HTML') === false)
+		$content = mb_strtoupper($content);
+		if(mb_strpos($content, '<HTML') === false)
 		{
 			$result = false;
 		}
-		if(strpos($content, '</HTML') === false)
+		if(mb_strpos($content, '</HTML') === false)
 		{
 			$result = false;
 		}
-		if(strpos($content, '<BODY') === false)
+		if(mb_strpos($content, '<BODY') === false)
 		{
 			$result = false;
 		}

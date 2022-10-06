@@ -9,7 +9,11 @@
 namespace Bitrix\Main\ORM\Fields;
 
 use Bitrix\Main;
+use Bitrix\Main\ArgumentException;
+use Bitrix\Main\ArgumentTypeException;
+use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Main\Type;
+use Bitrix\Main\Type\Date;
 
 /**
  * Entity field class for date data type
@@ -18,6 +22,8 @@ use Bitrix\Main\Type;
  */
 class DateField extends ScalarField
 {
+	protected $format = null;
+
 	/**
 	 * DateField constructor.
 	 *
@@ -31,6 +37,13 @@ class DateField extends ScalarField
 		parent::__construct($name, $parameters);
 
 		$this->addFetchDataModifier(array($this, 'assureValueObject'));
+	}
+
+	public function configureFormat($format)
+	{
+		$this->format = $format;
+
+		return $this;
 	}
 
 	/**
@@ -73,14 +86,19 @@ class DateField extends ScalarField
 	/**
 	 * @param mixed $value
 	 *
-	 * @return Type\Date
+	 * @return SqlExpression|Date
 	 * @throws Main\ObjectException
 	 */
 	public function cast($value)
 	{
+		if ($value instanceof SqlExpression)
+		{
+			return $value;
+		}
+
 		if (!empty($value) && !($value instanceof Type\Date))
 		{
-			return new Type\Date($value);
+			return new Type\Date($value, $this->format);
 		}
 
 		return $value;
@@ -107,6 +125,38 @@ class DateField extends ScalarField
 	 */
 	public function convertValueToDb($value)
 	{
-		return $this->getConnection()->getSqlHelper()->convertToDbDate($value);
+		if ($value instanceof SqlExpression)
+		{
+			return $value;
+		}
+
+		try
+		{
+			return $value === null && $this->is_nullable
+				? $value
+				: $this->getConnection()->getSqlHelper()->convertToDbDate($value);
+		}
+		catch (ArgumentTypeException $e)
+		{
+			throw new ArgumentException(
+				"Type error in `{$this->name}` of `{$this->entity->getFullName()}`: ".$e->getMessage()
+			);
+		}
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getGetterTypeHint()
+	{
+		return '\\'.Date::class;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getSetterTypeHint()
+	{
+		return '\\'.Date::class;
 	}
 }

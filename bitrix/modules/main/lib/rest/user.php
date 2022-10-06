@@ -4,20 +4,10 @@ namespace Bitrix\Main\Rest;
 use Bitrix\Main;
 use Bitrix\Rest;
 
+if(Main\Loader::includeModule("rest")):
+
 class User extends \IRestService
 {
-	const SCOPE_USER = 'user';
-
-	public static function onRestServiceBuildDescription()
-	{
-		return array(
-			static::SCOPE_USER => array(
-				'user.history.list' => array(__CLASS__, 'getHistoryList'),
-				'user.history.fields.list' => array(__CLASS__, 'getHistoryFieldsList'),
-			)
-		);
-	}
-
 	public static function getHistoryList($query, $nav = 0, \CRestServer $server)
 	{
 		global $USER;
@@ -151,3 +141,5 @@ class User extends \IRestService
 		return $result;
 	}
 }
+
+endif;

@@ -10,8 +10,9 @@ namespace Bitrix\Sender\Integration\Crm\ReturnCustomer;
 
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Result;
-use Bitrix\Sender\Message;
+use Bitrix\Main\UI\Extension;
 use Bitrix\Sender\Entity;
+use Bitrix\Sender\Message;
 
 Loc::loadMessages(__FILE__);
 
@@ -84,19 +85,22 @@ class MessageBase implements Message\iBase, Message\iReturnCustomer
 				function () use ($assignOption)
 				{
 					$userList = $assignOption->getValue();
-					if ($userList)
-					{
-						$userList = explode(',', $assignOption->getValue());
-					}
+					$userList = $userList ? explode(',', $userList) : [];
 
 					ob_start();
 					$GLOBALS['APPLICATION']->includeComponent(
-						"bitrix:sender.ui.user.selector",
+						"bitrix:main.user.selector",
 						".default",
 						[
 							"ID" => "sender-crm-rc-message",
-							"INPUT_NAME" => "%INPUT_NAME%",
+							"INPUT_NAME" => "%INPUT_NAME%[]",
 							"LIST" => $userList,
+							'API_VERSION' => '3',
+							"SELECTOR_OPTIONS" => array(
+								'context' => 'SENDER_USER',
+								'allowAddSocNetGroup' => 'N',
+								'departmentSelectDisable' => 'Y'
+							)
 						]
 					);
 
@@ -104,8 +108,47 @@ class MessageBase implements Message\iBase, Message\iReturnCustomer
 				}
 			);
 		}
+		$this->createDaysAgoView();
 
 		return $this->configuration;
+	}
+
+	protected function createDaysAgoView()
+	{
+		$dealDaysAgoOption = $this->configuration->getOption('DEAL_DAYS_AGO');
+		$formPreviousOption = $this->configuration->getOption('FROM_PREVIOUS');
+
+		if($dealDaysAgoOption && $formPreviousOption)
+		{
+			$dealDaysAgoOption->setView(
+				function() use ($dealDaysAgoOption, $formPreviousOption)
+				{
+					$prefix = 'CONFIGURATION_';
+					$daysAgoCode = htmlspecialcharsbx($prefix.$dealDaysAgoOption->getCode());
+					$fromPreviousCode = htmlspecialcharsbx($prefix.$formPreviousOption->getCode());
+					ob_start();
+					Extension::load("sender.rc_editor");
+
+					echo "<input type='number' step='1' id='" . $daysAgoCode . "' 
+					name='" . $daysAgoCode . "'
+					class='bx-sender-form-control' value='" . (int)$dealDaysAgoOption->getValue() . "' 
+					min='" . htmlspecialcharsbx($dealDaysAgoOption->getMinValue()) . "'
+					max='" . htmlspecialcharsbx($dealDaysAgoOption->getMaxValue()) . "'
+					/>";
+
+					$params = \Bitrix\Main\Web\Json::encode(
+						[
+							'elementId' => $daysAgoCode,
+							'conditionElementId' => $fromPreviousCode
+						]
+					);
+
+					echo "<script>new BX.Sender.RcEditor(".$params.")</script>";
+
+					return ob_get_clean();
+				}
+			);
+		}
 	}
 
 	/**

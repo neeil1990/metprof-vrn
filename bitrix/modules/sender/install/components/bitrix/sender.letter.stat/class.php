@@ -1,18 +1,22 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Context;
 use Bitrix\Main\Error;
 use Bitrix\Main\ErrorCollection;
-use Bitrix\Main\Context;
-use Bitrix\Main\Loader;
-
-use Bitrix\Sender\Stat;
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Sender\Entity;
-use Bitrix\Sender\Security;
 use Bitrix\Sender\PostingRecipientTable;
+use Bitrix\Sender\Security;
+use Bitrix\Sender\Stat;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
+	die();
+}
+
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
 	die();
 }
 
@@ -66,13 +70,12 @@ class SenderLetterStatComponent extends CBitrixComponent
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_LETTER_STAT_COMP_TITLE'));
 		}
 
-		if (!Security\Access::current()->canViewLetters())
+		if (!Security\Access::getInstance()->canViewLetters())
 		{
 			Security\AccessChecker::addError($this->errors);
 			return false;
 		}
 
-		$this->arResult['ACTION_URL'] = $this->getPath() . '/ajax.php';
 		$this->arResult['MAILING_COUNTERS'] = array();
 
 		$letter = new Entity\Letter($this->arParams['CHAIN_ID']);
@@ -112,7 +115,7 @@ class SenderLetterStatComponent extends CBitrixComponent
 		));
 
 		$uri = new \Bitrix\Main\Web\Uri(str_replace('#id#', $this->arParams['CHAIN_ID'], $this->arParams['PATH_TO_RECIPIENT']));
-		$uri->addParams(['apply_filter' => 'Y']);
+		$uri->addParams(['apply_filter' => 'Y'])->deleteParams(['clear_filter']);
 		$readUri = clone $uri; $clickUri = clone $uri; $unsubUri = clone $uri;
 		$sentErrorUri = clone $uri; $sentSuccessUri = clone $uri;
 		$this->arResult['URLS'] = [
@@ -121,8 +124,12 @@ class SenderLetterStatComponent extends CBitrixComponent
 			'UNSUB' => $unsubUri->addParams(['IS_UNSUB' => 'Y'])->getLocator(),
 			'SENT_ERROR' => $sentErrorUri->addParams(['STATUS' => PostingRecipientTable::SEND_RESULT_ERROR])->getLocator(),
 			'SENT_SUCCESS' => $sentSuccessUri->addParams(['STATUS' => PostingRecipientTable::SEND_RESULT_SUCCESS])->getLocator(),
-			'SEND_ALL' => $uri->getLocator(),
+			'SEND_ALL' => $uri->addParams(['STATUS' => ''])->getLocator(),
 		];
+
+		$this->arResult['ACTION_URI'] = $this->getPath() . '/ajax.php';
+		$this->arResult['CAN_RESEND_ERRORS'] = Security\Access::getInstance()->canModifyLetters()
+			&& $letter->getState()->canSendErrors();
 
 		return $this->errors->isEmpty();
 	}
@@ -138,7 +145,7 @@ class SenderLetterStatComponent extends CBitrixComponent
 	public function executeComponent()
 	{
 		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
+		if (!Bitrix\Main\Loader::includeModule('sender'))
 		{
 			$this->errors->setError(new Error('Module `sender` is not installed.'));
 			$this->printErrors();

@@ -12,6 +12,7 @@
 	var isString = BX.Landing.Utils.isString;
 	var textToPlaceholders = BX.Landing.Utils.textToPlaceholders;
 	var findParent = BX.Landing.Utils.findParent;
+	var escapeText = BX.Landing.Utils.escapeText;
 
 
 	/**
@@ -29,14 +30,14 @@
 
 		this.appendFooterButton(
 			new BX.Landing.UI.Button.BaseButton("save_block_content", {
-				text: BX.message("BLOCK_SAVE"),
+				text: BX.Landing.Loc.getMessage("BLOCK_SAVE"),
 				onClick: this.save.bind(this),
 				className: "landing-ui-button-content-save"
 			})
 		);
 		this.appendFooterButton(
 			new BX.Landing.UI.Button.BaseButton("cancel_block_content", {
-				text: BX.message("BLOCK_CANCEL"),
+				text: BX.Landing.Loc.getMessage("BLOCK_CANCEL"),
 				onClick: this.hide.bind(this),
 				className: "landing-ui-button-content-cancel"
 			})
@@ -62,7 +63,7 @@
 		if (!BX.Landing.UI.Panel.Link.instance)
 		{
 			BX.Landing.UI.Panel.Link.instance = new BX.Landing.UI.Panel.Link("link_panel", {
-				title: BX.message("LANDING_EDIT_LINK")
+				title: BX.Landing.Loc.getMessage("LANDING_EDIT_LINK")
 			});
 		}
 
@@ -78,7 +79,7 @@
 		{
 			var form;
 
-			this.title.innerHTML = BX.message("LANDING_EDIT_LINK");
+			this.title.innerHTML = BX.Landing.Loc.getMessage("LANDING_EDIT_LINK");
 
 			if (!!node && node instanceof BX.Landing.Block.Node.Link)
 			{
@@ -89,6 +90,7 @@
 
 				this.clear();
 				this.appendForm(form);
+				this.checkReadyToSave();
 				BX.Landing.UI.Panel.Content.prototype.show.call(this);
 				BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
 			}
@@ -121,7 +123,7 @@
 				}
 				else
 				{
-					this.title.innerHTML = BX.message("LANDING_CREATE_LINK");
+					this.title.innerHTML = BX.Landing.Loc.getMessage("LANDING_CREATE_LINK");
 				}
 
 				form = new BX.Landing.UI.Form.BaseForm({title: ""});
@@ -138,11 +140,11 @@
 				}
 
 				this.field = new BX.Landing.UI.Field.Link({
-					title: BX.message("FIELD_LINK_TEXT_LABEL"),
+					title: BX.Landing.Loc.getMessage("FIELD_LINK_TEXT_LABEL"),
 					content: {
-						text: textToPlaceholders(link ? link.innerText : this.range.toString()),
-						href: href,
-						target: target
+						text: textToPlaceholders(escapeText(link ? link.innerText : this.range.toString())),
+						href: escapeText(href),
+						target: escapeText(target)
 					},
 					options: {
 						siteId: BX.Landing.Main.getInstance().options.site_id,
@@ -157,6 +159,7 @@
 
 				this.clear();
 				this.appendForm(form);
+				this.checkReadyToSave();
 				BX.Landing.UI.Panel.Content.prototype.show.call(this);
 			}
 		},
@@ -177,7 +180,7 @@
 					document.getSelection().addRange(this.range);
 					this.node.enableEdit();
 
-					var tmpHref = join(value.href, random());
+					var tmpHref = escapeText(join(value.href, random()));
 					var selection = document.getSelection();
 
 					document.execCommand("createLink", false, tmpHref);
@@ -220,7 +223,6 @@
 			}
 
 			this.hide();
-
 		}
 	};
 })();

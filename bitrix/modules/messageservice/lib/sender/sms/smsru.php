@@ -2,13 +2,11 @@
 namespace Bitrix\MessageService\Sender\Sms;
 
 use Bitrix\Main\Application;
-use Bitrix\Main\Config\Option;
 use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Result;
 use Bitrix\Main\Web\HttpClient;
 use Bitrix\Main\Web\Json;
-use Bitrix\Main\Loader;
 
 use Bitrix\MessageService\Sender;
 use Bitrix\MessageService\Sender\Result\MessageStatus;
@@ -20,23 +18,13 @@ Loc::loadMessages(__FILE__);
 
 class SmsRu extends Sender\BaseConfigurable
 {
-	public static function isSupported()
-	{
-		if (Loader::includeModule('bitrix24'))
-		{
-			$zone = \CBitrix24::getPortalZone();
-		}
-		else
-		{
-			$zone = Application::getInstance()->getContext()->getLanguage();
-		}
+	use Sender\Traits\RussianProvider;
 
-		return in_array($zone, array('ru', 'kz', 'by'));
-	}
+	public const ID = 'smsru';
 
 	public function getId()
 	{
-		return 'smsru';
+		return static::ID;
 	}
 
 	public function getName()
@@ -51,7 +39,7 @@ class SmsRu extends Sender\BaseConfigurable
 
 	public function isDemo()
 	{
-		return false; //DEMO mode has been deprecated since May, 2018
+		return false;
 	}
 
 	public function getDemoBalance()
@@ -82,29 +70,6 @@ class SmsRu extends Sender\BaseConfigurable
 	{
 		$from = $this->getOption('from_list');
 		return is_array($from) ? $from : array();
-	}
-
-	public function getDefaultFrom()
-	{
-		$fromList = $this->getFromList();
-		$from = $fromList[0]['id'];
-		//Try to find alphanumeric from
-		foreach ($fromList as $item)
-		{
-			if (!preg_match('#^[0-9]+$#', $item['id']))
-			{
-				$from = $item['id'];
-				break;
-			}
-		}
-		return $from;
-	}
-
-	public function setDefaultFrom($from)
-	{
-		//$from = (string)$from;
-		//$this->setOption('default_from', $from);
-		return $this;
 	}
 
 	public function isConfirmed()
@@ -262,6 +227,9 @@ class SmsRu extends Sender\BaseConfigurable
 
 		$result = new SendMessage();
 		$apiResult = $this->callExternalMethod('sms/send', $params);
+		$result->setServiceRequest($apiResult->getHttpRequest());
+		$result->setServiceResponse($apiResult->getHttpResponse());
+
 		$resultData = $apiResult->getData();
 
 		if (!$apiResult->isSuccess())
@@ -384,7 +352,7 @@ class SmsRu extends Sender\BaseConfigurable
 		return $this;
 	}
 
-	private function callExternalMethod($method, $params)
+	private function callExternalMethod($method, $params): Sender\Result\HttpRequestResult
 	{
 		$url = 'https://sms.ru/'.$method;
 
@@ -404,9 +372,15 @@ class SmsRu extends Sender\BaseConfigurable
 		}
 		$params['json'] = 1;
 
-		$result = new Result();
+		$result = new Sender\Result\HttpRequestResult();
 		$answer = array();
 
+		$result->setHttpRequest(new MessageService\DTO\Request([
+			'method' => HttpClient::HTTP_POST,
+			'uri' => $url,
+			'headers' => method_exists($httpClient, 'getRequestHeaders') ? $httpClient->getRequestHeaders()->toArray() : [],
+			'body' => $params,
+		]));
 		if ($httpClient->query(HttpClient::HTTP_POST, $url, $params) && $httpClient->getStatus() == '200')
 		{
 			$answer = $this->parseExternalAnswer($httpClient->getResult());
@@ -419,6 +393,12 @@ class SmsRu extends Sender\BaseConfigurable
 			$result->addError(new Error($this->getErrorMessage($answerCode, $answer)));
 		}
 		$result->setData($answer);
+		$result->setHttpResponse(new MessageService\DTO\Response([
+			'statusCode' => $httpClient->getStatus(),
+			'headers' => $httpClient->getHeaders()->toArray(),
+			'body' => $httpClient->getResult(),
+			'error' => Sender\Util::getHttpClientErrorString($httpClient)
+		]));
 
 		return $result;
 	}
@@ -451,12 +431,12 @@ class SmsRu extends Sender\BaseConfigurable
 
 	private function getEmbedPartner()
 	{
-		return Option::get('messageservice', 'smsru_partner');
+		return 'bitrix24';//Option::get('messageservice', 'smsru_partner');
 	}
 
 	private function getSecretKey()
 	{
-		return Option::get('messageservice', 'smsru_secret_key');
+		return 'P46y811M84W3b4H18SmDpy9KG3pKG3Ok';//Option::get('messageservice', 'smsru_secret_key');
 	}
 
 	private function getEmbedHash($phoneNumber)

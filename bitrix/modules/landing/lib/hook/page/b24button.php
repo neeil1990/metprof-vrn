@@ -1,25 +1,25 @@
 <?php
 namespace Bitrix\Landing\Hook\Page;
 
-use \Bitrix\Landing\Field;
-use \Bitrix\Main\Localization\Loc;
+use Bitrix\Landing;
+use Bitrix\Crm\SiteButton;
+use Bitrix\Main\Application;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\Page;
+use Bitrix\Socialservices\ApClient;
 
 Loc::loadMessages(__FILE__);
 
 class B24button extends \Bitrix\Landing\Hook\Page
 {
+	protected const COLOR_TYPE_BUTTON = 'button';
+	protected const COLOR_TYPE_SITE = 'site';
+	protected const COLOR_TYPE_CUSTOM = 'custom';
+	protected const COLOR_DEFAULT = '#03c1fe';
+
 	/**
-	 * Exec or not hook in edit mode.
-	 * @return true
-	 */
-	public function enabledInEditMode()
-	{
-		$request = \Bitrix\Main\Application::getInstance()->getContext()->getRequest();
-		return $request->get('landing_mode') == 'preview';
-	}
-	
-	/**
-	 * Get script url fromscript-code.
+	 * Get script url from script-code.
 	 * @param string $script Script code.
 	 * @return string
 	 */
@@ -37,59 +37,104 @@ class B24button extends \Bitrix\Landing\Hook\Page
 	 * Get b24 buttons.
 	 * @return array
 	 */
-	public static function getButtons()
+	public static function getButtons(): array
 	{
-		static $items = null;
-
-		if ($items !== null)
+		static $buttons = null;
+		if ($buttons !== null)
 		{
-			return $items;
+			return $buttons;
 		}
 
-		$items = array();
-
-		// b24 crm
-		if (\Bitrix\Main\Loader::includeModule('crm'))
+		$buttons = [];
+		foreach (self::getButtonsData() as $button)
 		{
-			$buttonList = \Bitrix\Crm\SiteButton\Manager::getList(array(
-				'select' => array(
-					'ID', 'SECURITY_CODE', 'NAME'
-				),
-				'order' => array(
-					'ID' => 'DESC'
-				)
-			));
-			foreach ($buttonList as $button)
+			$key = self::getScriptUrl($button['SCRIPT']);
+			if ($key)
 			{
-				$key = self::getScriptUrl($button['SCRIPT']);
-				$items[$key] = $button['NAME'];
+				$buttons[$key] = \htmlspecialcharsbx($button['NAME']);
 			}
 		}
-		// site manager
-		elseif (
-			\Bitrix\Main\Loader::includeModule('b24connector') &&
-			\Bitrix\Main\Loader::includeModule('socialservices')
-		)
+
+		return $buttons;
+	}
+
+	/**
+	 * Get raw data of b24 buttons
+	 *
+	 * @return array|null
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\ArgumentNullException
+	 * @throws \Bitrix\Main\LoaderException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function getButtonsData(): ?array
+	{
+		static $buttonsData = null;
+
+		if ($buttonsData !== null)
 		{
-			$client = \Bitrix\Socialservices\ApClient::init();
+			return $buttonsData;
+		}
+
+		$buttonsData = [];
+
+		// b24 crm
+		if (Loader::includeModule('crm'))
+		{
+			// if buttons not exist (new portal) - create before
+			if (SiteButton\Preset::checkVersion())
+			{
+				$preset = new SiteButton\Preset();
+				$preset->install();
+			}
+
+			$buttonsData = SiteButton\Manager::getList([
+				'filter' => ['=ACTIVE' => 'Y'],
+				'select' => [
+					'ID', 'SECURITY_CODE', 'NAME'
+				],
+				'order' => [
+					'ID' => 'DESC'
+				]
+			]);
+		}
+		// site manager
+		elseif (Landing\Manager::isB24Connector())
+		{
+			$client = ApClient::init();
 			if ($client)
 			{
 				$res = $client->call('crm.button.list');
 				if (isset($res['result']) && is_array($res['result']))
 				{
-					foreach ($res['result'] as $button)
-					{
-						$key = self::getScriptUrl($button['SCRIPT']);
-						if ($key)
-						{
-							$items[$key] = \htmlspecialcharsbx($button['NAME']);
-						}
-					}
+					$buttonsData = $res['result'];
 				}
 			}
 		}
 
-		return $items;
+		return $buttonsData;
+	}
+
+	/**
+	 * Find button ID by script code
+	 * @param $code - script for button
+	 * @return bool|string
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\ArgumentNullException
+	 * @throws \Bitrix\Main\LoaderException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function getButtonIdByCode($code)
+	{
+		foreach (self::getButtonsData() as $button)
+		{
+			if ($code === self::getScriptUrl($button['SCRIPT']))
+			{
+				return $button['ID'];
+			}
+		}
+
+		return false;
 	}
 
 	/**
@@ -105,25 +150,33 @@ class B24button extends \Bitrix\Landing\Hook\Page
 		// show connectors only for edit
 		if ($this->isEditMode())
 		{
-			$context = \Bitrix\Main\Application::getInstance()->getContext();
+			$context = Application::getInstance()->getContext();
 			$server = $context->getServer();
 			$items += $this->getButtons();
 		}
 
 
-		return array(
-			'CODE' => new Field\Select('CODE', array(
+		return [
+			'USE' => new Landing\Field\Checkbox('USE', [
+				'title' => Loc::getMessage('LANDING_HOOK_B24BUTTONCODE_USE'),
+			]),
+			'CODE' => new Landing\Field\Select('CODE', [
 				'title' => Loc::getMessage('LANDING_HOOK_B24BUTTONCODE'),
 				'options' => $items
-			)),
-			'COLOR' => new Field\Select('COLOR', array(
+			]),
+			'COLOR' => new Landing\Field\Select('COLOR', [
 				'title' => Loc::getMessage('LANDING_HOOK_B24BUTTONCOLOR'),
-				'options' => array(
-					'site' => Loc::getMessage('LANDING_HOOK_B24BUTTONCOLOR_SITE'),
-					'button' => Loc::getMessage('LANDING_HOOK_B24BUTTONCOLOR_BUTTON')
-				)
-			))
-		);
+				'options' => [
+					self::COLOR_TYPE_SITE => Loc::getMessage('LANDING_HOOK_B24BUTTONCOLOR_SITE'),
+					self::COLOR_TYPE_BUTTON => Loc::getMessage('LANDING_HOOK_B24BUTTONCOLOR_BUTTON'),
+					self::COLOR_TYPE_CUSTOM => Loc::getMessage('LANDING_HOOK_B24BUTTONCOLOR_CUSTOM')
+				]
+			]),
+			'COLOR_VALUE' => new Landing\Field\Text('COLOR_VALUE', [
+				'title' => Loc::getMessage('LANDING_HOOK_B24BUTTONCOLOR_VALUE'),
+				'default' => self::COLOR_DEFAULT,
+			])
+		];
 	}
 
 	/**
@@ -132,7 +185,54 @@ class B24button extends \Bitrix\Landing\Hook\Page
 	 */
 	public function enabled()
 	{
-		return trim($this->fields['CODE']) != '';
+		if ($this->issetCustomExec())
+		{
+			return true;
+		}
+
+		$isTelegramWebView = self::isTelegramWebView();
+
+		if ($this->fields['USE']->getValue() === null)
+		{
+			return
+				trim($this->fields['CODE']) !== ''
+				&& !$isTelegramWebView;
+		}
+
+		return
+			$this->fields['USE']->getValue() === 'Y'
+			&& !$isTelegramWebView;
+	}
+
+	/**
+	 * Check if page opened from telegram integration
+	 * @return bool
+	 */
+	protected static function isTelegramWebView(): bool
+	{
+		if (!$application = Application::getInstance())
+		{
+			return false;
+		}
+		$session = $application->getSession();
+		$request = $application->getContext()->getRequest();
+		if ($request->get('tgWebApp') !== null)
+		{
+			$session->set('tgWebApp', 'Y');
+
+			return true;
+		}
+
+		return $session->has('tgWebApp') && $session->get('tgWebApp') === 'Y';
+	}
+
+	/**
+	 * Exec or not hook in edit mode.
+	 * @return boolean
+	 */
+	public function enabledInEditMode()
+	{
+		return false;
 	}
 
 	/**
@@ -141,10 +241,16 @@ class B24button extends \Bitrix\Landing\Hook\Page
 	 */
 	public function exec()
 	{
+		if ($this->execCustom())
+		{
+			return;
+		}
+
 		$code = \htmlspecialcharsbx(trim($this->fields['CODE']));
 		if ($code != 'N')
 		{
-			\Bitrix\Main\Page\Asset::getInstance()->addString(
+			Landing\Manager::setPageView(
+				'BeforeBodyClose',
 				'<script data-skip-moving="true">
 					(function(w,d,u,b){ \'use strict\';
 					var s=d.createElement(\'script\');var r=(Date.now()/1000|0);s.async=1;s.src=u+\'?\'+r;
@@ -152,13 +258,43 @@ class B24button extends \Bitrix\Landing\Hook\Page
 				})(window,document,\'' . $code . '\');
 				</script>'
 			);
-			if ($this->fields['COLOR'] != 'button')
+
+			// set COLOR
+			if ($this->fields['COLOR']->getValue() !== self::COLOR_TYPE_BUTTON)
 			{
-				\Bitrix\Landing\Manager::setPageClass(
-					"BodyClass",
-					"landing-b24button-use-style"
+				Landing\Manager::setPageView(
+					'BodyClass',
+					'landing-b24button-use-style'
+				);
+
+				$color =
+					(
+						$this->fields['COLOR']->getValue() === self::COLOR_TYPE_CUSTOM
+						&& !empty($this->fields['COLOR_VALUE']->getValue())
+					)
+					? Theme::prepareColor($this->fields['COLOR_VALUE']->getValue())
+					: 'var(--primary)';
+
+				Page\Asset::getInstance()->addString(
+					"<style type=\"text/css\">
+							:root {
+								--theme-color-b24button: {$color};
+							}
+						</style>",
+					false,
+					Page\AssetLocation::BEFORE_CSS
 				);
 			}
 		}
 	}
+
+	/**
+	 * Title of page Hook, if you want.
+	 * @return string
+	 */
+	public function getPageTitle()
+	{
+		return Loc::getMessage('LANDING_HOOK_B24BUTTONCODE_PAGE_TITLE');
+	}
+
 }

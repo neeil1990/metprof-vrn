@@ -2,25 +2,63 @@
 namespace Bitrix\Main;
 
 use Bitrix\Main\Config;
+use Bitrix\Main\Engine;
 use Bitrix\Main\Web;
 
 class HttpResponse extends Response
 {
-	const STORE_COOKIE_NAME = "STORE_COOKIES";
+	public const STORE_COOKIE_NAME = "STORE_COOKIES";
 
 	/** @var \Bitrix\Main\Web\Cookie[] */
-	protected $cookies = array();
+	protected $cookies = [];
 
-	/** @var array */
-	protected $headers = array();
+	/** @var Web\HttpHeaders */
+	protected $headers;
 
 	/** @var \Bitrix\Main\Type\DateTime */
 	protected $lastModified;
 
+	public function __construct()
+	{
+		parent::__construct();
+
+		$this->setHeaders(new Web\HttpHeaders());
+	}
+
+	/**
+	 * Flushes the content to the output buffer. All following output will be ignored.
+	 * @param string $text
+	 */
 	public function flush($text = '')
 	{
-		$this->writeHeaders();
-		$this->writeBody($text);
+		//clear all buffers - the response is responsible alone for its content
+		while (@ob_end_clean());
+
+		if (function_exists("fastcgi_finish_request"))
+		{
+			//php-fpm
+			$this->writeHeaders();
+			$this->writeBody($text);
+
+			fastcgi_finish_request();
+		}
+		else
+		{
+			//apache handler
+			ob_start();
+
+			$this->writeBody($text);
+
+			$size = ob_get_length();
+
+			$this->addHeader('Content-Length', $size);
+
+			$this->writeHeaders();
+
+			ob_end_flush();
+			@ob_flush();
+			flush();
+		}
 	}
 
 	/**
@@ -30,22 +68,26 @@ class HttpResponse extends Response
 	 * @param string $value Header field value
 	 * @return $this
 	 * @throws ArgumentNullException
-	 * @throws ArgumentOutOfRangeException
 	 */
 	public function addHeader($name, $value = '')
 	{
 		if (empty($name))
 			throw new ArgumentNullException("name");
 
-		if (preg_match("/%0D|%0A|\r|\n/i", $name))
-			throw new ArgumentOutOfRangeException("name");
-		if (preg_match("/%0D|%0A|\r|\n/i", $value))
-			throw new ArgumentOutOfRangeException("value");
+		$this->getHeaders()->add($name, $value);
 
-		if ($value == "")
-			$this->headers[] = $name;
-		else
-			$this->headers[] = array($name, $value);
+		return $this;
+	}
+
+	/**
+	 * Sets a collection of HTTP headers.
+	 * @param Web\HttpHeaders $headers Headers collection.
+	 *
+	 * @return $this
+	 */
+	public function setHeaders(Web\HttpHeaders $headers)
+	{
+		$this->headers = $headers;
 
 		return $this;
 	}
@@ -113,28 +155,70 @@ class HttpResponse extends Response
 		return $this->cookies;
 	}
 
-	protected function writeHeaders()
+	/**
+	 * @return Web\HttpHeaders
+	 */
+	public function getHeaders()
+	{
+		return $this->headers;
+	}
+
+	/**
+	 * Flushes all headers and cookies
+	 */
+	public function writeHeaders()
 	{
 		if($this->lastModified !== null)
 		{
-			$this->setHeader(array("Last-Modified", gmdate("D, d M Y H:i:s", $this->lastModified->getTimestamp())." GMT"));
+			$this->flushHeader(array("Last-Modified", gmdate("D, d M Y H:i:s", $this->lastModified->getTimestamp()) . " GMT"));
 		}
-		foreach ($this->headers as $header)
+
+		foreach ($this->getHeaders() as $name => $values)
 		{
-			$this->setHeader($header);
+			if (is_array($values))
+			{
+				foreach ($values as $value)
+				{
+					$this->flushHeader([$name, $value]);
+				}
+			}
+			elseif($values !== '')
+			{
+				$this->flushHeader([$name, $values]);
+			}
+			else
+			{
+				$this->flushHeader($name);
+			}
 		}
+
+		$cookiesCrypter = new Web\CookiesCrypter();
 		foreach ($this->cookies as $cookie)
 		{
-			$this->setCookie($cookie);
+			if (!$cookiesCrypter->shouldEncrypt($cookie))
+			{
+				$this->setCookie($cookie);
+			}
+			else
+			{
+				foreach ($cookiesCrypter->encrypt($cookie) as $cryptoCookie)
+				{
+					$this->setCookie($cryptoCookie);
+				}
+			}
 		}
 	}
 
-	protected function setHeader($header)
+	protected function flushHeader($header)
 	{
 		if (is_array($header))
+		{
 			header(sprintf("%s: %s", $header[0], $header[1]));
+		}
 		else
+		{
 			header($header);
+		}
 
 		return $this;
 	}
@@ -143,14 +227,23 @@ class HttpResponse extends Response
 	{
 		if ($cookie->getSpread() & Web\Cookie::SPREAD_DOMAIN)
 		{
+			$params = [
+				'expires' => $cookie->getExpires(),
+				'path' => $cookie->getPath(),
+				'domain' => $cookie->getDomain(),
+				'secure' => $cookie->getSecure(),
+				'httponly' => $cookie->getHttpOnly(),
+			];
+
+			if (($sameSite = $cookie->getSameSite()) !== null)
+			{
+				$params['samesite'] = $sameSite;
+			}
+
 			setcookie(
 				$cookie->getName(),
 				$cookie->getValue(),
-				$cookie->getExpires(),
-				$cookie->getPath(),
-				$cookie->getDomain(),
-				$cookie->getSecure(),
-				$cookie->getHttpOnly()
+				$params
 			);
 		}
 
@@ -162,25 +255,66 @@ class HttpResponse extends Response
 	 *
 	 * @param string $status
 	 * @return $this
-	 * @throws ArgumentNullException
-	 * @throws ArgumentOutOfRangeException
 	 */
 	public function setStatus($status)
 	{
 		$httpStatus = Config\Configuration::getValue("http_status");
 
 		$cgiMode = (stristr(php_sapi_name(), "cgi") !== false);
-		if ($cgiMode && (($httpStatus == null) || ($httpStatus == false)))
+		if ($cgiMode && ($httpStatus == null || $httpStatus == false))
 		{
 			$this->addHeader("Status", $status);
 		}
 		else
 		{
-			$server = Context::getCurrent()->getServer();
-			$this->addHeader($server->get("SERVER_PROTOCOL")." ".$status);
+			$httpHeaders = $this->getHeaders();
+			$httpHeaders->delete($this->getStatus());
+
+			$proto = $this->getServerProtocol();
+
+			$this->addHeader("{$proto} {$status}");
 		}
 
 		return $this;
+	}
+
+	/**
+	 * Returns the HTTP status of the response.
+	 * @return int|string|null
+	 */
+	public function getStatus()
+	{
+		$cgiStatus = $this->getHeaders()->get('Status');
+		if ($cgiStatus)
+		{
+			return $cgiStatus;
+		}
+
+		$prefixStatus = strtolower($this->getServerProtocol().' ');
+		$prefixStatusLength = strlen($prefixStatus);
+		foreach ($this->getHeaders() as $name => $value)
+		{
+			if (substr(strtolower($name), 0, $prefixStatusLength) === $prefixStatus)
+			{
+				return $name;
+			}
+		}
+
+		return null;
+	}
+
+	protected function getServerProtocol()
+	{
+		$context = Context::getCurrent();
+		if ($context !== null)
+		{
+			$server = $context->getServer();
+			if ($server !== null)
+			{
+				return $server->get("SERVER_PROTOCOL");
+			}
+		}
+		return "HTTP/1.0";
 	}
 
 	/**
@@ -197,5 +331,59 @@ class HttpResponse extends Response
 		}
 
 		return $this;
+	}
+
+	/**
+	 * @param $url
+	 * @return Engine\Response\Redirect
+	 */
+	final public function redirectTo($url): HttpResponse
+	{
+		$redirectResponse = new Engine\Response\Redirect($url);
+
+		return $this->copyHeadersTo($redirectResponse);
+	}
+
+	public function copyHeadersTo(HttpResponse $response): HttpResponse
+	{
+		$httpHeaders = $response->getHeaders();
+
+		$status = $response->getStatus();
+		$previousStatus = $this->getStatus();
+		foreach ($this->getHeaders() as $headerName => $values)
+		{
+			if ($this->shouldIgnoreHeaderToClone($headerName))
+			{
+				continue;
+			}
+
+			if ($status && $headerName === $previousStatus)
+			{
+				continue;
+			}
+
+			if ($httpHeaders->get($headerName))
+			{
+				continue;
+			}
+
+			$httpHeaders->add($headerName, $values);
+		}
+
+		foreach ($this->getCookies() as $cookie)
+		{
+			$response->addCookie($cookie, false);
+		}
+
+		return $response;
+	}
+
+	private function shouldIgnoreHeaderToClone($headerName)
+	{
+		return in_array(strtolower($headerName), [
+			'content-encoding',
+			'content-length',
+			'content-type',
+		], true);
 	}
 }

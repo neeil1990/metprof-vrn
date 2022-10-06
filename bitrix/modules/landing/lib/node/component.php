@@ -64,7 +64,7 @@ class Component extends \Bitrix\Landing\Node
 					"\t" . ')' : '') . PHP_EOL .
 					');';
 				$componentCode = str_replace(array('<?', '?>'), array('< ?', '? >'), $componentCode);
-				$content = substr($content, 0, $component['START']) . $componentCode . substr($content, $component['END']);
+				$content = mb_substr($content, 0, $component['START']).$componentCode.mb_substr($content, $component['END']);
 				break;
 			}
 		}
@@ -94,9 +94,9 @@ class Component extends \Bitrix\Landing\Node
 		}
 		else{
 			if (
-				substr($code, 0, 2) == '={' &&
-				substr($code, -1, 1) == '}' &&
-				strlen($code) > 3
+				mb_substr($code, 0, 2) == '={' &&
+				mb_substr($code, -1, 1) == '}' &&
+				mb_strlen($code) > 3
 			)
 			{
 				return true;
@@ -108,16 +108,16 @@ class Component extends \Bitrix\Landing\Node
 
 	/**
 	 * Save data for this node.
-	 * @param \Bitrix\Landing\Block &$block Block instance.
+	 * @param \Bitrix\Landing\Block $block Block instance.
 	 * @param string $selector Selector.
 	 * @param array $data Data array.
 	 * @return void
 	 */
-	public static function saveNode(\Bitrix\Landing\Block &$block, $selector, array $data)
+	public static function saveNode(\Bitrix\Landing\Block $block, $selector, array $data)
 	{
 		//$data = array_pop($data);// we allow one type of component per block
 		$manifest = $block->getManifest();
-		if (isset($manifest['nodes'][$selector]))
+		if (isset($manifest['nodes'][$selector]['extra']))
 		{
 			$updateProps = array();
 			$allowedProps = $manifest['nodes'][$selector]['extra'];
@@ -137,6 +137,14 @@ class Component extends \Bitrix\Landing\Node
 			}
 			if (!empty($updateProps))
 			{
+				// !tmp bugfix about set section id to null
+				if (
+					array_key_exists('SECTION_ID', $updateProps) &&
+					!trim($updateProps['SECTION_ID'])
+				)
+				{
+					$updateProps['SECTION_ID'] = '={$sectionId}';
+				}
 				$doc = $block->getDom();
 				$newContent = self::saveComponent(
 					$doc->saveHTML(),
@@ -281,13 +289,20 @@ class Component extends \Bitrix\Landing\Node
 						}
 						$propType = self::transformPropType(array(
 							'name' => isset($fieldItem['name'])
-								? $fieldItem['name']
-								: $newExtra[$field]['NAME'],
+										? $fieldItem['name']
+										: $newExtra[$field]['NAME'],
 							'style' => isset($fieldItem['style'])
-									&& $fieldItem['style'],
+										&& $fieldItem['style'],
 							'original_type' => 'component',
+							'component_type' => isset($newExtra[$field]['TYPE'])
+										? $newExtra[$field]['TYPE']
+										: '',
 							'attribute' => $field,
-							'value' => $newExtra[$field]['VALUE'],
+							'value' => self::preparePropValue(
+								$newExtra[$field]['VALUE'],
+								$fieldItem
+							),
+							//'original_value' => $newExtra[$field]['VALUE'],
 							'allowInlineEdit' => false
 						) + $fieldItem, $newExtra[$field]);
 						$newExtra[$field]['ATTRIBUTE_TYPE'] = $propType['type'];
@@ -451,7 +466,7 @@ class Component extends \Bitrix\Landing\Node
 							$item['items'][] = array(
 								'name' => $val,
 								'value' => $code,
-								'preview' => '/bitrix/images/landing/catalog_images/preview/' . strtolower($code) . '.svg?v3'
+								'preview' => '/bitrix/images/landing/catalog_images/preview/'.mb_strtolower($code) . '.svg?v3'
 							);
 						}
 					}
@@ -505,9 +520,49 @@ class Component extends \Bitrix\Landing\Node
 	}
 
 	/**
+	 * Prepare prop value before output in edit form.
+	 * @param mixed $value Mixed value.
+	 * @param array $prop Array of field from manifest.
+	 * @return mixed
+	 */
+	protected static function preparePropValue($value, $prop)
+	{
+		if (isset($prop['type']))
+		{
+			switch ($prop['type'])
+			{
+				case 'url':
+					{
+						if ($value && isset($prop['entityType']))
+						{
+							// @todo: make this more universal
+							if (
+								$prop['entityType'] == 'element' &&
+								$value != '={$elementCode}' &&
+								$value != '={$elementId}'
+							)
+							{
+								$value = '#catalogElement' . $value;
+							}
+							else if (
+								$prop['entityType'] == 'section' &&
+								$value != '={$sectionCode}' &&
+								$value != '={$sectionId}'
+							)
+							{
+								$value = '#catalogSection' . $value;
+							}
+						}
+					}
+			}
+		}
+		return $value;
+	}
+
+	/**
 	 * Additional transform prop value before saving.
 	 * @param mixed $value Mixed value.
-	 * @param array $prop Array of type.
+	 * @param array $prop Array of prop.
 	 * @return mixed
 	 */
 	protected static function transformPropValue($value, $prop)
@@ -583,11 +638,17 @@ class Component extends \Bitrix\Landing\Node
 							{
 								if (preg_match('/^#landing([\d]+)$/', $value, $matches))
 								{
-									$lansing = \Bitrix\Landing\Landing::createInstance($matches[1]);
+									$lansing = \Bitrix\Landing\Landing::createInstance($matches[1], [
+										'skip_blocks' => true
+									]);
 									if ($lansing->exist())
 									{
 										$value = $lansing->getPublicUrl();
 									}
+								}
+								else if (preg_match('/^#catalog(Element|Section)([\d]+)$/', $value, $matches))
+								{
+									$value = $matches[2];
 								}
 								break;
 							}
@@ -637,5 +698,56 @@ class Component extends \Bitrix\Landing\Node
 		{
 			return isset($params[$key]) ? $params[$key] : null;
 		}
+	}
+
+	/**
+	 * Get data for this node.
+	 * @param \Bitrix\Landing\Block $block Block instance.
+	 * @param string $selector Selector.
+	 * @return array
+	 */
+	public static function getNode(\Bitrix\Landing\Block $block, $selector)
+	{
+		$data = array();
+		$manifest = $block->getManifest();
+
+		// gets common attrs
+		if (isset($manifest['attrs'][$selector]))
+		{
+			$allowedProps = $manifest['attrs'][$selector];
+			foreach ($allowedProps as $attr)
+			{
+				if (!self::checkPhpCode($attr['value']))
+				{
+					$data[$attr['attribute']] = $attr['value'];
+				}
+			}
+		}
+
+		// gets attrs from style block
+		if (
+			isset($manifest['style']['block']['additional']) &&
+			is_array($manifest['style']['block']['additional'])
+		)
+		{
+			foreach ($manifest['style']['block']['additional'] as $item)
+			{
+				if (
+					isset($item['attrs']) &&
+					is_array($item['attrs'])
+				)
+				{
+					foreach ($item['attrs'] as $attr)
+					{
+						if (!self::checkPhpCode($attr['value']))
+						{
+							$data[$attr['attribute']] = $attr['value'];
+						}
+					}
+				}
+			}
+		}
+
+		return $data;
 	}
 }

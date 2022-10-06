@@ -16,8 +16,7 @@ abstract class ImportBase
 
     /** @var Sale\Internals\Fields */
     protected $fields;
-    /** @var ISettings */
-
+    /** @var ISettingsImport */
     protected $settings = null;
 
     /** @var Exchange\ICriterion */
@@ -368,7 +367,8 @@ abstract class ImportBase
 			false,
 			$paymentList,
 			$shipmentList,
-			$locationStreetPropertyValue
+			$locationStreetPropertyValue,
+			$order
 		);
 
 		$exportProfiles = static::getSaleExport();
@@ -395,7 +395,7 @@ abstract class ImportBase
 		$result = array();
 		foreach ($rekv as $k=>$v)
 		{
-			if(isset($exportProfile[$k]) && strlen($exportProfile[$k]['NAME'])>0 && strlen($v)>0)
+			if(isset($exportProfile[$k]) && $exportProfile[$k]['NAME'] <> '' && $v <> '')
 			{
 				$result[$exportProfile[$k]['NAME']] = $v;
 			}

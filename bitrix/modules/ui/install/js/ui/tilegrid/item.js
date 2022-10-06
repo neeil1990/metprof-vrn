@@ -41,13 +41,17 @@ BX.TileGrid.Item.prototype =
 
 		this.layout.container = BX.create('div', {
 			attrs: {
-				className: 'ui-grid-tile-item'
+				className: this.gridTile.itemHeight ? 'ui-grid-tile-item ui-grid-tile-item-fixed-height' : 'ui-grid-tile-item'
+			},
+			style: {
+				height: this.gridTile.itemHeight ? this.gridTile.itemHeight + 'px' : null,
+				margin: this.gridTile.getTileMargin() ? this.gridTile.getTileMargin() + 'px' : null
 			},
 			dataset: {
 				id: this.id
 			},
 			children: [
-				this.getCheckBox(),
+				this.gridTile.checkBoxing ? this.getCheckBox() : null,
 				this.layout.content = BX.create('div', {
 					attrs: {
 						className: 'ui-grid-tile-item-content'
@@ -106,7 +110,9 @@ BX.TileGrid.Item.prototype =
 	},
 
 	afterRender: function()
-	{},
+	{
+
+	},
 
 	handleClick: function(event)
 	{
@@ -198,16 +204,20 @@ BX.TileGrid.Item.prototype =
 			events: {
 				click: function(event)
 				{
-					if(this !== this.gridTile.getCurrentItem())
+					if(this.gridTile.isLastSelectedItem())
+						this.gridTile.resetSetMultiSelectMode();
+
+					if(this !== this.gridTile.getCurrentItem() && this.gridTile.isMultiSelectMode())
 					{
 						this.gridTile.checkItem(this.gridTile.getCurrentItem());
+						this.gridTile.selectItem(this.gridTile.getCurrentItem());
+
 					}
 
 					this.gridTile.checkItem(this);
 					this.gridTile.selectItem(this);
 					this.gridTile.setCurrentItem(this);
 					this.gridTile.setFirstCurrentItem(this);
-
 
 					if(!this.gridTile.isLastSelectedItem())
 					{
@@ -238,9 +248,19 @@ BX.TileGrid.Item.prototype =
 		this.layout.container.removeAttribute('tabindex')
 	},
 
-	removeNode: function()
+	removeNode: function(withAnimation)
 	{
+		withAnimation = withAnimation !== false;
 		var itemContainer = this.layout.container;
+
+		if(!itemContainer.parentNode)
+			return;
+
+		if(!withAnimation)
+		{
+			itemContainer.parentNode.removeChild(itemContainer);
+			return;
+		}
 
 		itemContainer.classList.add('ui-grid-tile-item-to-fade');
 		itemContainer.style.width = itemContainer.offsetWidth + 'px';
@@ -252,9 +272,6 @@ BX.TileGrid.Item.prototype =
 
 		setTimeout(function()
 		{
-			if(!itemContainer.parentNode)
-				return;
-
 			itemContainer.parentNode.removeChild(itemContainer);
 		}, 500);
 	},

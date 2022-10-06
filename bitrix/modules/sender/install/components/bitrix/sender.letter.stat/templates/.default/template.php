@@ -5,13 +5,16 @@ if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
 }
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Json;
 
 /** @var CAllMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
-
+Extension::load('ui.hint');
+$containerId = 'BX_SENDER_STATISTICS';
+$containerId = htmlspecialcharsbx($containerId);
 ?>
 
 <script type="text/javascript">
@@ -23,21 +26,21 @@ use Bitrix\Main\Web\Json;
 			'posting' => $arResult['DATA']['posting'],
 			'chainList' => $arResult['CHAIN_LIST'],
 			'clickList' => $arResult['DATA']['clickList'],
-			'actionUrl' => $arResult['ACTION_URL'],
+			'actionUrl' => $arResult['ACTION_URI'],
 			'nameTemplate' => $arParams['NAME_TEMPLATE'],
 			'pathToUserProfile' => $arResult['PATH_TO_USER_PROFILE'],
 			'mess' => array(
 				'allPostings' => Loc::getMessage('SENDER_LETTER_STAT_STATS_POSTINGS_ALL'),
 				'readByTimeBalloon' => Loc::getMessage('SENDER_LETTER_STAT_STATS_READ_BY_TIME_CHART_BALLOON'),
 			)
-		))?>;
+		), JSON_PARTIAL_OUTPUT_ON_ERROR)?>;
 
-		params.context = BX('BX_SENDER_STATISTICS');
+		params.context = BX('<?=$containerId?>');
 		BX.Sender.PostingsStats.load(params);
 	});
 </script>
 
-<div id="BX_SENDER_STATISTICS" class="bx-sender-stat-wrapper">
+<div id="<?=$containerId?>" class="bx-sender-stat-wrapper">
 
 	<div class="bx-sender-block-first">
 		<p class="bx-sender-title"><?=Loc::getMessage('SENDER_LETTER_STAT_STATS_EFFICIENCY_TITLE')?></p>
@@ -199,7 +202,9 @@ use Bitrix\Main\Web\Json;
 							</span>
 						</div>
 						<div class="bx-sender-graph-scale">
-							<div data-bx-point="counters/CLICK/PERCENT_VALUE:width" class="bx-sender-graph-scale-inner" style="width: <?=intval($arResult['DATA']['counters']['CLICK']['PERCENT_VALUE'] * 100)?>%;"></div>
+							<div data-bx-point="counters/CLICK/PERCENT_VALUE:width"
+								class="bx-sender-graph-scale-inner" style="width: <?=intval(
+									($arResult['DATA']['counters']['CLICK']['PERCENT_VALUE']) * 100)?>%;"></div>
 						</div>
 					</div>
 					<!--
@@ -224,6 +229,14 @@ use Bitrix\Main\Web\Json;
 									<?=htmlspecialcharsbx($arResult['DATA']['counters']['SEND_ERROR']['VALUE_DISPLAY'])?>
 								</span>
 							</a>
+							<?if ($arResult['CAN_RESEND_ERRORS']):?>
+								<div class="sender-letter-stat-number-action">
+									<span data-role="resend-errors" class="ui-btn ui-btn-xs ui-btn-light">
+										<?=Loc::getMessage('SENDER_LETTER_STAT_RESEND')?>
+									</span>
+									<span data-hint="<?=Loc::getMessage('SENDER_LETTER_STAT_RESEND_HINT')?>"></span>
+								</div>
+							<?endif;?>
 						</div>
 						<div class="bx-sender-mailfilter-result-item bx-sender-mailfilter-2-items">
 							<p class="bx-sender-mailfilter-result-title"><?=Loc::getMessage('SENDER_LETTER_STAT_STATS_COUNTER_UNSUB')?></p>
@@ -297,7 +310,11 @@ use Bitrix\Main\Web\Json;
 
 	<script type="text/javascript">
 		BX.ready(function () {
-			BX.Sender.Letter.Stat.init();
+			BX.Sender.Letter.Stat.init(<?=Json::encode([
+				'containerId' => $containerId,
+				'letterId' => $arParams['CHAIN_ID'],
+				'actionUri' => $arResult['ACTION_URI'],
+			])?>);
 		});
 	</script>
 </div>

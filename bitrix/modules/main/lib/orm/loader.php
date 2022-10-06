@@ -32,7 +32,13 @@ class Loader
 			return;
 		}
 
-		$namespace = substr($class, 0, strrpos($class, '\\')+1);
+		if (strpos($class, '\\') === false)
+		{
+			// define global namespace explicitly
+			$class = '\\'.$class;
+		}
+
+		$namespace = substr($class, 0, strrpos($class, '\\') + 1);
 		$className = substr($class, strrpos($class, '\\') + 1);
 
 		if (substr($className, 0, 3) == 'EO_')
@@ -44,10 +50,10 @@ class Loader
 				// entity without name, defined by namespace
 				$entityName = '';
 			}
-			elseif (substr($className, -10) == 'Collection')
+			elseif (substr($className, -11) == '_Collection')
 			{
 				$needFor = 'collection';
-				$entityName = substr($className, 3, -10);
+				$entityName = substr($className, 3, -11);
 			}
 			else
 			{
@@ -59,18 +65,9 @@ class Loader
 
 			if (class_exists($entityClass) && is_subclass_of($entityClass, DataManager::class))
 			{
-				/** @var DataManager $entityClass */
-				$entity = $entityClass::getEntity();
-
-				$realClass = ($needFor == 'object')
-					? $entity->compileObjectClass()
-					: $entity->compileCollectionClass();
-
-				if (Entity::normalizeName($realClass) !== Entity::normalizeName($class))
-				{
-					// custom class defined, we support compatibility with default classes
-					class_alias($realClass, $class);
-				}
+				($needFor == 'object')
+					? Entity::compileObjectClass($entityClass)
+					: Entity::compileCollectionClass($entityClass);
 			}
 		}
 	}

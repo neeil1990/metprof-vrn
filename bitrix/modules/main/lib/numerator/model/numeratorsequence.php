@@ -6,10 +6,24 @@ use Bitrix\Main\Entity\DataManager;
 use Bitrix\Main\Entity\IntegerField;
 use Bitrix\Main\Entity\StringField;
 use Bitrix\Main\Application;
+use Bitrix\Main\Result;
 
 /**
  * Class NumeratorSequenceTable
  * @package Bitrix\Main\Numerator\Model
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_NumeratorSequence_Query query()
+ * @method static EO_NumeratorSequence_Result getByPrimary($primary, array $parameters = [])
+ * @method static EO_NumeratorSequence_Result getById($id)
+ * @method static EO_NumeratorSequence_Result getList(array $parameters = [])
+ * @method static EO_NumeratorSequence_Entity getEntity()
+ * @method static \Bitrix\Main\Numerator\Model\EO_NumeratorSequence createObject($setDefaultValues = true)
+ * @method static \Bitrix\Main\Numerator\Model\EO_NumeratorSequence_Collection createCollection()
+ * @method static \Bitrix\Main\Numerator\Model\EO_NumeratorSequence wakeUpObject($row)
+ * @method static \Bitrix\Main\Numerator\Model\EO_NumeratorSequence_Collection wakeUpCollection($rows)
  */
 class NumeratorSequenceTable extends DataManager
 {
@@ -28,21 +42,21 @@ class NumeratorSequenceTable extends DataManager
 	public static function getMap()
 	{
 		return [
-			new IntegerField('NUMERATOR_ID', [
-				'required' => true,
-				'primary'  => true,
-			]),
-			new StringField('KEY', [
-				'required' => true,
-				'primary'  => true,
-			]),
-			new StringField('TEXT_KEY', [
-				'required'   => true
-			]),
-			new IntegerField('NEXT_NUMBER'),
-			new IntegerField('LAST_INVOCATION_TIME', [
-				'required' => true,
-			]),
+			(new IntegerField('NUMERATOR_ID'))
+				->configureRequired(true)
+				->configurePrimary(true)
+			,
+			(new StringField('KEY'))
+				->configureRequired(true)
+				->configurePrimary(true)
+			,
+			(new StringField('TEXT_KEY'))
+				->configureRequired(true)
+			,
+			(new IntegerField('NEXT_NUMBER')),
+			(new IntegerField('LAST_INVOCATION_TIME'))
+				->configureRequired(true)
+			,
 		];
 	}
 
@@ -84,12 +98,27 @@ class NumeratorSequenceTable extends DataManager
 
 	/**
 	 * @param $id
-	 * @return \Bitrix\Main\Entity\DeleteResult
 	 * @throws \Exception
 	 */
 	public static function deleteByNumeratorId($id)
 	{
-		return static::delete(['NUMERATOR_ID' => intval($id)]);
+		$result = new Result();
+
+		$list = static::getList([
+			'filter' => [
+				'=NUMERATOR_ID' => (int)$id,
+			]
+		]);
+		while($row = $list->fetchObject())
+		{
+			$deleteResult = $row->delete();
+			if (!$deleteResult->isSuccess())
+			{
+				$result->addErrors($deleteResult->getErrors());
+			}
+		}
+
+		return $result;
 	}
 
 	/**
@@ -124,7 +153,7 @@ class NumeratorSequenceTable extends DataManager
 			$result = static::add([
 				'NUMERATOR_ID'         => $numeratorId,
 				'KEY'                  => md5($numberHash),
-				'TEXT_KEY'             => substr($numberHash, 0, 50),
+				'TEXT_KEY'             => mb_substr($numberHash, 0, 50),
 				'LAST_INVOCATION_TIME' => $lastInvocationTime,
 				'NEXT_NUMBER'          => $defaultNumber,
 			]);
@@ -136,7 +165,7 @@ class NumeratorSequenceTable extends DataManager
 		}
 		catch (SqlQueryException $exc)
 		{
-			if (stripos($exc->getMessage(), "Duplicate entry") !== false)
+			if (mb_stripos($exc->getMessage(), "Duplicate entry") !== false)
 			{
 				return [];
 			}

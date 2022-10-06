@@ -1,26 +1,29 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
-use Bitrix\Main\ErrorCollection;
 use Bitrix\Main\Context;
+use Bitrix\Main\ErrorCollection;
+use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Web\Uri;
-use Bitrix\Main\Loader;
-use Bitrix\Main\Error;
-
+use Bitrix\Sender\Access\ActionDictionary;
 use Bitrix\Sender\Entity;
 use Bitrix\Sender\Security;
-use Bitrix\Sender\UI;
 use Bitrix\Sender\Trigger;
-
+use Bitrix\Sender\UI;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderTriggerEditComponent extends \CBitrixComponent
+class SenderTriggerEditComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
@@ -37,12 +40,8 @@ class SenderTriggerEditComponent extends \CBitrixComponent
 	{
 		$request = Context::getCurrent()->getRequest();
 
+		parent::initParams();
 		$this->arParams['SET_TITLE'] = isset($this->arParams['SET_TITLE']) ? (bool) $this->arParams['SET_TITLE'] : true;
-		$this->arParams['CAN_EDIT'] = isset($this->arParams['CAN_EDIT'])
-			?
-			$this->arParams['CAN_EDIT']
-			:
-			Security\Access::current()->canModifyLetters();
 
 		if (!isset($this->arParams['ID']))
 		{
@@ -114,7 +113,7 @@ class SenderTriggerEditComponent extends \CBitrixComponent
 			);
 		}
 
-		if (!Security\Access::current()->canViewLetters())
+		if (!Security\Access::getInstance()->canViewLetters())
 		{
 			Security\AccessChecker::addError($this->errors);
 			return false;
@@ -180,14 +179,29 @@ class SenderTriggerEditComponent extends \CBitrixComponent
 			return;
 		}
 
+		$emptyKeys = ['CAN_RUN_FOR_OLD_DATA', 'IS_CLOSED_TRIGGER'];
 		$fields = $this->arResult['ROW']['TRIGGER_FIELDS'];
 		$existsList = $this->arResult['TRIGGERS']['EXISTS'];
-		foreach($existsList as $type => $value)
+		foreach($existsList as $type => $values)
 		{
 			if(!is_array($fields[$type])) continue;
 			$trigger = Trigger\Manager::getOnce($fields[$type]);
 			if ($trigger)
 			{
+				foreach ($emptyKeys as $emptyKey)
+				{
+					if (!isset($fields[$type][$emptyKey]))
+					{
+						continue;
+					}
+					if (!empty($fields[$type][$emptyKey]))
+					{
+						continue;
+					}
+
+					unset($fields[$type][$emptyKey]);
+				}
+
 				$existsList[$type] = $fields[$type] + $list[$type][$trigger->getId()];
 
 				$trigger->setFieldFormName('post_form');
@@ -204,7 +218,7 @@ class SenderTriggerEditComponent extends \CBitrixComponent
 		static $sites = null;
 		if ($sites === null)
 		{
-			$sites = \Bitrix\Main\SiteTable::getList(['select' => ['ID' => 'LID', 'NAME']])->fetchAll();
+			$sites = \Bitrix\Main\SiteTable::getList(['select' => ['ID', 'NAME']])->fetchAll();
 			foreach ($sites as $index => $site)
 			{
 				$site['SELECTED'] = $this->arResult['ROW']['SITE_ID'] === $site['ID'];
@@ -225,28 +239,17 @@ class SenderTriggerEditComponent extends \CBitrixComponent
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
+		parent::executeComponent();
+		parent::prepareResultAndTemplate();
+	}
 
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
+	public function getEditAction()
+	{
+		return ActionDictionary::ACTION_MAILING_EMAIL_EDIT;
+	}
 
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		$this->printErrors();
-		$this->includeComponentTemplate();
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_MAILING_VIEW;
 	}
 }

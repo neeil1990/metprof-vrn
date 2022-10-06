@@ -102,7 +102,7 @@ class Dashboard
 
 
 	/**
-	 * @param string $boardKey Board key.
+	 * @param string $board Key Board key.
 	 * @return bool
 	 */
 	public static function getBoardModeIsDemo($boardKey)
@@ -130,6 +130,7 @@ class Dashboard
 			{
 				self::setBoardCustomDefaultModeIsDemo($boardKey, $demo);
 			}
+			
 		}
 		else
 		{
@@ -140,7 +141,7 @@ class Dashboard
 	private static function setBoardCustomDefaultModeIsDemo($boardKey, $demo = false)
 	{
 		$modes = Option::get('report', 'BOARD_CUSTOM_DEFAULT_MODES', serialize(array()));
-		$modes = unserialize($modes);
+		$modes = unserialize($modes, ['allowed_classes' => false]);
 		$modes[$boardKey] = $demo ? 1 : 0;
 		Option::set('report', 'BOARD_CUSTOM_DEFAULT_MODES', serialize($modes));
 	}
@@ -148,14 +149,14 @@ class Dashboard
 	private static function checkBoardCustomDefaultModeIsExist($boardKey)
 	{
 		$modes = Option::get('report', 'BOARD_CUSTOM_DEFAULT_MODES', serialize(array()));
-		$modes = unserialize($modes);
+		$modes = unserialize($modes, ['allowed_classes' => false]);
 		return isset($modes[$boardKey]);
 	}
 
 	private static function getBoardCustomDefaultModeIsDemo($boardKey)
 	{
 		$modes = Option::get('report', 'BOARD_CUSTOM_DEFAULT_MODES', serialize(array()));
-		$modes = unserialize($modes);
+		$modes = unserialize($modes, ['allowed_classes' => false]);
 		return !empty($modes[$boardKey]);
 	}
 

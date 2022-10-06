@@ -8,7 +8,14 @@ BX.TileGrid.Grid = function(options)
 {
 	this.options = options;
 	this.id = options.id;
+
+	this.tileMargin = options.tileMargin;
+	this.sizeRatio = options.sizeRatio;
+
 	this.tileSize = options.tileSize;
+	this.itemHeight = options.itemHeight;
+	this.itemMinWidth = options.itemMinWidth;
+	this.checkBoxing = options.checkBoxing;
 	this.items = [];
 	this.renderTo = options.container;
 	this.multiSelectMode = null;
@@ -58,6 +65,24 @@ BX.TileGrid.Grid.prototype =
 		return this.id;
 	},
 
+	getTileMargin: function(options)
+	{
+		if(!this.tileMargin)
+		{
+			this.tileMargin = 9;
+		}
+
+		return this.tileMargin
+	},
+
+	getSizeRatio: function(options)
+	{
+		if(!this.sizeRatio)
+			return false;
+
+		return this.sizeRatio
+	},
+
 	bindEvents: function()
 	{
 		BX.bind(window, 'resize', this.setStyle.bind(this));
@@ -84,18 +109,19 @@ BX.TileGrid.Grid.prototype =
 
 			this.setBackspaceButton(event);
 			this.setEnterButton(event);
-			this.processButtonSelection();
-			if (this.isKeyPressedDelete())
+			if (this.isFocusOnTile())
 			{
-				this.removeSelectedItems(event);
+				this.processButtonSelection();
+				if (this.isKeyPressedDelete() && !this.isKeyPressedShift() && !this.isKeyControlKey())
+				{
+					this.removeSelectedItems(event);
+				}
+				else if (this.backspaceButton)
+				{
+					this.handleBackspace();
+				}
+				this.handleEnter(event);
 			}
-			else if (this.backspaceButton && this.isFocusOnTile())
-			{
-				this.handleBackspace();
-			}
-
-			this.handleEnter(event);
-
 		}.bind(this));
 		BX.bind(window, 'keyup', function(event) {
 			// after refactoring
@@ -114,11 +140,10 @@ BX.TileGrid.Grid.prototype =
 		BX.bind(window, 'click', function(event)
 		{
 			if (this.checkParent(event.target))
-			{
 				return;
-			}
 
 			this.resetSelection();
+			this.resetSetMultiSelectMode();
 		}.bind(this));
 	},
 
@@ -146,7 +171,9 @@ BX.TileGrid.Grid.prototype =
 	appendItem: function(item)
 	{
 		this.addItem(item);
-		this.container.appendChild(this.items[this.items.length - 1].render());
+		var itemNode = this.items[this.items.length - 1].render();
+		BX.addClass(itemNode, 'ui-grid-tile-item-inserted');
+		this.container.appendChild(itemNode);
 		this.items[this.items.length - 1].afterRender();
 	},
 
@@ -266,6 +293,11 @@ BX.TileGrid.Grid.prototype =
 		}
 	},
 
+	getItemHeight: function()
+	{
+		return this.itemHeight;
+	},
+
 	changeTileSize: function(tileSize)
 	{
 		this.tileSize = tileSize;
@@ -280,9 +312,20 @@ BX.TileGrid.Grid.prototype =
 		}
 
 		var head = document.head;
-		var styles = 	'.ui-grid-tile-item { ' +
-						'width: calc(' + (100 / this.calculateCountItemsPerRow()) + '% - 18px); ' +
-						'}';
+		var styles = 	'#' + this.getId() +
+						' .ui-grid-tile-item { ' +
+						'width: calc(' + (100 / this.calculateCountItemsPerRow()) + '% - ' + this.getTileMargin() * 2 + 'px); ' +
+						'} ';
+
+		if (this.sizeRatio)
+		{
+			var beforeStyles =  '#' + this.getId() +
+								' .ui-grid-tile-item:before { ' +
+								'padding-top: ' + this.getSizeRatio() +
+								'} ';
+
+			styles = styles + beforeStyles;
+		}
 
 		if(!this.style)
 		{
@@ -354,11 +397,31 @@ BX.TileGrid.Grid.prototype =
 			return this.calculateCountItemsPerRowXL();
 		}
 
-		return this.calculateCountItemsPerRowM();
+		if(!this.itemMinWidth)
+		{
+			return this.calculateCountItemsPerRowM();
+		}
+
+		var i = -1;
+		var itemWidthSum = 0;
+		var tileWidth = this.itemMinWidth + (this.tileMargin * 2);
+
+		while (itemWidthSum < this.getContainerWidth())
+		{
+			itemWidthSum = itemWidthSum + tileWidth;
+			i++;
+		}
+
+		return i;
 	},
 
 	calculateCountItemsPerRowM: function()
 	{
+		if(this.itemMinWidth)
+		{
+			return Math.round(this.getContainerWidth() / (this.itemMinWidth + this.itemMinWidth / 5));
+		}
+
 		switch (true)
 		{
 			case this.getContainerWidth() <= 720:
@@ -408,11 +471,17 @@ BX.TileGrid.Grid.prototype =
 			return
 		}
 
-		return this.container = BX.create('div', {
+		this.container = BX.create('div', {
 			attrs: {
+				id: this.getId(),
 				className: 'ui-grid-tile'
+			},
+			style: {
+				margin: "0 -" + this.getTileMargin() + "px"
 			}
-		})
+		});
+
+		return this.container;
 	},
 
 	setMinHeightContainer: function()
@@ -471,7 +540,7 @@ BX.TileGrid.Grid.prototype =
 	showLoader: function()
 	{
 		this.loader.show();
-		
+
 		if(this.container.getBoundingClientRect().top < 0)
 		{
 			var positionTop = this.container.getBoundingClientRect().top * -1 + BX.pos(this.container).top;
@@ -490,9 +559,11 @@ BX.TileGrid.Grid.prototype =
 
 	redraw: function(items)
 	{
+		BX.onCustomEvent('BX.TileGrid.Grid:beforeRedraw', [this]);
+
 		this.items.forEach(function(item)
 		{
-			item.removeNode();
+			item.removeNode(false);
 		}, this);
 
 		this.items = [];
@@ -1012,6 +1083,11 @@ BX.TileGrid.Grid.prototype =
 
 	isFocusOnTile: function()
 	{
+		if (BX.getClass('BX.UI.Viewer.Instance') && BX.UI.Viewer.Instance.isOpen())
+		{
+			return false;
+		}
+
 		if (!document.activeElement)
 		{
 			return true;
@@ -1072,6 +1148,9 @@ BX.TileGrid.Grid.prototype =
 
 		BX.removeClass(item.layout.container, 'ui-grid-tile-item-selected');
 		item.selected = false;
+
+		if(this.isLastSelectedItem())
+			this.resetSetMultiSelectMode();
 
 		BX.onCustomEvent('BX.TileGrid.Grid:unSelectItem', [item, this]);
 	},
@@ -1146,6 +1225,8 @@ BX.TileGrid.Grid.prototype =
 			BX.removeClass(this.items[i].layout.checkbox, 'ui-grid-tile-item-checkbox-checked');
 			BX.removeClass(this.items[i].layout.container, 'ui-grid-tile-item-selected');
 		}
+
+		BX.onCustomEvent('BX.TileGrid.Grid:afterResetSelectAllItems', [this]);
 	}
 };
 

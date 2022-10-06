@@ -12,35 +12,27 @@ return array(
 	'description' => NULL,
 	'type' => 'store',
 	'version' => 2,
-	'fields' =>
-		array(
+	'fields' =>array(
 			'RULE' => NULL,
-			'ADDITIONAL_FIELDS' =>
-				array(
+			'ADDITIONAL_FIELDS' =>array(
 					'VIEW_USE' => 'N',
 					'VIEW_TYPE' => 'no',
+				'THEME_CODE' => 'event',
+
 				),
 		),
-	'layout' =>
-		array(),
-	'items' =>
-		array(
-			0 =>
-				array(
+	'layout' =>array(),
+	'items' =>array(
+			0 =>array(
 					'code' => 'store.order',
-					'cards' =>
-						array(),
-					'nodes' =>
-						array(),
-					'style' =>
-						array(
-							'#wrapper' =>
-								array(
+					'cards' =>array(),
+					'nodes' =>array(),
+					'style' =>array(
+							'#wrapper' =>array(
 									0 => 'landing-block g-pt-20 g-pb-0',
 								),
 						),
-					'attrs' =>
-						array(),
+					'attrs' =>array(),
 				),
 		),
 );

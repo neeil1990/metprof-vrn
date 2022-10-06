@@ -4,6 +4,9 @@
 	BX.namespace("BX.Landing");
 
 	var attr = BX.Landing.Utils.attr;
+	var data = BX.Landing.Utils.data;
+	var encodeDataValue = BX.Landing.Utils.encodeDataValue;
+	var decodeDataValue = BX.Landing.Utils.decodeDataValue;
 
 	/**
 	 * Implements interface for works with image node
@@ -17,6 +20,7 @@
 	BX.Landing.Block.Node.Img = function(options)
 	{
 		BX.Landing.Block.Node.apply(this, arguments);
+		this.type = "img";
 		this.editPanel = null;
 		this.lastValue = null;
 		this.field = null;
@@ -29,7 +33,7 @@
 
 		if (this.isAllowInlineEdit())
 		{
-			this.node.setAttribute("title", BX.message("LANDING_TITLE_OF_IMAGE_NODE"));
+			this.node.setAttribute("title", BX.Landing.Loc.getMessage("LANDING_TITLE_OF_IMAGE_NODE"));
 		}
 	};
 
@@ -74,10 +78,39 @@
 	 */
 	function getBackgroundUrl(node)
 	{
-		var background = node.node.style.backgroundImage;
-		background = !!background ? background : "";
+		var bg = node.node.style.getPropertyValue('background-image');
+		if (bg)
+		{
+			var res = bg.match(/url\((.*?)\)/);
 
-		return background.slice(4, -1).replace(/["|']/g, "");
+			if (res && res[1])
+			{
+				return res[1].replace(/["|']/g, "");
+			}
+		}
+
+		return "";
+	}
+
+	/**
+	 * Gets background url 2x
+	 * @param {BX.Landing.Block.Node.Img} node
+	 * @return {boolean}
+	 */
+	function getBackgroundUrl2x(node)
+	{
+		var bg = node.node.style.getPropertyValue('background-image');
+		if (bg)
+		{
+			var res = bg.match(/1x, url\(["|'](.*)["|']\) 2x\)/);
+
+			if (res && res[1])
+			{
+				return res[1].replace(/["|']/g, "");
+			}
+		}
+
+		return "";
 	}
 
 
@@ -89,6 +122,17 @@
 	function getFileId(node)
 	{
 		var fileId = parseInt(node.node.dataset.fileid);
+		return fileId === fileId ? fileId : -1;
+	}
+
+	/**
+	 * Gets file id 2x
+	 * @param {BX.Landing.Block.Node.Img} node
+	 * @return {int}
+	 */
+	function getFileId2x(node)
+	{
+		var fileId = parseInt(node.node.dataset.fileid2x);
 		return fileId === fileId ? fileId : -1;
 	}
 
@@ -104,6 +148,12 @@
 		return !!alt ? alt : "";
 	}
 
+	function getPseudoUrl(node)
+	{
+		var url = data(node.node, "data-pseudo-url");
+		return !!url ? url : "";
+	}
+
 
 	/**
 	 * Gets image src
@@ -114,6 +164,17 @@
 	{
 		var src = attr(node.node, "src");
 		return !!src ? src : "";
+	}
+
+	/**
+	 * Gets image src 2x
+	 * @param {BX.Landing.Block.Node.Img} node
+	 * @return {string}
+	 */
+	function getImageSrc2x(node)
+	{
+		var src = attr(node.node, "srcset");
+		return !!src ? src.replace(" 2x", "") : "";
 	}
 
 
@@ -139,6 +200,8 @@
 			node.node.src = value.src;
 			node.node.alt = value.alt;
 			node.node.dataset.fileid = value.id || -1;
+			node.node.srcset = value.src2x ? value.src2x + " 2x" : "";
+			node.node.dataset.fileid2x = value.id2x || -1;
 		}
 	}
 
@@ -165,8 +228,42 @@
 		}
 		else
 		{
-			node.node.style.backgroundImage = "url(\""+value.src+"\")";
+			if (value.src)
+			{
+				const style = ["background-image: url(\""+value.src+"\");"];
+				if (value.src2x)
+				{
+					style.push("background-image: -webkit-image-set(url(\""+value.src+"\") 1x, url(\""+value.src2x+"\") 2x);");
+					style.push("background-image: image-set(url(\""+value.src+"\") 1x, url(\""+value.src2x+"\") 2x);");
+				}
+
+				// save css-vars and other styles
+				const oldStyleObj = node.node.style;
+				const oldStyle = {};
+				Array.from(oldStyleObj).map(prop =>
+				{
+					oldStyle[prop] = oldStyleObj.getPropertyValue(prop);
+				});
+
+				node.node.setAttribute("style", style.join(' '));
+				for(let prop in oldStyle)
+				{
+					if (prop !== 'background-image')
+					{
+						node.node.style.setProperty(prop, oldStyle[prop]);
+					}
+				}
+			}
+			else
+			{
+				if (node.node.style)
+				{
+					node.node.style.removeProperty("background-image");
+				}
+			}
+
 			node.node.dataset.fileid = value.id || -1;
+			node.node.dataset.fileid2x = value.id2x || -1;
 		}
 	}
 
@@ -198,20 +295,20 @@
 				if (!this.editPanel)
 				{
 					this.editPanel = new BX.Landing.UI.Panel.Content(this.selector, {
-						title: BX.message("LANDING_IMAGE_PANEL_TITLE"),
+						title: BX.Landing.Loc.getMessage("LANDING_IMAGE_PANEL_TITLE"),
 						className: "landing-ui-panel-edit-image"
 					});
 
 					this.editPanel.appendFooterButton(
 						new BX.Landing.UI.Button.BaseButton("save_block_content", {
-							text: BX.message("BLOCK_SAVE"),
+							text: BX.Landing.Loc.getMessage("BLOCK_SAVE"),
 							onClick: this.save.bind(this),
 							className: "landing-ui-button-content-save"
 						})
 					);
 					this.editPanel.appendFooterButton(
 						new BX.Landing.UI.Button.BaseButton("cancel_block_content", {
-							text: BX.message("BLOCK_CANCEL"),
+							text: BX.Landing.Loc.getMessage("BLOCK_CANCEL"),
 							onClick: this.editPanel.hide.bind(this.editPanel),
 							className: "landing-ui-button-content-cancel"
 						})
@@ -227,7 +324,6 @@
 				this.editPanel.appendForm(form);
 				this.editPanel.show();
 				BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
-				BX.Landing.UI.Panel.SmallEditorPanel.getInstance().hide();
 			}
 		},
 
@@ -260,20 +356,57 @@
 
 				if (this.manifest.dimensions)
 				{
-					description = BX.message("LANDING_CONTENT_IMAGE_RECOMMENDED_SIZE") + " ";
-					description += this.manifest.dimensions.width + "px&nbsp;/&nbsp;";
-					description += this.manifest.dimensions.height + "px";
+					var dimensions = this.manifest.dimensions;
+
+					var width = (
+						dimensions.width
+						|| dimensions.maxWidth
+						|| dimensions.minWidth
+					);
+
+					var height = (
+						dimensions.height
+						|| dimensions.maxHeight
+						|| dimensions.minHeight
+					);
+
+					if (width && !height)
+					{
+						description = BX.Landing.Loc.getMessage('LANDING_CONTENT_IMAGE_RECOMMENDED_WIDTH') + ' ';
+						description += width + 'px';
+					}
+					else if (height && !width)
+					{
+						description = BX.Landing.Loc.getMessage('LANDING_CONTENT_IMAGE_RECOMMENDED_HEIGHT') + ' ';
+						description += height + 'px';
+					}
+					else if (width && height)
+					{
+						description = BX.Landing.Loc.getMessage("LANDING_CONTENT_IMAGE_RECOMMENDED_SIZE") + " ";
+						description += width + "px&nbsp;/&nbsp;";
+						description += height + "px";
+					}
 				}
 
-				this.field = new BX.Landing.UI.Field.Image({
-					selector: this.selector,
-					title: this.manifest.name,
-					description: description,
-					content: this.getValue(),
-					dimensions: !!this.manifest.dimensions ? this.manifest.dimensions : {},
-					disableAltField: isBackground(this),
-					uploadParams: this.uploadParams
-				});
+				var value = this.getValue();
+				value.url = decodeDataValue(value.url);
+
+				var disableLink = !!this.node.closest("a") || !!this.manifest.disableLink;
+
+				if (this.manifest['editInStyle'] !== true)
+				{
+					this.field = new BX.Landing.UI.Field.Image({
+						selector: this.selector,
+						title: this.manifest.name,
+						description: description,
+						disableLink: disableLink,
+						content: value,
+						dimensions: !!this.manifest.dimensions ? this.manifest.dimensions : {},
+						create2xByDefault: this.manifest.create2xByDefault,
+						disableAltField: isBackground(this),
+						uploadParams: this.uploadParams
+					});
+				}
 			}
 			else
 			{
@@ -311,13 +444,18 @@
 				setBackgroundValue(this, value);
 			}
 
+			if (value.url)
+			{
+				attr(this.node, "data-pseudo-url", value.url);
+			}
+
 			this.onChange();
 
 			if (!preventHistory)
 			{
 				BX.Landing.History.getInstance().push(
 					new BX.Landing.History.Entry({
-						block: top.BX.Landing.Block.storage.getByChildNode(this.node).id,
+						block: this.getBlock().id,
 						selector: this.selector,
 						command: "editImage",
 						undo: this.lastValue,
@@ -329,29 +467,37 @@
 			this.lastValue = this.getValue();
 		},
 
-
 		/**
 		 * Gets node value
 		 * @return {{src: string}}
 		 */
 		getValue: function()
 		{
-			var value = {type: "", src: "", id: -1, alt: ""};
+			var value = {type: "", src: "", src2x: "", id: -1, id2x: -1, alt: "", url: ""};
 
 			if (isBackground(this))
 			{
 				value.type = "background";
 				value.src = getBackgroundUrl(this);
+				value.src2x = getBackgroundUrl2x(this);
 				value.id = getFileId(this);
+				value.id2x = getFileId2x(this);
 			}
 
 			if (isImage(this))
 			{
 				value.type = "image";
 				value.src = getImageSrc(this);
+				value.src2x = getImageSrc2x(this);
 				value.id = getFileId(this);
+				value.id2x = getFileId2x(this);
 				value.alt = getAlt(this);
 			}
+
+			value.url = (
+				encodeDataValue(getPseudoUrl(this)) ||
+				{text: "", href: "", target: "_self", enabled: false}
+			);
 
 			return value;
 		}

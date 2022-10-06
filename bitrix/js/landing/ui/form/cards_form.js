@@ -39,7 +39,9 @@
 	 * @extends {BX.Landing.UI.Form.BaseForm}
 	 * @param {{
 	 * 		[title]: string,
-	 * 		[presets]: object
+	 * 		[presets]: object,
+	 * 		[sync]: string|string[],
+	 * 		[forms]: []
 	 * 	}} data
 	 * @constructor
 	 */
@@ -51,12 +53,17 @@
 		this.code = data.code;
 		this.presets = data.presets;
 		this.childForms = new FormCollection();
+		this.presetForm = new FormCollection();
+		this.sync = data.sync;
+		this.forms = data.forms;
+		this.id = this.code.replace(".", "") + "-" + BX.Landing.Utils.random();
 
 		this.onItemClick = throttle(this.onItemClick, 200, this);
 		this.onRemoveItemClick = proxy(this.onRemoveItemClick, this);
 		this.onRemoveItemMouseenter = proxy(this.onRemoveItemMouseenter, this);
 		this.onRemoveItemMouseleave = proxy(this.onRemoveItemMouseleave, this);
 		this.onAddCardClick = proxy(this.onAddCardClick, this);
+		this.onMouseWheel = proxy(this.onMouseWheel, this);
 
 		this.addButton = this.createAddButton();
 		this.wheelEventName = this.getWheelEventName();
@@ -257,17 +264,73 @@
 				var currentIndex = [].indexOf.call(targetItem.parentElement.children, currentItem);
 				var targetIndex = [].indexOf.call(targetItem.parentElement.children, targetItem);
 
-				if (targetItem.parentElement.children.length === targetIndex) {
+				if (targetItem.parentElement.children.length === targetIndex)
+				{
 					targetItem.parentElement.appendChild(target);
 				}
 
-				if (currentIndex > targetIndex) {
+				if (currentIndex > targetIndex)
+				{
 					targetItem.parentElement.insertBefore(currentItem, targetItem);
 				}
 
 				if (currentIndex < targetIndex && targetItem.parentElement.children.length !== targetIndex)
 				{
 					targetItem.parentElement.insertBefore(currentItem, targetItem.nextElementSibling);
+				}
+
+				if (parentForm.sync)
+				{
+					var syncSelectors = parentForm.sync;
+
+					if (isString(parentForm.sync))
+					{
+						syncSelectors = [parentForm.sync];
+					}
+
+					if (isArray(syncSelectors))
+					{
+						syncSelectors.forEach(function(syncSelector) {
+							var syncForm = parentForm.forms.find(function(currentForm) {
+								return currentForm.code === syncSelector;
+							});
+
+							if (syncForm)
+							{
+								var syncCurrentItem = syncForm.body.children[currentIndex];
+								var syncTargetItem = syncForm.body.children[targetIndex];
+
+								if (syncTargetItem.parentElement.children.length === targetIndex)
+								{
+									syncTargetItem.parentElement.appendChild(target);
+								}
+
+								if (currentIndex > targetIndex)
+								{
+									syncTargetItem.parentElement.insertBefore(syncCurrentItem, syncTargetItem);
+								}
+
+								if (currentIndex < targetIndex && syncTargetItem.parentElement.children.length !== targetIndex)
+								{
+									syncTargetItem.parentElement.insertBefore(syncCurrentItem, syncTargetItem.nextElementSibling);
+								}
+							}
+
+							syncForm.childForms.forEach(function(currentSyncForms) {
+								var index = [].indexOf.call(
+									currentSyncForms.layout.parentElement.parentElement.parentElement.children,
+									currentSyncForms.layout.parentElement.parentElement
+								);
+
+								currentSyncForms.oldIndex = getSelectorIndex(currentSyncForms.selector);
+								currentSyncForms.selector = join(currentSyncForms.selector.split("@")[0], "@", index);
+							});
+
+							syncForm.childForms.sort(function(a, b) {
+								return parseInt(a.selector.split("@")[1]) < parseInt(b.selector.split("@")[1]) ? -1 : 1;
+							});
+						});
+					}
 				}
 			}
 
@@ -341,9 +404,9 @@
 				if (field instanceof BX.Landing.UI.Field.Link)
 				{
 					labelContainer = item.querySelector(".landing-card-title-link");
-					labelContainer.innerHTML = BX.message("LANDING_CARDS_FORM_ITEM_PLACEHOLDER_TEXT");
+					labelContainer.innerHTML = BX.Landing.Loc.getMessage("LANDING_CARDS_FORM_ITEM_PLACEHOLDER_TEXT");
 
-					onCustomEvent(field, "BX.Landing.UI.Field:change", function(value) {
+					onCustomEvent(field, "change", function(value) {
 						labelContainer.innerHTML = value.text;
 					});
 
@@ -354,7 +417,7 @@
 				{
 					labelContainer = item.querySelector(".landing-card-title-icon").firstElementChild;
 					labelContainer.className = "landing-card-title-icon";
-					onCustomEvent(field, "BX.Landing.UI.Field:change", function(value) {
+					onCustomEvent(field, "change", function(value) {
 						labelContainer.className = "landing-card-title-icon " + value.classList.join(" ");
 					});
 
@@ -367,7 +430,7 @@
 					labelContainer.style.backgroundColor = "#fafafa";
 					labelContainer.innerHTML = "";
 
-					onCustomEvent(field, "BX.Landing.UI.Field:change", function(value) {
+					onCustomEvent(field, "change", function(value) {
 						labelContainer.innerHTML = "";
 						labelContainer.appendChild(create('img', {props: {src: value.src}}));
 					});
@@ -381,14 +444,14 @@
 					var labelContainers = item.querySelectorAll(".landing-card-title-text");
 					labelContainer = labelContainers[textItemIndex];
 
-					onCustomEvent(field, "BX.Landing.UI.Field:change", function(value) {
+					onCustomEvent(field, "change", function(value) {
 						labelContainer.innerHTML = create("div", {html: value}).innerText;
 					});
 
 					if (labelContainer === labelContainers[0])
 					{
-						labelContainer.innerHTML = BX.message("LANDING_CARDS_FORM_ITEM_PLACEHOLDER_TEXT");
-						field.setValue(BX.message("LANDING_CARDS_FORM_ITEM_PLACEHOLDER_TEXT"));
+						labelContainer.innerHTML = BX.Landing.Loc.getMessage("LANDING_CARDS_FORM_ITEM_PLACEHOLDER_TEXT");
+						field.setValue(BX.Landing.Loc.getMessage("LANDING_CARDS_FORM_ITEM_PLACEHOLDER_TEXT"));
 					}
 					else
 					{
@@ -454,7 +517,7 @@
 		{
 			return new BaseButton("add-card-" + random(), {
 				className: "landing-ui-card-add-button",
-				text: BX.message("LANDING_CARDS_FORM_ADD_BUTTON"),
+				text: BX.Landing.Loc.getMessage("LANDING_CARDS_FORM_ADD_BUTTON"),
 				onClick: this.onAddCardClick
 			});
 		},
@@ -494,10 +557,13 @@
 			}
 		},
 
-		onRemoveItemClick: function(event)
+		onRemoveItemClick: function(event, preventSync)
 		{
 			event.stopPropagation();
-			if (this.body.children.length > 1)
+
+			var visibleItems = this.getVisibleForms();
+
+			if (visibleItems.length > 1)
 			{
 				var item = findParent(event.currentTarget, {className: "landing-ui-form-cards-item"});
 				remove(item);
@@ -508,6 +574,40 @@
 				});
 
 				this.childForms.remove(form);
+
+				if (preventSync !== true)
+				{
+					if (this.sync)
+					{
+						var syncSelectors = this.sync;
+
+						if (isString(this.sync))
+						{
+							syncSelectors = [this.sync];
+						}
+
+						if (isArray(syncSelectors))
+						{
+							syncSelectors.forEach(function(syncSelector) {
+								var syncedForm = this.forms.find(function(currentForm) {
+									return currentForm.code === syncSelector;
+								});
+
+								if (syncedForm)
+								{
+									var childForm = syncedForm.childForms.find(function(currentChildForm) {
+										return currentChildForm.selector.split("@")[1] === form.selector.split("@")[1];
+									});
+
+									syncedForm.onRemoveItemClick({
+										currentTarget: childForm.layout,
+										stopPropagation: (function() {})
+									}, true);
+								}
+							}, this);
+						}
+					}
+				}
 			}
 
 			this.adjustLastFormState();
@@ -538,7 +638,18 @@
 			this.adjustLastFormState();
 		},
 
-		onAddCardClick: function()
+		addPresetForm: function(form)
+		{
+			this.presetForm.add(form);
+			var formWrapper = wrapForm(form, this);
+			formWrapper.hidden = true;
+			append(formWrapper, this.body);
+			makeDraggable(formWrapper, this);
+			this.adjustLastFormState();
+		},
+
+
+		onAddCardClick: function(preventSync)
 		{
 			if (isPlainObject(this.presets) && !isEmpty(this.presets))
 			{
@@ -547,6 +658,33 @@
 			else
 			{
 				this.addEmptyCard();
+
+				if (preventSync !== true)
+				{
+					if (this.sync)
+					{
+						var syncSelectors = this.sync;
+
+						if (isString(this.sync))
+						{
+							syncSelectors = [this.sync];
+						}
+
+						if (isArray(syncSelectors))
+						{
+							syncSelectors.forEach(function(syncSelector) {
+								var form = this.forms.find(function(currentForm) {
+									return currentForm.code === syncSelector;
+								});
+
+								if (form)
+								{
+									form.onAddCardClick(true);
+								}
+							}, this);
+						}
+					}
+				}
 			}
 		},
 
@@ -554,7 +692,10 @@
 		{
 			var preset = this.presets[presetId];
 
-			var newForm = this.childForms[0].clone();
+			var newForm = this.presetForm.find(function(form) {
+				return form.preset.id === presetId;
+			}).clone();
+
 			newForm.selector = join(newForm.selector.split("@")[0], "@", this.childForms.length);
 			newForm.oldIndex = this.childForms.length;
 			newForm.preset = clone(preset);
@@ -609,15 +750,14 @@
 						}
 					}, this),
 					autoHide: true,
-					maxHeight: 176
+					maxHeight: 176,
+					minHeight: 87
 				});
-
-				this.popup.layout.menuContainer.style.height = "116px";
-				this.popup.popupWindow.contentContainer.style.overflowX = "hidden";
 
 				bind(this.popup.popupWindow.popupContainer, "mouseover", this.onMouseOver.bind(this));
 				bind(this.popup.popupWindow.popupContainer, "mouseleave", this.onMouseLeave.bind(this));
-				bind(top.document, "click", this.onDocumentClick.bind(this));
+				var rootWindow = BX.Landing.PageObject.getRootWindow();
+				bind(rootWindow.document, "click", this.onDocumentClick.bind(this));
 				append(
 					this.popup.popupWindow.popupContainer,
 					findParent(this.addButton.layout, {className: "landing-ui-panel-content-body-content"})
@@ -642,8 +782,8 @@
 		 */
 		onMouseOver: function()
 		{
-			bind(this.popup.popupWindow.popupContainer, this.wheelEventName, this.onMouseWheel.bind(this));
-			bind(this.popup.popupWindow.popupContainer, "touchmove", this.onMouseWheel.bind(this));
+			this.popup.popupWindow.popupContainer.addEventListener(this.wheelEventName, this.onMouseWheel, true);
+			this.popup.popupWindow.popupContainer.addEventListener("touchmove", this.onMouseWheel, true);
 		},
 
 
@@ -652,8 +792,8 @@
 		 */
 		onMouseLeave: function()
 		{
-			unbind(this.popup.popupWindow.popupContainer, this.wheelEventName, this.onMouseWheel.bind(this));
-			unbind(this.popup.popupWindow.popupContainer, "touchmove", this.onMouseWheel.bind(this));
+			this.popup.popupWindow.popupContainer.removeEventListener(this.wheelEventName, this.onMouseWheel, true);
+			this.popup.popupWindow.popupContainer.removeEventListener("touchmove", this.onMouseWheel, true);
 		},
 
 
@@ -732,18 +872,28 @@
 		},
 
 
+		getVisibleForms: function()
+		{
+			return [].slice.call(this.body.children).filter(function(item) {
+				return !item.hidden;
+			});
+		},
+
+
 		/**
 		 * Adjusts last form state
 		 */
 		adjustLastFormState: function()
 		{
-			if (this.body.children.length === 1)
+			var visibleItems = this.getVisibleForms();
+
+			if (visibleItems.length === 1)
 			{
-				addClass(this.body.firstElementChild, "landing-ui-disallow-remove");
+				addClass(visibleItems[0], "landing-ui-disallow-remove");
 				return;
 			}
 
-			slice(this.body.children).forEach(function(item) {
+			slice(visibleItems).forEach(function(item) {
 				removeClass(item, "landing-ui-disallow-remove");
 			});
 		},

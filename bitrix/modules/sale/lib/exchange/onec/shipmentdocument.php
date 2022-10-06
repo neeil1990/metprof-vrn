@@ -1,8 +1,6 @@
 <?php
 namespace Bitrix\Sale\Exchange\OneC;
 
-use Bitrix\Sale\Exchange;
-
 class ShipmentDocument extends DocumentBase
 {
 	protected static $FIELD_INFOS = null;
@@ -10,9 +8,9 @@ class ShipmentDocument extends DocumentBase
     /**
      * @return int
      */
-    public function getOwnerEntityTypeId()
+    public function getTypeId()
     {
-        return Exchange\EntityType::SHIPMENT;
+        return DocumentType::SHIPMENT;
     }
 
     /**
@@ -492,7 +490,15 @@ class ShipmentDocument extends DocumentBase
 									'TYPE' => 'bool'
 								)
                             )
-                        )
+                        ),
+						'MARKINGS' => array(
+							'TYPE' => 'array',
+							'FIELDS' => array(
+								'BARCODE' => array(
+									'TYPE' => 'string'
+								),
+							)
+						),
                     )
                 ),
                 'TAXES' => array(
@@ -517,7 +523,8 @@ class ShipmentDocument extends DocumentBase
                 '1C_TIME' => array(
                     'TYPE' => 'datetime'
                 ),
-            );
+				'AGENT' => array()
+			);
 
 			static::unitFieldsInfo(self::$FIELD_INFOS);
 			static::koefFieldsInfo(self::$FIELD_INFOS);

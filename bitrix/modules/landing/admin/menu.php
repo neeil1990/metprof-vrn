@@ -38,11 +38,12 @@ $res = \Bitrix\Main\SiteTable::getList(array(
 		'LID', 'NAME'
 	),
 	'filter' => array(
-		'ACTIVE' => 'Y'
+		'=ACTIVE' => 'Y'
 	),
 	'order' => array(
 		'SORT' => 'ASC'
-	)
+	),
+	'cache' => ['ttl' => 86400],
 ));
 while ($row = $res->fetch())
 {
@@ -53,18 +54,16 @@ if (!empty($sites))
 {
 	$res = \Bitrix\Landing\Site::getList(array(
 		'select' => array(
-			'TITLE', 'SMN_SITE_ID', 'TYPE'
+			'ID', 'TITLE', 'SMN_SITE_ID', 'TYPE'
 		),
 		'filter' => array(
-			'=SMN_SITE_ID' => array_keys($sites)
+			'=SMN_SITE_ID' => array_keys($sites),
+			'CHECK_PERMISSIONS' => 'N'
 		)
 	));
 	while ($row = $res->fetch())
 	{
-		if ($row['TYPE'] != 'PREVIEW')
-		{
-			$sites[$row['SMN_SITE_ID']]['NAME'] = $row['TITLE'];
-		}
+		$sites[$row['SMN_SITE_ID']]['NAME'] = $row['TITLE'];
 	}
 }
 
@@ -78,7 +77,7 @@ foreach ($sites as $row)
 
 $menu['items'][] = array(
 	'text' => Loc::getMessage('LANDING_MENU_SITE_ADD'),
-	'url' => 'site_edit.php?lang=' . LANGUAGE_ID
+	'url' => 'site_edit.php?lang=' . LANGUAGE_ID . '&landing=Y'
 );
 
 

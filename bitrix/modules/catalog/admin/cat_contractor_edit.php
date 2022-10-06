@@ -5,6 +5,12 @@ global $APPLICATION;
 global $DB;
 global $USER;
 
+use Bitrix\Catalog;
+
+$selfFolderUrl = $adminPage->getSelfFolderUrl();
+$listUrl = $selfFolderUrl."cat_contractor_list.php?lang=".LANGUAGE_ID;
+$listUrl = $adminSidePanelHelper->editUrlToPublicPage($listUrl);
+
 if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_store')))
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 CModule::IncludeModule("catalog");
@@ -30,9 +36,13 @@ $ID = (isset($_REQUEST["ID"]) ? (int)$_REQUEST["ID"] : 0);
 $typeReadOnly = false;
 $userId = (int)$USER->GetID();
 
-if ($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid() && strlen($_REQUEST["Update"]) > 0 && !$bReadOnly)
+$typeList = Catalog\ContractorTable::getTypeDescriptions();
+
+if ($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid() && $_REQUEST["Update"] <> '' && !$bReadOnly)
 {
-	if($PERSON_TYPE == CONTRACTOR_INDIVIDUAL)
+	$adminSidePanelHelper->decodeUriComponent();
+
+	if ($PERSON_TYPE == Catalog\ContractorTable::TYPE_INDIVIDUAL)
 		$INN = $KPP = $COMPANY = '';
 	$PERSON_NAME = ($_REQUEST["PERSON_NAME"] == GetMessage("CONTRACTOR_NAME")) ? '' : $_REQUEST["PERSON_NAME"];
 	$PERSON_LASTNAME = ($_REQUEST["PERSON_LASTNAME"] == GetMessage("CONTRACTOR_LAST_NAME")) ? '' : $_REQUEST["PERSON_LASTNAME"];
@@ -56,30 +66,51 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid() && strlen($_RE
 		"MODIFIED_BY" => $userId,
 	);
 	$DB->StartTransaction();
-	if (strlen($errorMessage) == 0 && $ID > 0 && $res = CCatalogContractor::update($ID, $arFields))
+	if ($errorMessage == '' && $ID > 0 && $res = CCatalogContractor::update($ID, $arFields))
 	{
 		$ID = $res;
 		$DB->Commit();
 
-		if (strlen($_REQUEST["apply"])<=0)
-			LocalRedirect("/bitrix/admin/cat_contractor_list.php?lang=".LANG."&".GetFilterParams("filter_", false));
+		$adminSidePanelHelper->sendSuccessResponse("base", array("ID" => $ID));
+
+		if ($_REQUEST["apply"] == '')
+		{
+			$adminSidePanelHelper->localRedirect($listUrl);
+			LocalRedirect($listUrl);
+		}
 		else
-			LocalRedirect("/bitrix/admin/cat_contractor_edit.php?lang=".LANG."&ID=".$ID."&".GetFilterParams("filter_", false));
+		{
+			$applyUrl = $selfFolderUrl."cat_contractor_edit.php?lang=".LANGUAGE_ID."&ID=".$ID;
+			$applyUrl = $adminSidePanelHelper->setDefaultQueryParams($applyUrl);
+			LocalRedirect($applyUrl);
+		}
 	}
-	elseif (strlen($errorMessage) == 0 && $ID == 0 && $res = CCatalogContractor::Add($arFields))
+	elseif ($errorMessage == '' && $ID == 0 && $res = CCatalogContractor::Add($arFields))
 	{
 		$ID = $res;
 		$DB->Commit();
-		if (strlen($_REQUEST["apply"])<=0)
-			LocalRedirect("/bitrix/admin/cat_contractor_list.php?lang=".LANG."&".GetFilterParams("filter_", false));
+
+		$adminSidePanelHelper->sendSuccessResponse("base", array("ID" => $ID));
+
+		if ($_REQUEST["apply"] == '')
+		{
+			$adminSidePanelHelper->localRedirect($listUrl);
+			LocalRedirect($listUrl);
+		}
 		else
-			LocalRedirect("/bitrix/admin/cat_contractor_edit.php?lang=".LANG."&ID=".$ID."&".GetFilterParams("filter_", false));
+		{
+			$applyUrl = $selfFolderUrl."cat_contractor_edit.php?lang=".LANGUAGE_ID."&ID=".$ID;
+			$applyUrl = $adminSidePanelHelper->setDefaultQueryParams($applyUrl);
+			LocalRedirect($applyUrl);
+		}
 	}
 	else
 	{
 		$bVarsFromForm = true;
 		$errorMessage = $APPLICATION->GetException()->GetString();
 		$DB->Rollback();
+
+		$adminSidePanelHelper->sendJsonErrorResponse($errorMessage);
 	}
 }
 
@@ -120,13 +151,13 @@ if ($bVarsFromForm)
 if(isset($str_ADDRESS))
 	$str_ADDRESS = (trim($str_ADDRESS) != '') ? $str_ADDRESS : '';
 
-$str_PERSON_TYPE = (isset($str_PERSON_TYPE)) ? $str_PERSON_TYPE : CONTRACTOR_INDIVIDUAL;
+$str_PERSON_TYPE = (int)($str_PERSON_TYPE ?? CONTRACTOR_INDIVIDUAL);
 
 $aMenu = array(
 	array(
 		"TEXT" => GetMessage("CONTRACTOR_LIST"),
 		"ICON" => "btn_list",
-		"LINK" => "/bitrix/admin/cat_contractor_list.php?lang=".LANG."&".GetFilterParams("filter_", false)
+		"LINK" => $listUrl
 	)
 );
 
@@ -134,16 +165,22 @@ if ($ID > 0 && !$bReadOnly)
 {
 	$aMenu[] = array("SEPARATOR" => "Y");
 
+	$addUrl = $selfFolderUrl."cat_contractor_edit.php?lang=".LANGUAGE_ID;
+	$addUrl = $adminSidePanelHelper->editUrlToPublicPage($addUrl);
 	$aMenu[] = array(
 		"TEXT" => GetMessage("CONTRACTOR_NEW"),
 		"ICON" => "btn_new",
-		"LINK" => "/bitrix/admin/cat_contractor_edit.php?lang=".LANG."&".GetFilterParams("filter_", false)
+		"LINK" => $addUrl
 	);
-
+	$deleteUrl = $selfFolderUrl."cat_contractor_list.php?action=delete&ID[]=".$ID."&lang=".LANGUAGE_ID."&".bitrix_sessid_get()."#tb";
+	if ($adminSidePanelHelper->isPublicFrame())
+	{
+		$deleteUrl = $adminSidePanelHelper->editUrlToPublicPage($deleteUrl);
+	}
 	$aMenu[] = array(
 		"TEXT" => GetMessage("CONTRACTOR_DELETE"),
 		"ICON" => "btn_delete",
-		"LINK" => "javascript:if(confirm('".GetMessage("CONTRACTOR_DELETE_CONFIRM")."')) window.location='/bitrix/admin/cat_contractor_list.php?action=delete&ID[]=".$ID."&lang=".LANG."&".bitrix_sessid_get()."#tb';",
+		"LINK" => "javascript:if(confirm('".GetMessage("CONTRACTOR_DELETE_CONFIRM")."')) top.window.location='".$deleteUrl."';",
 		"WARNING" => "Y"
 	);
 }
@@ -181,8 +218,16 @@ $context->Show();
 		}
 
 	</script>
+	<?
+	$actionUrl = $APPLICATION->GetCurPage();
+	$actionUrl = $adminSidePanelHelper->setDefaultQueryParams($actionUrl);
 
-	<form enctype="multipart/form-data" method="POST" action="<?echo $APPLICATION->GetCurPage()?>?" name="contractor_edit">
+	$juridicalHideCss = $str_PERSON_TYPE === CONTRACTOR_INDIVIDUAL
+		? 'style="display: none;"'
+		: ''
+	;
+	?>
+	<form enctype="multipart/form-data" method="POST" action="<?=$actionUrl?>" name="contractor_edit">
 		<?echo GetFilterHiddens("filter_");?>
 		<input type="hidden" name="Update" value="Y">
 		<input type="hidden" name="lang" value="<?echo LANG ?>">
@@ -219,29 +264,31 @@ $context->Show();
 		<tr class="adm-detail-required-field">
 			<td width="40%"><?= GetMessage("CONTRACTOR_TYPE") ?>:</td>
 			<td width="60%">
-				<input type="hidden" name="PERSON_TYPE" value="<?=$str_PERSON_TYPE?>">
-				<select <?if($typeReadOnly) echo " disabled";?> name="PERSON_TYPE" onchange="fContractorChangeType(this);">
-					<option <? if(intval($str_PERSON_TYPE) == CONTRACTOR_INDIVIDUAL) echo" selected";?> value="1"><?= GetMessage("CONTRACTOR_INDIVIDUAL") ?></option>
-					<option <? if(intval($str_PERSON_TYPE) == CONTRACTOR_JURIDICAL) echo" selected";?> value="2"><?= GetMessage("CONTRACTOR_JURIDICAL") ?></option>
-				</select>
+				<input type="hidden" name="PERSON_TYPE" value="<?=htmlspecialcharsbx($str_PERSON_TYPE); ?>">
+				<select <?if($typeReadOnly) echo " disabled";?> name="PERSON_TYPE" onchange="fContractorChangeType(this);"><?
+					foreach ($typeList as $typeId => $item)
+					{
+						?><option value="<?=htmlspecialcharsbx($typeId); ?>"<?=($str_PERSON_TYPE === $typeId ? ' selected' : ''); ?>><?=htmlspecialcharsbx($item); ?></option><?
+					}
+				?></select>
 			</td>
 		</tr>
 
-		<tr class="adm-detail-required-field" id="company-name-tr" <? if($str_PERSON_TYPE == 1) echo "style=\"display: none\"";?>>
+		<tr class="adm-detail-required-field" id="company-name-tr" <?=$juridicalHideCss; ?>>
 			<td width="40%"><?= GetMessage("CONTRACTOR_COMPANY") ?>:</td>
 			<td width="60%">
 				<input type="text" name="COMPANY" value="<?=$str_COMPANY?>" size="30" />
 			</td>
 
 		</tr>
-		<tr id="company-inn-tr"<? if($str_PERSON_TYPE == CONTRACTOR_INDIVIDUAL) echo "style=\"display: none\"";?>>
+		<tr id="company-inn-tr"<?=$juridicalHideCss; ?>>
 			<td><?= GetMessage("CONTRACTOR_INN") ?>:</td>
 			<td>
 				<input type="text" name="INN" value="<?=$str_INN?>" size="30" />
 			</td>
 		</tr>
 		<?if(trim(GetMessage("CONTRACTOR_KPP")) != ''):?>
-			<tr id="company-kpp-tr" <? if($str_PERSON_TYPE == CONTRACTOR_INDIVIDUAL) echo "style=\"display: none\"";?>>
+			<tr id="company-kpp-tr" <?=$juridicalHideCss; ?>>
 				<td><?= GetMessage("CONTRACTOR_KPP") ?>:</td>
 				<td>
 					<input type="text" name="KPP" value="<?=$str_KPP?>" size="30" />
@@ -280,7 +327,7 @@ $context->Show();
 		<tr>
 			<td  class="adm-detail-valign-top"><span id="address_span"><? 	if($str_PERSON_TYPE == CONTRACTOR_JURIDICAL) echo GetMessage("CONTRACTOR_ADDRESS_JURIDICAL"); else echo GetMessage("CONTRACTOR_ADDRESS"); ?>:</span></td>
 			<td>
-				<textarea cols="35" rows="3" class="typearea" name="ADDRESS" wrap="virtual"><?= $str_ADDRESS ?></textarea>
+				<textarea cols="35" rows="3" class="typearea" name="ADDRESS"><?= $str_ADDRESS ?></textarea>
 			</td>
 		</tr>
 
@@ -289,14 +336,9 @@ $context->Show();
 		<?echo
 		$tabControl->EndTab();
 
-		$tabControl->Buttons(
-			array(
-				"disabled" => $bReadOnly,
-				"back_url" => "/bitrix/admin/cat_contractor_list.php?lang=".LANG."&".GetFilterParams("filter_", false)
-			)
-		);
+		$tabControl->Buttons(array("disabled" => $bReadOnly, "back_url" => $listUrl));
 		$tabControl->End();
 		?>
 	</form>
 
-<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");?>
+<?require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");

@@ -7,6 +7,7 @@
 		{
 			var touchDuration = customDuration|| 500;
 			var timerInterval;
+			var preventTouchEnd = false;
 
 			function timer(interval, targetNode)
 			{
@@ -19,6 +20,7 @@
 
 			function touchStart(e)
 			{
+				preventTouchEnd = false;
 				if (e.target.tagName === "A")
 				{
 					return;
@@ -28,10 +30,14 @@
 				timer(touchDuration, e.target);
 			}
 
-			function touchEnd()
+			function touchEnd(e)
 			{
 				startPosition = {x: 0, y: 0};
 				clearTimeout(timerInterval);
+				if (preventTouchEnd)
+				{
+					e.preventDefault();
+				}
 			}
 
 			function touchMove(e)
@@ -48,6 +54,7 @@
 			function tapHold(targetNode)
 			{
 				clearTimeout(timerInterval);
+				preventTouchEnd = true;
 				if (callback)
 				{
 					callback(targetNode);
@@ -58,6 +65,9 @@
 			node.addEventListener('touchstart', touchStart);
 			node.addEventListener('touchend', touchEnd);
 			node.addEventListener('touchmove', touchMove);
+			BX.addCustomEvent("onNativeTouchEnd", function(){
+				clearTimeout(timerInterval);
+			})
 		}
 	};
 

@@ -1,31 +1,44 @@
-<section class="landing-block g-theme-business-bg-blue-dark-v1 ">
-	<div class="text-center g-color-gray-light-v2 g-py-40">
-
-		<div class="container">
-			<div class="row">
-
-				<div class="landing-block-card js-animation fadeIn landing-block-node-contact g-brd-between-cols col-sm-4 g-brd-top g-brd-top-none--md g-brd-left--md g-brd-primary g-px-15 g-py-30 g-py-0--md">
-					<i class="landing-block-node-contact-img icon-globe d-inline-block g-font-size-50 g-color-primary g-mb-20"></i>
-					<h3 class="landing-block-node-contact-title text-uppercase g-font-size-default g-color-white-opacity-0_5 g-mb-5">Address</h3>
-					<div class="landing-block-node-contact-text g-font-size-default g-color-white">
-						<span style="font-weight: bold;">61 Oxford str., London, 3DG</span>
-					</div>
+<section class="landing-block g-pt-30 g-pb-30 text-center">
+	<div class="container">
+		<div class="row justify-content-center">
+			<div class="landing-block-card js-animation fadeIn landing-block-node-contact g-brd-between-cols col-sm-6 col-md-6 col-lg-4 g-brd-primary g-px-15 g-py-30 g-py-0--md g-mb-15"
+				 data-card-preset="contact-link">
+				<a class="landing-block-node-linkcontact-link g-text-decoration-none--hover" href="tel:#crmPhone1" target="_blank">
+					<span class="landing-block-node-contact-icon-container d-block g-color-primary g-font-size-50 g-line-height-1 g-mb-20">
+						<i class="landing-block-node-contact-icon icon-call-in"></i>
+					</span>
+					<span class="landing-block-node-linkcontact-title landing-semantic-subtitle-medium d-block text-uppercase g-font-size-14 g-color-main g-mb-5">
+						Phone number</span>
+					<span class="landing-block-node-linkcontact-text landing-semantic-subtitle-small-primary g-text-decoration-none g-text-underline--hover g-font-size-14 g-font-weight-700">
+						#crmPhoneTitle1
+					</span>
+				</a>
+			</div>
+			<div class="landing-block-card js-animation fadeIn landing-block-node-contact g-brd-between-cols col-sm-6 col-md-6 col-lg-4 g-brd-primary g-px-15 g-py-30 g-py-0--md g-mb-15"
+				 data-card-preset="contact-link">
+				<a class="landing-block-node-linkcontact-link g-text-decoration-none--hover" href="mailto:#crmEmail1" target="_blank">
+					<span class="landing-block-node-contact-icon-container d-block g-color-primary g-font-size-50 g-line-height-1 g-mb-20">
+						<i class="landing-block-node-contact-icon icon-envelope"></i>
+					</span>
+					<span class="landing-block-node-linkcontact-title landing-semantic-subtitle-medium d-block text-uppercase g-font-size-14 g-color-main g-mb-5">
+						Email</span>
+					<span class="landing-block-node-linkcontact-text landing-semantic-subtitle-small-primary g-text-decoration-none g-text-underline--hover g-font-size-14 g-font-weight-700">
+						#crmEmailTitle1
+					</span>
+				</a>
+			</div>
+			<div class="landing-block-card js-animation fadeIn landing-block-node-contact g-brd-between-cols col-sm-6 col-md-6 col-lg-4 g-brd-primary g-px-15 g-py-30 g-py-0--md g-mb-15"
+				 data-card-preset="contact-text">
+				<div class="landing-block-node-contact-container">
+					<span class="landing-block-node-contact-icon-container d-block g-color-primary g-font-size-50 g-line-height-1 g-mb-20">
+						<i class="landing-block-node-contact-icon icon-earphones-alt"></i>
+					</span>
+					<span class="landing-block-node-contact-title landing-semantic-subtitle-medium d-block text-uppercase g-font-size-14 g-color-main g-mb-5">
+						Toll free</span>
+					<span class="landing-block-node-contact-text landing-semantic-subtitle-small-primary g-text-decoration-none g-text-underline--hover g-font-size-14 g-font-weight-700 g-color-primary">
+						@company24
+					</span>
 				</div>
-				<div class="landing-block-card js-animation fadeIn landing-block-node-contact g-brd-between-cols col-sm-4 g-brd-top g-brd-top-none--md g-brd-left--md g-brd-primary g-px-15 g-py-30 g-py-0--md">
-					<i class="landing-block-node-contact-img icon-call-in d-inline-block g-font-size-50 g-color-primary g-mb-20"></i>
-					<h3 class="landing-block-node-contact-title text-uppercase g-font-size-default g-color-white-opacity-0_5 g-mb-5">Phone number</h3>
-					<div class="g-font-size-default g-color-white">
-						<a href="tel:1-800-643-4500" class="landing-block-node-contact-link g-font-weight-700">1-800-643-4500</a>
-					</div>
-				</div>
-				<div class="landing-block-card js-animation fadeIn landing-block-node-contact g-brd-between-cols col-sm-4 g-brd-top g-brd-top-none--md g-brd-left--md g-brd-primary g-px-15 g-py-30 g-py-0--md">
-					<i class="landing-block-node-contact-img icon-envelope d-inline-block g-font-size-50 g-color-primary g-mb-20"></i>
-					<h3 class="landing-block-node-contact-title text-uppercase g-font-size-default g-color-white-opacity-0_5 g-mb-5">Email</h3>
-					<div class="g-font-size-default g-color-white">
-						<a href="mailto:info@company24.com" class="landing-block-node-contact-link g-font-weight-700">info@company24.com</a>
-					</div>
-				</div>
-
 			</div>
 		</div>
 	</div>

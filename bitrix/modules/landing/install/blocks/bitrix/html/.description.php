@@ -10,18 +10,25 @@ return array(
 	'block' => array(
 		'name' => Loc::getMessage('LD_BLOCK_HTML_NAME'),
 		'section' => array('other'),
-		'html' => false,
+		'html' => false
 	),
 	'nodes' => array(
 		'bitrix:landing.blocks.html' => array(
 			'type' => 'component',
+			'waf_ignore' => true,
 			'extra' => array(
 				'editable' => array(
 					'HTML_CODE' => array(
-						'type' => 'html',
+						'type' => 'html'
 					),
-				),
-			),
+					'SKIP_MOVING_FALSE' => array()
+				)
+			)
+		)
+	),
+	'style' => array(
+		'block' => array(
+			'type' => array('block-default')
 		),
 	),
 );

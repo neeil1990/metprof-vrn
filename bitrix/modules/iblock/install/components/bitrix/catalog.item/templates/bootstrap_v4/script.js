@@ -401,6 +401,10 @@
 					this.useCompare = false;
 				}
 			}
+
+			this.isFacebookConversionCustomizeProductEventEnabled
+				= arParams.IS_FACEBOOK_CONVERSION_CUSTOMIZE_PRODUCT_EVENT_ENABLED
+			;
 		}
 
 		if (this.errorCode === 0)
@@ -618,7 +622,7 @@
 
 						break;
 					case 3: // sku
-						if (this.offers.length > 0)
+						if (this.offers.length > 0 && this.obTree)
 						{
 							treeItems = BX.findChildren(this.obTree, {tagName: 'li'}, true);
 
@@ -728,7 +732,6 @@
 			{
 				case 'addToCart':
 					info = {
-						'event': 'addToCart',
 						'ecommerce': {
 							'currencyCode': this.currentPrices[this.currentPriceSelected] && this.currentPrices[this.currentPriceSelected].CURRENCY || '',
 							'add': {
@@ -975,17 +978,15 @@
 
 						this.checkPriceRange(curValue);
 
+						intCount = Math.floor(
+							Math.round(curValue * this.precisionFactor / this.stepQuantity) / this.precisionFactor
+						) || 1;
+						curValue = (intCount <= 1 ? this.stepQuantity : intCount * this.stepQuantity);
+						curValue = Math.round(curValue * this.precisionFactor) / this.precisionFactor;
+
 						if (curValue < this.minQuantity)
 						{
 							curValue = this.minQuantity;
-						}
-						else
-						{
-							intCount = Math.round(
-									Math.round(curValue * this.precisionFactor / this.stepQuantity) / this.precisionFactor
-								) || 1;
-							curValue = (intCount <= 1 ? this.stepQuantity : intCount * this.stepQuantity);
-							curValue = Math.round(curValue * this.precisionFactor) / this.precisionFactor;
 						}
 
 						this.obQuantity.value = curValue;
@@ -1007,7 +1008,7 @@
 		quantitySet: function(index)
 		{
 			var resetQuantity, strLimit;
-			
+
 			var newOffer = this.offers[index],
 				oldOffer = this.offers[this.offerNum];
 
@@ -1488,6 +1489,22 @@
 								BX.removeClass(rowItems[i], 'selected');
 							}
 						}
+					}
+
+					if (
+						this.isFacebookConversionCustomizeProductEventEnabled
+						&& BX.Type.isArrayFilled(this.offers)
+						&& BX.Type.isObject(this.offers[this.offerNum])
+					)
+					{
+						BX.ajax.runAction(
+							'sale.facebookconversion.customizeProduct',
+							{
+								data: {
+									offerId: this.offers[this.offerNum]['ID']
+								}
+							}
+						);
 					}
 				}
 			}
@@ -2083,7 +2100,7 @@
 
 				if (this.showPercent)
 				{
-					if (price && parseInt(price.DISCOUNT) > 0)
+					if (price && parseInt(price.PERCENT) > 0)
 					{
 						obData = {style: {display: ''}, html: -price.PERCENT + '%'};
 					}

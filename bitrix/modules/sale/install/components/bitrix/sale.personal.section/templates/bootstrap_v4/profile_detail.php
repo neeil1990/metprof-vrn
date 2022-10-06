@@ -7,7 +7,13 @@ if ($arParams['SHOW_PROFILE_PAGE'] !== 'Y')
 	LocalRedirect($arParams['SEF_FOLDER']);
 }
 
-if (strlen($arParams["MAIN_CHAIN_NAME"]) > 0)
+global $USER;
+if ($arParams['USE_PRIVATE_PAGE_TO_AUTH'] === 'Y' && !$USER->IsAuthorized())
+{
+	LocalRedirect($arResult['PATH_TO_AUTH_PAGE']);
+}
+
+if ($arParams["MAIN_CHAIN_NAME"] <> '')
 {
 	$APPLICATION->AddChainItem(htmlspecialcharsbx($arParams["MAIN_CHAIN_NAME"]), $arResult['SEF_FOLDER']);
 }
@@ -22,6 +28,7 @@ $APPLICATION->IncludeComponent(
 		"USE_AJAX_LOCATIONS" => $arParams['USE_AJAX_LOCATIONS_PROFILE'],
 		"COMPATIBLE_LOCATION_MODE" => $arParams['COMPATIBLE_LOCATION_MODE_PROFILE'],		
 		"ID" => $arResult["VARIABLES"]["ID"],
+		"AUTH_FORM_IN_TEMPLATE" => 'Y',
 	),
 	$component
 );

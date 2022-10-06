@@ -15,6 +15,8 @@ use Bitrix\Main\Web\Json;
 use Bitrix\Main\Localization\Loc;
 
 $containerId = 'bx-sender-sms-sender';
+
+\Bitrix\Main\UI\Extension::load('ui.design-tokens');
 ?>
 <script type="text/javascript">
 	BX.ready(function () {
@@ -24,7 +26,10 @@ $containerId = 'bx-sender-sms-sender';
 			'manageUrl' => $arResult['MANAGE_URL'],
 			'senderId' => $arResult['CURRENT']['senderId'],
 			'list' => $arResult['LIST'],
-			'mess' => array()
+			'hasRest' => $arResult['HAS_REST'],
+			'mess' => array(
+				'marketplaceSendersList' => Loc::getMessage('SENDER_SMS_SENDER_MARKETPLACE_LINK'),
+			)
 		))?>);
 	});
 </script>

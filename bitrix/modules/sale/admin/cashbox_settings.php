@@ -28,7 +28,17 @@ namespace Bitrix\Sale\Cashbox\AdminPage\Settings
 		$cashboxSettings = $cashbox['SETTINGS'];
 		if (class_exists($handler))
 		{
-			$settings = $handler::getSettings($cashbox['KKM_ID']);
+			$settings = [];
+			$isRestHandler = $handler === '\Bitrix\Sale\Cashbox\CashboxRest';
+			if ($isRestHandler)
+			{
+				$restCode = $cashboxSettings['REST']['REST_CODE'];
+				$settings = Cashbox\CashboxRest::getConfigStructure($restCode);
+			}
+			else
+			{
+				$settings = $handler::getSettings($cashbox['KKM_ID']);
+			}
 
 			if ($settings)
 			{
@@ -70,7 +80,7 @@ namespace Bitrix\Sale\Cashbox\AdminPage\Settings
 							$value++;
 						}
 
-						$result .= '<td width="45%" class="'.$itemClassName.'">'.$item['LABEL'].':</td><td width="55%" valign="top" class="adm-detail-content-cell-r">'.Input\Manager::getEditHtml('SETTINGS['.$group.']['.$code.']', $item, $value).'</td></tr>';
+						$result .= '<td width="45%" class="'.$itemClassName.'">'.htmlspecialcharsbx($item['LABEL']).':</td><td width="55%" valign="top" class="adm-detail-content-cell-r">'.Input\Manager::getEditHtml('SETTINGS['.$group.']['.$code.']', $item, $value).'</td></tr>';
 					}
 				}
 			}

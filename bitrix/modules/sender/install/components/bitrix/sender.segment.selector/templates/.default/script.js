@@ -177,7 +177,7 @@
 	};
 	Manager.prototype.onTemplateSelect = function (templateData)
 	{
-		if (!templateData.segments)
+		if (!templateData.segments || templateData.segments.length === 0)
 		{
 			return;
 		}

@@ -8,16 +8,42 @@
 namespace Bitrix\Sender;
 
 use Bitrix\Main\Entity;
+use Bitrix\Main\Application;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\Type as MainType;
 use Bitrix\Main\DB\SqlExpression;
 use Bitrix\Sender\Recipient;
 
 Loc::loadMessages(__FILE__);
 
+/**
+ * Class ContactTable
+ *
+ * @package Bitrix\Sender
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_Contact_Query query()
+ * @method static EO_Contact_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_Contact_Result getById($id)
+ * @method static EO_Contact_Result getList(array $parameters = array())
+ * @method static EO_Contact_Entity getEntity()
+ * @method static \Bitrix\Sender\EO_Contact createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\EO_Contact_Collection createCollection()
+ * @method static \Bitrix\Sender\EO_Contact wakeUpObject($row)
+ * @method static \Bitrix\Sender\EO_Contact_Collection wakeUpCollection($rows)
+ */
 class ContactTable extends Entity\DataManager
 {
+	const CONSENT_STATUS_WAIT = 'W';
+	const CONSENT_STATUS_NEW = 'N';
+	const CONSENT_STATUS_DENY = 'D';
+	const CONSENT_STATUS_ACCEPT = 'A';
 	/**
+	 * Get table name.
+	 *
 	 * @return string
 	 */
 	public static function getTableName()
@@ -26,6 +52,8 @@ class ContactTable extends Entity\DataManager
 	}
 
 	/**
+	 * Get map.
+	 *
 	 * @return array
 	 */
 	public static function getMap()
@@ -56,18 +84,12 @@ class ContactTable extends Entity\DataManager
 			),
 			'NAME' => array(
 				'data_type' => 'string',
+				'save_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getSaveModificator'),
+				'fetch_data_modification' => array('\Bitrix\Main\Text\Emoji', 'getFetchModificator'),
 			),
 			'USER_ID' => array(
 				'data_type' => 'integer',
 			),
-			/*
-			// TODO: rename to EMAIL !!!!!!!
-			'EMAIL11111111' => array(
-				'column_name' => 'CODE',
-				'data_type' => 'string',
-				'validation' => array(__CLASS__, "validateEmail")
-			),
-			*/
 			'BLACKLISTED' => array(
 				'data_type' => 'boolean',
 				'values' => array('N', 'Y'),
@@ -98,6 +120,16 @@ class ContactTable extends Entity\DataManager
 				'default_value' => 'N',
 				'required' => true,
 			),
+			'CONSENT_STATUS' => array(
+				'data_type' => 'string',
+				'default_value' => static::CONSENT_STATUS_NEW,
+				'required' => true,
+			),
+			'CONSENT_REQUEST' => array(
+				'data_type' => 'integer',
+				'required' => true,
+				'default_value' => 0
+			),
 			'IP' => array(
 				'data_type' => 'string',
 			),
@@ -125,7 +157,7 @@ class ContactTable extends Entity\DataManager
 	 *
 	 * @return array
 	 */
-	public static function validateEmail()
+	public static function validateEmail(): array
 	{
 		return array(
 			new Entity\Validator\Length(1, 255),
@@ -133,13 +165,14 @@ class ContactTable extends Entity\DataManager
 			new Entity\Validator\Unique
 		);
 	}
-
+	
 	/**
 	 * Check email.
 	 *
+	 * @param string|null $value
 	 * @return bool|string
 	 */
-	public static function checkEmail($value)
+	public static function checkEmail(?string $value)
 	{
 		if(empty($value) || check_email($value))
 		{
@@ -157,7 +190,7 @@ class ContactTable extends Entity\DataManager
 	 * @param Entity\Event $event Event object.
 	 * @return Entity\EventResult
 	 */
-	public static function onBeforeAdd(Entity\Event $event)
+	public static function onBeforeAdd(Entity\Event $event): Entity\EventResult
 	{
 		$result = new Entity\EventResult;
 		$data = $event->getParameters();
@@ -168,7 +201,7 @@ class ContactTable extends Entity\DataManager
 
 		if(isset($data['fields']['CODE']))
 		{
-			$typeId = isset($data['fields']['TYPE_ID']) ? $data['fields']['TYPE_ID'] : null;
+			$typeId = $data['fields']['TYPE_ID'] ?? null;
 			$isValid = Recipient\Validator::validate($data['fields']['CODE'], $typeId);
 			if (!$isValid)
 			{
@@ -191,18 +224,21 @@ class ContactTable extends Entity\DataManager
 	 * @param Entity\Event $event Event object.
 	 * @return Entity\EventResult
 	 */
-	public static function onBeforeUpdate(Entity\Event $event)
+	public static function onBeforeUpdate(Entity\Event $event): Entity\EventResult
 	{
 		$result = new Entity\EventResult;
 		$data = $event->getParameters();
+		$modify = [];
 		if(isset($data['fields']['EMAIL']))
 		{
-			$result->modifyFields(array('EMAIL' => Recipient\Normalizer::normalizeEmail($data['fields']['EMAIL'])));
+			$modify += array('EMAIL' => Recipient\Normalizer::normalizeEmail($data['fields']['EMAIL']));
+			$modify += array('CONSENT_STATUS' => 'N');
 		}
 
 		if(isset($data['fields']['CODE']))
 		{
-			$typeId = isset($data['fields']['TYPE_ID']) ? $data['fields']['TYPE_ID'] : null;
+			$modify += array( 'CONSENT_STATUS' => 'N' );
+			$typeId = $data['fields']['TYPE_ID'] ?? null;
 			if (!$typeId)
 			{
 				$row = static::getRowById($data['primary']['ID']);
@@ -215,42 +251,81 @@ class ContactTable extends Entity\DataManager
 			}
 			else
 			{
-				$result->modifyFields(array(
-					'CODE' => Recipient\Normalizer::normalize($data['fields']['CODE'], $typeId)
-				));
+				$modify += array('CODE' => Recipient\Normalizer::normalize($data['fields']['CODE'], $typeId));
 			}
 		}
+		$result->modifyFields($modify);
 
 		return $result;
 	}
-
+	
 	/**
 	 * On after delete.
 	 *
 	 * @param Entity\Event $event Event.
 	 * @return Entity\EventResult
+	 * @throws \Exception
 	 */
-	public static function onAfterDelete(Entity\Event $event)
+	public static function onAfterDelete(Entity\Event $event): Entity\EventResult
 	{
 		$result = new Entity\EventResult;
 		$data = $event->getParameters();
 
 		$primary = array('CONTACT_ID' => $data['primary']['ID']);
-		ContactListTable::delete($primary);
-		MailingSubscriptionTable::delete($primary);
+		ContactListTable::deleteList($primary);
+		MailingSubscriptionTable::deleteList($primary);
 
 		return $result;
 	}
 
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter): \Bitrix\Main\DB\Result
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
 
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
+	}
+
+	/**
+	 * @param mixed $primary
+	 * @param string $contactStatus
+	 * @throws \Exception
+	 */
+	public static function updateConsentStatus($primary, string $contactStatus)
+	{
+		ContactTable::update($primary,[
+			'CONSENT_STATUS' => $contactStatus,
+			'DATE_UPDATE' => new MainType\DateTime(),
+			'CONSENT_REQUEST' => new SqlExpression("`CONSENT_REQUEST`+1"),
+		]);
+	}
+	
 	/**
 	 * Add if not exist.
 	 *
 	 * @param array $ar Data.
 	 * @return bool|int
 	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\ObjectPropertyException
+	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function addIfNotExist($ar)
+	public static function addIfNotExist(array $ar)
 	{
 		$id = false;
 		$listId = false;
@@ -261,7 +336,7 @@ class ContactTable extends Entity\DataManager
 			unset($ar['LIST_CODE'], $ar['LIST_NAME']);
 		}
 
-		$ar['EMAIL'] = strtolower($ar['EMAIL']);
+		$ar['EMAIL'] = mb_strtolower($ar['EMAIL']);
 		$contactDb = ContactTable::getList(array(
 			'select' => array('ID'),
 			'filter' => array(
@@ -291,11 +366,12 @@ class ContactTable extends Entity\DataManager
 
 		return $id;
 	}
-
+	
 	/**
 	 * Check connectors.
 	 *
 	 * @return void
+	 * @throws \Bitrix\Main\ArgumentException
 	 */
 	public static function checkConnectors()
 	{
@@ -314,9 +390,9 @@ class ContactTable extends Entity\DataManager
 	 * @param null|integer $pageNumber Page number.
 	 * @param int $timeout Timeout.
 	 * @return array
-	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\ArgumentException|\Bitrix\Main\SystemException
 	 */
-	public static function addFromConnector(Connector\Base $connector, $pageNumber = null, $timeout = 0)
+	public static function addFromConnector(Connector\Base $connector, ?int $pageNumber = null, int $timeout = 0): array
 	{
 		$startTime = getmicrotime();
 		$withoutNav = empty($pageNumber);
@@ -451,5 +527,134 @@ class ContactTable extends Entity\DataManager
 			'COUNT_NEW' => $countAdded,
 			'COUNT_ERROR' => $countError,
 		);
+	}
+	
+	/**
+	 * Upload contacts.
+	 *
+	 * @param array $list List of contacts.
+	 * @param bool $isBlacklist Is blacklist.
+	 * @param int|null $listId List ID.
+	 * @return bool|int
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\ArgumentTypeException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\ObjectPropertyException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function upload(array $list, bool $isBlacklist = false, ?int $listId = null)
+	{
+		$sqlHelper = Application::getConnection()->getSqlHelper();
+		$dateInsert = new MainType\DateTime();
+
+		$updateList = [];
+		foreach ($list as $item)
+		{
+			if (is_string($item))
+			{
+				$item = ['CODE' => $item];
+			}
+
+			if (empty($item['CODE']))
+			{
+				continue;
+			}
+			$code = trim($item['CODE']);
+
+			$typeId = Recipient\Type::detect($code);
+			if (!$typeId)
+			{
+				continue;
+			}
+
+			$code = Recipient\Normalizer::normalize($code, $typeId);
+			if (!$code)
+			{
+				continue;
+			}
+
+			$updateItem = [
+				'TYPE_ID' => $typeId,
+				'CODE' => $code,
+				'DATE_INSERT' => $dateInsert,
+				'DATE_UPDATE' => $dateInsert,
+				'NAME' => $sqlHelper->forSql($item['NAME']),
+			];
+			if ($isBlacklist)
+			{
+				$updateItem['BLACKLISTED'] = $isBlacklist ? 'Y' : 'N';
+			}
+			$updateList[] = $updateItem;
+		}
+
+
+		// insert contacts
+		if (count($updateList) === 0)
+		{
+			return 0;
+		}
+
+		$onDuplicateUpdateFields = array(
+			'NAME',
+			array(
+				'NAME' => 'BLACKLISTED',
+				'VALUE' => $isBlacklist ? "'Y'" : "'N'"
+			),
+			array(
+				'NAME' => 'DATE_UPDATE',
+				'VALUE' => $sqlHelper->convertToDbDateTime(new MainType\DateTime())
+			)
+		);
+		foreach (Internals\SqlBatch::divide($updateList) as $list)
+		{
+			Internals\SqlBatch::insert(
+				ContactTable::getTableName(),
+				$list,
+				$onDuplicateUpdateFields
+			);
+		}
+
+		if (!$listId)
+		{
+			return count($updateList);
+		}
+
+		$row = ListTable::getRowById($listId);
+		if (!$row)
+		{
+			return false;
+		}
+
+		// insert contacts & lists
+		$codesByType = array();
+		foreach ($updateList as $updateItem)
+		{
+			$typeId = $updateItem['TYPE_ID'];
+			if (!is_array($codesByType[$typeId]))
+			{
+				$codesByType[$typeId] = array();
+			}
+
+			$codesByType[$typeId][] = $updateItem['CODE'];
+		}
+		foreach ($codesByType as $typeId => $allCodes)
+		{
+			$typeId = (int) $typeId;
+			$listId = (int) $listId;
+			$contactTableName = ContactTable::getTableName();
+			$contactListTableName = ContactListTable::getTableName();
+			foreach (Internals\SqlBatch::divide($allCodes) as $codes)
+			{
+				$codes = Internals\SqlBatch::getInString($codes);
+				$sql = "INSERT IGNORE $contactListTableName ";
+				$sql .="(CONTACT_ID, LIST_ID) ";
+				$sql .="SELECT ID AS CONTACT_ID, $listId as LIST_ID ";
+				$sql .="FROM $contactTableName ";
+				$sql .="WHERE TYPE_ID=$typeId AND CODE in ($codes)";
+				Application::getConnection()->query($sql);
+			}
+		}
+
+		return ContactListTable::getCount(array('=LIST_ID' => $listId));
 	}
 }

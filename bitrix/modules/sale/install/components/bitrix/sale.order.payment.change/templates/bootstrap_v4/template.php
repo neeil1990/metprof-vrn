@@ -85,12 +85,14 @@ else
 	$javascriptParams = array(
 		"url" => CUtil::JSEscape($this->__component->GetPath().'/ajax.php'),
 		"templateFolder" => CUtil::JSEscape($templateFolder),
+		"templateName" => $this->__component->GetTemplateName(),
 		"accountNumber" => $arParams['ACCOUNT_NUMBER'],
 		"paymentNumber" => $arParams['PAYMENT_NUMBER'],
 		"inner" => $arParams['ALLOW_INNER'],
 		"onlyInnerFull" => $arParams['ONLY_INNER_FULL'],
 		"refreshPrices" => $arParams['REFRESH_PRICES'],
 		"pathToPayment" => $arParams['PATH_TO_PAYMENT'],
+		"returnUrl" => $arParams['RETURN_URL'],
 		"wrapperId" => $wrapperId
 	);
 	$javascriptParams = CUtil::PhpToJSObject($javascriptParams);

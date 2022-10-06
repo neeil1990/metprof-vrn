@@ -13,7 +13,9 @@ use Bitrix\Main\Result;
 use Bitrix\Sender\Message;
 use Bitrix\Sender\Entity;
 
+use Bitrix\Sender\Transport\TimeLimiter;
 use Bitrix\Voximplant\Tts;
+use Bitrix\Main\Config\Option;
 
 Loc::loadMessages(__FILE__);
 
@@ -65,6 +67,10 @@ class MessageCall implements Message\iBase, Message\iMailable
 		return array(TransportCall::CODE);
 	}
 
+	/**
+	 * Set configuration options
+	 * @return void
+	 */
 	protected function setConfigurationOptions()
 	{
 		if ($this->configuration->hasOptions())
@@ -87,11 +93,17 @@ class MessageCall implements Message\iBase, Message\iMailable
 						array(
 							"INPUT_NAME" => "%INPUT_NAME%",
 							"VALUE" => "%INPUT_VALUE%",
+							"MESSAGE_TYPE" => $this->getCode()
 						)
 					);
 					return ob_get_clean();
 				},
 				'required' => true,
+				'show_in_list' => true,
+				'readonly_view' => function($value)
+				{
+					return Service::getFormattedOutputNumber($value);
+				},
 			),
 			array(
 				'type' => 'text',
@@ -124,6 +136,8 @@ class MessageCall implements Message\iBase, Message\iMailable
 				'group' => Message\ConfigurationOption::GROUP_ADDITIONAL,
 			),
 		));
+
+		TimeLimiter::prepareMessageConfiguration($this->configuration);
 	}
 
 	/**
@@ -183,6 +197,7 @@ class MessageCall implements Message\iBase, Message\iMailable
 				}
 			);
 		}
+		TimeLimiter::prepareMessageConfigurationView($this->configuration);
 
 		return $this->configuration;
 	}

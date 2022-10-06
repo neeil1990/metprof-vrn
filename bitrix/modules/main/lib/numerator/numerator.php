@@ -28,7 +28,7 @@ class Numerator
 	private $type;
 	private $name;
 	/** @var NumberGenerator[] */
-	private $generators;
+	private $generators = [];
 	private $id;
 
 	const NUMERATOR_DEFAULT_TYPE = 'DEFAULT';
@@ -459,7 +459,7 @@ class Numerator
 	 * @param string $hash
 	 * @return Result
 	 */
-	public function setNextSequentialNumber($nextNumber, $whereNumber, $hash = null)
+	public function setNextSequentialNumber($nextNumber, $whereNumber = null, $hash = null)
 	{
 		$this->setNumberHashForGenerators($hash);
 		foreach ($this->generators as $generator)
@@ -629,7 +629,7 @@ class Numerator
 		{
 			foreach ($words as $word)
 			{
-				if (stripos($this->template, $word) !== false)
+				if (mb_stripos($this->template, $word) !== false)
 				{
 					$generatorTypes[$type] = 1;
 				}
@@ -751,5 +751,10 @@ class Numerator
 		/** @var NumberGenerator $generatorClass */
 		$generatorClass = get_class($generator);
 		return $generatorClass::getType();
+	}
+
+	public function getId()
+	{
+		return $this->id;
 	}
 }

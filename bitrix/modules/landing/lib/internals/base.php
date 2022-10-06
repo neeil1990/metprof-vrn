@@ -28,6 +28,7 @@ class BaseTable
 	 */
 	public static function getMap()
 	{
+		/** @var \Bitrix\Main\ORM\Data\DataManager $class */
 		$class = self::getCallingClass();
 		return $class::getMap();
 	}
@@ -35,7 +36,7 @@ class BaseTable
 	/**
 	 * Create new record and return it new id.
 	 * @param array $fields Fields array.
-	 * @return \Bitrix\Main\Result
+	 * @return \Bitrix\Main\ORM\Data\AddResult
 	 */
 	public static function add($fields)
 	{
@@ -70,6 +71,7 @@ class BaseTable
 			$fields['DATE_MODIFY'] = $date;
 		}
 
+		/** @var \Bitrix\Main\ORM\Data\DataManager $class */
 		$class = self::getCallingClass();
 		return $class::add($fields);
 	}
@@ -96,15 +98,28 @@ class BaseTable
 			}
 		}
 
+		if (isset($fields['ID']))
+		{
+			unset($fields['ID']);
+		}
 		if (!isset($fields['MODIFIED_BY_ID']))
 		{
 			$fields['MODIFIED_BY_ID'] = $uid;
+		}
+		else if (!$fields['MODIFIED_BY_ID'])
+		{
+			unset($fields['MODIFIED_BY_ID']);
 		}
 		if (!isset($fields['DATE_MODIFY']))
 		{
 			$fields['DATE_MODIFY'] = $date;
 		}
+		if (!$fields['DATE_MODIFY'])
+		{
+			unset($fields['DATE_MODIFY']);
+		}
 
+		/** @var \Bitrix\Main\ORM\Data\DataManager $class */
 		$class = self::getCallingClass();
 		return $class::update($id, $fields);
 	}
@@ -116,14 +131,20 @@ class BaseTable
 	 */
 	public static function delete($id)
 	{
+		/** @var \Bitrix\Main\ORM\Data\DataManager $class */
 		$class = self::getCallingClass();
+		\Bitrix\Landing\Debug::log(
+			$class,
+			'id: ' . $id . '@' . print_r(\Bitrix\Main\Diag\Helper::getBackTrace(5), true),
+			'LANDING_ENTITY_DELETE'
+		);
 		return $class::delete($id);
 	}
 
 	/**
 	 * Get records of table.
 	 * @param array $params Params array like ORM style.
-	 * @return Bitrix\Main\DB\Result
+	 * @return \Bitrix\Main\DB\Result
 	 */
 	public static function getList($params = array())
 	{
@@ -133,27 +154,23 @@ class BaseTable
 		{
 			$params = $class::setAccessFilter($params);
 		}
-		//@tmp
-		if (isset($params['filter']['CHECK_PERMISSIONS']))
-		{
-			unset($params['filter']['CHECK_PERMISSIONS']);
-		}
 
+		/** @var \Bitrix\Main\ORM\Data\DataManager $class */
 		return $class::getList($params);
 	}
 
 	/**
 	 * Register calllback for internal table.
 	 * @param string $code Type of callback.
-	 * @param function $callback Callback.
+	 * @param callable $callback Callback.
 	 * @return void
 	 */
 	public static function callback($code, $callback)
 	{
 		$class = self::getCallingClass();
-		if (substr(strtolower($class), -5) == 'table')
+		if (mb_substr(mb_strtolower($class), -5) == 'table')
 		{
-			$class = substr($class, 0, -5);
+			$class = mb_substr($class, 0, -5);
 			if ($class)
 			{
 				$eventManager = \Bitrix\Main\EventManager::getInstance();

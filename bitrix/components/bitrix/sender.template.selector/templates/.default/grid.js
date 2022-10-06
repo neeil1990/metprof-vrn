@@ -230,7 +230,7 @@
 
 	GridItem.prototype = {
 
-		setItemWidth: function ()
+		getItemWidth: function ()
 		{
 			return 100 / this.getItemLengthInRow();
 		},
@@ -277,7 +277,7 @@
 				this.tpl,
 				{
 					'name': this.name,
-					'style': 'width: ' + this.setItemWidth() +'%',
+					'style': 'width: ' + this.getItemWidth() +'%',
 					'image-style': this.image ?
 					'background-image: url(' + this.image + '); ' +
 					'background-size: cover;'
@@ -297,7 +297,12 @@
 
 			if (this.hint)
 			{
-				this.layout.title.appendChild(BX.UI.Hint.createNode(this.hint));
+				var hintNode = document.createElement('span');
+				hintNode.setAttribute('data-hint', this.hint);
+				hintNode.setAttribute('data-hint-html','');
+				BX.UI.Hint.initNode(hintNode)
+
+				this.layout.title.appendChild(hintNode);
 			}
 
 			if (num > (this.getItemLengthInRow() * 3) - 1)

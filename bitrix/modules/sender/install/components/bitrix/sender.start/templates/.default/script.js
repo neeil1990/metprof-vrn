@@ -6,48 +6,79 @@
 		return;
 	}
 
-	var Helper = BX.Sender.Helper;
 	var Page = BX.Sender.Page;
 
 	/**
 	 * Manager.
 	 *
 	 */
-	function Manager(params)
+	function Manager()
 	{
 	}
-	Manager.prototype.init = function (params)
+	Manager.prototype.init = function (options)
 	{
-		this.context = BX(params.containerId);
-		this.isAdAvailable = params.isAdAvailable;
+		this.context = BX(options.containerId);
 
-		var otherButton = Helper.getNode('letter-other', this.context);
-		var otherContainer = Helper.getNode('letter-other-cont', this.context);
-		BX.bind(otherButton, 'click', Helper.display.toggle.bind(Helper.display, otherContainer, false));
-
-		var buttons = Helper.getNodes('letter-add', this.context);
-		buttons.forEach(function (node) {
-			var path = node.getAttribute('data-bx-url');
-			BX.bind(node, 'click', function (e) {
-				e.stopPropagation();
-				e.preventDefault();
-
-				var isAvailable = node.getAttribute('data-available') === 'y';
-				if (!isAvailable && BX.Sender.B24License)
-				{
-					BX.Sender.B24License.showPopup('Ad');
-					return;
-				}
-
-				Page.open(path);
-			});
-		}, this);
-	};
-	Manager.prototype.initNode = function (node)
-	{
-
+		var tiles = [
+			'sender-start-mailings',
+			'sender-start-ads',
+			'sender-start-marketing',
+			'sender-start-rc',
+			'sender-start-toloka'
+		];
+		for (var i = 0; i < tiles.length; i++)
+		{
+			var tileList = BX.UI.TileList.Manager.getById(tiles[i]);
+			if (tileList)
+				tileList.getTiles().forEach(this.initTile, this);
+		}
+		// conversion init
+		var tileManager = BX.UI.TileList.Manager.getById('sender-start-conversion');
+		if (tileManager)
+		{
+			tileManager.getTiles().forEach(
+				function(tile) {
+					BX.bind(tile.node, 'click',this.onConversionClick.bind(this,tile));
+				},
+				this
+			)
+		}
 	};
 
-	BX.Sender.Start = new Manager;
+	Manager.prototype.onConversionClick = function(tile)
+	{
+
+		if (!tile.selected && BX.Sender.B24License)
+		{
+			BX.Sender.B24License.showPopup('Ad');
+			return;
+		}
+		BX.Crm.Ads.Registry.conversion(tile.data.code).show();
+	};
+
+	Manager.prototype.initTile = function (tile)
+	{
+		BX.bind(tile.node, 'click', this.onClick.bind(this, tile));
+	};
+
+	Manager.prototype.onClick = function (tile)
+	{
+		if (!tile.selected && BX.Sender.B24License)
+		{
+			BX.Sender.B24License.showPopup('Ad');
+			return;
+		}
+
+		var width = null;
+
+		if(tile.id === 'instagram' || tile.id === 'facebook')
+		{
+			width = 1045;
+		}
+
+		Page.open(tile.data.url, false,{"width" : width});
+	};
+
+	BX.Sender.Start = new Manager();
 
 })(window);

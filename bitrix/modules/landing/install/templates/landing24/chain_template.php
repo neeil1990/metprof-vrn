@@ -5,7 +5,7 @@ if (!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED!==true)
 }
 
 /**
- * @global CMain $APPLICATION
+ * @global \CMain $APPLICATION
  */
 
 global $APPLICATION;
@@ -13,8 +13,6 @@ global $APPLICATION;
 use \Bitrix\Main\Localization\Loc;
 
 Loc::loadMessages(__FILE__);
-
-
 
 $strReturn = '';
 
@@ -28,10 +26,10 @@ if (
 }
 
 // insert custom main page
-$arResult = array(array(
+$arResult = array_merge(array(array(
 	'LINK' => '#system_mainpage',
 	'TITLE' => Loc::getMessage('LANDING_TPL_CHAIN_TPL_MAIN')
-)) + $arResult;
+)), (array) $arResult);
 
 $arResult = array_values($arResult);
 
@@ -39,14 +37,20 @@ $strReturn .= '<ul class="landing-breadcrumb u-list-inline">';
 
 $outputItems = 0;
 $itemSize = count($arResult);
+
 for($index = 0; $index < $itemSize; $index++)
 {
+	if (!$arResult[$index]["TITLE"])
+	{
+		continue;
+	}
+
 	$title = htmlspecialcharsex($arResult[$index]["TITLE"]);
-//	$nextRef = ($index < $itemSize-2 && $arResult[$index+1]["LINK"] <> ""? ' itemref="bx_breadcrumb_'.($index+1).'"' : '');
-//	$child = ($index > 0? ' itemprop="child"' : '');
+	// $nextRef = ($index < $itemSize-2 && $arResult[$index+1]["LINK"] <> ""? ' itemref="bx_breadcrumb_'.($index+1).'"' : '');
+	// $child = ($index > 0? ' itemprop="child"' : '');
 	$arrow = ($index > 0? '<i class="landing-breadcrumb-arrow fa g-mx-5"></i>' : '');
 
-	if($arResult[$index]["LINK"] <> "" && $index != $itemSize-1)
+	if ($arResult[$index]["LINK"] <> "")// && $index != $itemSize-1
 	{
 		$outputItems++;
 		$strReturn .= '

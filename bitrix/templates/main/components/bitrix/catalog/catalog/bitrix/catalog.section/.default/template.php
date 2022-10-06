@@ -253,7 +253,7 @@ if (!empty($arResult['ITEMS']))
 
                     <?if($arOffers['QUANTITY'] > 0):?>
                         <? if($intInStock < $arResult['UF_JS_TEXT_IN_STOCK']): ?>
-                            <div class="instock"><?=$intInStock?> В наличии</div>
+                            <div class="instock"><?=$arOffers['QUANTITY']?> В наличии</div>
                         <? else: ?>
                             <div class="instock js-text" data-text="В наличии"></div>
                         <? endif; ?>

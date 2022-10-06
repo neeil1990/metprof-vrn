@@ -8,14 +8,21 @@
 namespace Bitrix\Sender\Entity;
 
 use Bitrix\Main\Application;
+use Bitrix\Main\Error;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\Type\DateTime;
-use Bitrix\Sender\GroupTable;
-use Bitrix\Sender\GroupConnectorTable;
 use Bitrix\Sender\Connector;
+use Bitrix\Sender\ContactTable;
+use Bitrix\Sender\GroupConnectorTable;
+use Bitrix\Sender\GroupDealCategoryTable;
+use Bitrix\Sender\GroupTable;
 use Bitrix\Sender\Internals\Model\GroupCounterTable;
+use Bitrix\Sender\ListTable;
+use Bitrix\Sender\Posting\SegmentDataBuilder;
+use Bitrix\Main\Type;
 
 Loc::loadMessages(__FILE__);
+Loc::loadMessages(__DIR__ . '/letter.php');
 
 class Segment extends Base
 {
@@ -110,6 +117,7 @@ class Segment extends Base
 				continue;
 			}
 
+			$groupConnector['ENDPOINT']['FILTER_ID'] = $groupConnector['FILTER_ID'];
 			$data['ENDPOINTS'][] = $groupConnector['ENDPOINT'];
 		}
 
@@ -128,10 +136,9 @@ class Segment extends Base
 		$endpoints = $data['ENDPOINTS'];
 		unset($data['ENDPOINTS']);
 
-		if(!is_array($endpoints) || count($endpoints) == 0)
+		if (!$id && $data['STATUS'] !== GroupTable::STATUS_NEW)
 		{
-			$this->addError(Loc::getMessage('SENDER_ENTITY_SEGMENT_ERROR_NO_FILTERS'));
-			return $id;
+			$data['STATUS'] = GroupTable::STATUS_DONE;
 		}
 
 		$id = $this->saveByEntity(GroupTable::getEntity(), $id, $data);
@@ -142,43 +149,100 @@ class Segment extends Base
 
 		$dataCounters = array();
 		GroupConnectorTable::delete(array('GROUP_ID' => $id));
-		foreach ($endpoints as $endpoint)
+
+		if ($endpoints)
 		{
-			$connector = Connector\Manager::getConnector($endpoint);
-			if (!$connector)
+			foreach ($endpoints as $endpoint)
 			{
-				continue;
+				$connector = Connector\Manager::getConnector($endpoint);
+				if (!$connector)
+				{
+					continue;
+				}
+
+				if ($this->isFilterOnly() && !($connector instanceof Connector\BaseFilter))
+				{
+					continue;
+				}
+
+				$connector->setFieldValues($endpoint['FIELDS']);
+				$endpoint['FIELDS'] = $connector->getFieldValues();
+				$statFields = $connector->getStatFields();
+
+				foreach (array_intersect($statFields, array_keys($endpoint['FIELDS'])) as $field)
+				{
+					\Bitrix\Sender\Log::stat('segment_field', $field, $id);
+				}
+				$isIncrementally = $connector instanceof Connector\IncrementallyConnector;
+
+				$dataCounter = $isIncrementally
+					? new Connector\DataCounter([])
+					: $connector->getDataCounter();
+
+				$groupConnector = array(
+					'GROUP_ID' => $id,
+					'NAME' => $connector->getName(),
+					'ENDPOINT' => $endpoint,
+					'ADDRESS_COUNT' => $dataCounter->getSummary()
+				);
+
+				if($endpoint['FILTER_ID'])
+				{
+					$groupConnector['FILTER_ID'] = $endpoint['FILTER_ID'];
+				}
+
+				$connectorResultDb = GroupConnectorTable::add($groupConnector);
+				if($connectorResultDb->isSuccess())
+				{
+					$dataCounters[] = $dataCounter;
+				}
+
+				$this->updateDealCategory($id, $connector);
 			}
 
-			if ($this->isFilterOnly() && !($connector instanceof Connector\BaseFilter))
+			if (GroupTable::STATUS_NEW === $data['STATUS'])
 			{
-				continue;
+				SegmentDataBuilder::actualize($id, true);
 			}
 
-			$connector->setFieldValues($endpoint['FIELDS']);
-			$endpoint['FIELDS'] = $connector->getFieldValues();
-
-			$groupConnector = array(
-				'GROUP_ID' => $id,
-				'NAME' => $connector->getName(),
-				'ENDPOINT' => $endpoint,
-				'ADDRESS_COUNT' => $connector->getDataCounter()->getSummary()
-			);
-
-			$connectorResultDb = GroupConnectorTable::add($groupConnector);
-			if($connectorResultDb->isSuccess())
-			{
-				$dataCounters[] = $connector->getDataCounter();
-			}
+			SegmentDataBuilder::checkIsSegmentPrepared($id);
+			$this->updateAddressCounters($id, $dataCounters);
 		}
-
-		$this->updateAddressCounters($id, $dataCounters);
 
 		return $id;
 	}
 
+	private function updateDealCategory(int $groupId, $connector)
+	{
+		$groupDealCategory = [];
+
+		foreach ($connector->getFieldValues() as $fieldKey => $fieldValue)
+		{
+			if($fieldKey != 'DEAL_CATEGORY_ID')
+			{
+				continue;
+			}
+			GroupDealCategoryTable::deleteList(array('GROUP_ID' => $groupId));
+
+			foreach ($fieldValue as $dealCategory)
+			{
+				$groupDealCategory[] = [
+					'GROUP_ID' => $groupId,
+					'DEAL_CATEGORY_ID' => $dealCategory
+				];
+			}
+		}
+
+		if(!empty($groupDealCategory))
+		{
+			GroupDealCategoryTable::addMulti($groupDealCategory);
+		}
+	}
+
 	/**
-	 * Is hidden.
+	 * Return true if segment is hidden.
+	 *
+	 * @return bool
 	 */
 	public function isHidden()
 	{
@@ -186,7 +250,9 @@ class Segment extends Base
 	}
 
 	/**
-	 * Is hidden.
+	 * Return true if segment is system.
+	 *
+	 * @return bool
 	 */
 	public function isSystem()
 	{
@@ -212,6 +278,91 @@ class Segment extends Base
 	public function setFilterOnlyMode($mode = true)
 	{
 		$this->isFilterOnly = $mode;
+		return $this;
+	}
+
+	/**
+	 * Append contact set connector.
+	 *
+	 * @param int|null $contactSetId Contact set ID.
+	 * @return $this
+	 */
+	public function appendContactSetConnector($contactSetId = null)
+	{
+		if ($this->getFirstContactSetId())
+		{
+			return $this;
+		}
+
+		if (!$contactSetId)
+		{
+			$contactSetId = ListTable::add(['SORT' => 100])->getId();
+		}
+		elseif (!ListTable::getRowById($contactSetId))
+		{
+			$this->errors->setError(new Error('Wrong contact set ID.'));
+			return $this;
+		}
+
+		$this->data['ENDPOINTS'][] = [
+			'MODULE_ID' => 'sender',
+			'CODE' => 'contact_list',
+			'FIELDS' => [
+				'LIST_ID' => $contactSetId,
+				'SENDER_SELECT_ALL' => null,
+			],
+		];
+		return $this;
+	}
+
+	/**
+	 * Return fisrt contact set ID from in segment.
+	 *
+	 * @return int|null
+	 */
+	protected function getFirstContactSetId()
+	{
+		foreach ($this->data['ENDPOINTS'] as $endpoint)
+		{
+			if ($endpoint['MODULE_ID'] !== 'sender' || $endpoint['CODE'] !== 'contact_list')
+			{
+				continue;
+			}
+
+			if (empty($endpoint['FIELDS']['LIST_ID']))
+			{
+				continue;
+			}
+
+			return $endpoint['FIELDS']['LIST_ID'];
+		}
+
+		return null;
+	}
+
+	/**
+	 * Upload.
+	 *
+	 * @param array $list List of emails and phones.
+	 * @return $this
+	 */
+	public function upload(array $list)
+	{
+		$contactSetId = $this->getFirstContactSetId();
+		if (!$contactSetId)
+		{
+			$this->appendContactSetConnector()->save();
+		}
+
+		$contactSetId = $this->getFirstContactSetId();
+		if (!$contactSetId)
+		{
+			$this->errors->setError(new Error('Contact set not found.'));
+			return $this;
+		}
+
+		ContactTable::upload($list, false, $contactSetId);
+
 		return $this;
 	}
 
@@ -253,7 +404,7 @@ class Segment extends Base
 			return false;
 		}
 
-		GroupCounterTable::delete(array('GROUP_ID' => $segmentId));
+		GroupCounterTable::deleteByGroupId($segmentId);
 		foreach ($countByType as $typeId => $typeCount)
 		{
 			if (!$typeCount)
@@ -321,8 +472,9 @@ class Segment extends Base
 		$tableName = GroupTable::getTableName();
 		$now = Application::getConnection()->getSqlHelper()->convertToDbDateTime(new DateTime());
 		$ids = array();
-		foreach ($list as $id)
+		foreach ($list as $element)
 		{
+			$id = $element['ID'];
 			if (!$id || !is_numeric($id))
 			{
 				continue;
@@ -351,6 +503,29 @@ class Segment extends Base
 	public function remove()
 	{
 		return $this->removeByEntity(GroupTable::getEntity(), $this->getId());
+	}
+
+	/**
+	 * Copy.
+	 *
+	 * @return bool
+	 */
+	public function copy()
+	{
+		$data = $this->loadData($this->getId());
+
+		return $this->copyData(
+			$this->getId(),
+			[
+				'NAME' => Loc::getMessage('SENDER_ENTITY_LETTER_COPY_PREFIX') . ' ' .$data['NAME'],
+				'CODE' => null,
+				'STATUS' => GroupTable::STATUS_NEW,
+				'DATE_USE' => null,
+				'USE_COUNT' => 0,
+				'USE_COUNT_EXCLUDE' => 0,
+				'DATE_INSERT' => new Type\DateTime(),
+			]
+		);
 	}
 
 	/**

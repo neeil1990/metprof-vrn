@@ -46,15 +46,13 @@
 		this.body.appendChild(this.search);
 
 		// Make loader
-		this.loader = new BX.Landing.UI.Card.Loader({hidden: true});
-		this.body.appendChild(this.loader.layout);
+		this.loader = new BX.Loader({target: this.body});
 
 		// Make search list
 		this.imageList = BX.create("div", {props: {className: "landing-ui-card-library-list"}});
 		this.body.appendChild(this.imageList);
 
-		this.bottomLoader = new BX.Landing.UI.Card.Loader({hidden: true});
-		this.body.appendChild(this.bottomLoader.layout);
+		this.bottomLoader = new BX.Loader({target: this.body, mode: "inline", offset: {left: "calc(50% - 55px)"}});
 
 		// Make load more button
 		this.loadMore = BX.create("div", {props: {className: "landing-ui-card-library-load-more"}});
@@ -114,7 +112,7 @@
 			{
 				this.empty = BX.create("div", {
 					props: {className: "landing-ui-card-library-empty"},
-					html: BX.message("LANDING_IMAGES_PANEL_EMPTY_RESULT")
+					html: BX.Landing.Loc.getMessage("LANDING_IMAGES_PANEL_EMPTY_RESULT")
 				});
 
 				BX.insertAfter(this.empty, this.imageList);
@@ -137,7 +135,7 @@
 			{
 				this.error = BX.create("div", {
 					props: {className: "landing-ui-card-library-error"},
-					html: BX.message("LANDING_IMAGES_PANEL_ERROR") || "Error"
+					html: BX.Landing.Loc.getMessage("LANDING_IMAGES_PANEL_ERROR") || "Error"
 				});
 
 				BX.insertAfter(this.error, this.imageList);
@@ -174,7 +172,7 @@
 		createLoadMoreButton: function()
 		{
 			return new BX.Landing.UI.Button.BaseButton("load_more", {
-				text: BX.message("LANDING_IMAGE_LIBRARY_LOAD_MORE"),
+				text: BX.Landing.Loc.getMessage("LANDING_IMAGE_LIBRARY_LOAD_MORE"),
 				className: "landing-ui-card-library-load-more-button",
 				onClick: this.onLoadMore.bind(this)
 			});
@@ -196,7 +194,7 @@
 			var field = new BX.Landing.UI.Field.Unit({
 				onInput: this.onSearchInput.bind(this),
 				className: "landing-ui-card-library-search-field",
-				placeholder: BX.message("SEARCH_FIELD_PLACEHOLDER"),
+				placeholder: BX.Landing.Loc.getMessage("SEARCH_FIELD_PLACEHOLDER"),
 				title: this.searchLabel
 			});
 

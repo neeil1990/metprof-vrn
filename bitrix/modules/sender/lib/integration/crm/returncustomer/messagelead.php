@@ -9,6 +9,7 @@
 namespace Bitrix\Sender\Integration\Crm\ReturnCustomer;
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Sender\Integration\Crm\Connectors\Helper;
 use Bitrix\Sender\Internals\PrettyDate;
 use Bitrix\Sender\Message;
 use Bitrix\Sender\PostingRecipientTable;
@@ -17,7 +18,7 @@ use Bitrix\Sender\PostingRecipientTable;
  * Class MessageLead
  * @package Bitrix\Sender\Integration\Crm\ReturnCustomer;
  */
-class MessageLead extends MessageBase
+class MessageLead extends MessageBase implements Message\iHideable
 {
 	const CODE = self::CODE_RC_LEAD;
 
@@ -28,6 +29,16 @@ class MessageLead extends MessageBase
 	public function getName()
 	{
 		return Loc::getMessage('SENDER_INTEGRATION_CRM_RC_MESSAGE_NAME_LEAD');
+	}
+
+	/**
+	 * Return true if is hidden.
+	 *
+	 * @return bool
+	 */
+	public function isHidden()
+	{
+		return !Service::isLeadEnabled();
 	}
 
 	protected function setConfigurationOptions()
@@ -48,18 +59,31 @@ class MessageLead extends MessageBase
 					'menu' => array_map(
 						function ($item)
 						{
-							return [
+							return array(
 								'id' => '#' . $item['CODE'] . '#',
 								'text' => $item['NAME'],
 								'title' => $item['DESC'],
-							];
+								'items' => $item['ITEMS']?array_map(
+									function ($item)
+									{
+										return array(
+											'id' => '#' . $item['CODE'] . '#',
+											'text' => $item['NAME'],
+											'title' => $item['DESC']
+										);
+									}, $item['ITEMS']
+								) : []
+							);
 						},
-						PostingRecipientTable::getPersonalizeList()
+						array_merge(
+							Helper::getPersonalizeFieldsFromConnectors(),
+							PostingRecipientTable::getPersonalizeList()
+						)
 					),
 				],
 			],
 			[
-				'type' => 'string',
+				'type' => Message\ConfigurationOption::TYPE_USER_LIST,
 				'code' => 'ASSIGNED_BY',
 				'name' => Loc::getMessage('SENDER_INTEGRATION_CRM_RC_MESSAGE_CONFIG_ASSIGNED_BY'),
 				'required' => true,

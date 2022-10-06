@@ -20,16 +20,17 @@ use Bitrix\Main\Localization\Loc;
 					<div class="form">
 						<div class="form-group" style="position: relative;">
 							<input type="text" class="form-control" id="" placeholder="" data-entity="basket-coupon-input">
-							<span class="basket-coupon-block-coupon-btn"></span>
+							<span class=" basket-coupon-block-coupon-btn"></span>
 						</div>
 					</div>
+
 				</div>
 			</div>
 			<?
 		}
 		?>
 		<div class="basket-checkout-section">
-			<div class="basket-checkout-section-inner">
+			<div class="basket-checkout-section-inner<?=(($arParams['HIDE_COUPON'] == 'Y') ? ' justify-content-between' : '')?>">
 				<div class="basket-checkout-block basket-checkout-block-total">
 					<div class="basket-checkout-block-total-inner">
 						<div class="basket-checkout-block-total-title"><?=Loc::getMessage('SBB_TOTAL')?>:</div>
@@ -85,7 +86,7 @@ use Bitrix\Main\Localization\Loc;
 					<div class="basket-coupon-alert text-{{CLASS}}">
 						<span class="basket-coupon-text">
 							<strong>{{COUPON}}</strong> - <?=Loc::getMessage('SBB_COUPON')?> {{JS_CHECK_CODE}}
-							{{#DISCOUNT_NAME}}({{{DISCOUNT_NAME}}}){{/DISCOUNT_NAME}}
+							{{#DISCOUNT_NAME}}({{DISCOUNT_NAME}}){{/DISCOUNT_NAME}}
 						</span>
 						<span class="close-link" data-entity="basket-coupon-delete" data-coupon="{{COUPON}}">
 							<?=Loc::getMessage('SBB_DELETE')?>

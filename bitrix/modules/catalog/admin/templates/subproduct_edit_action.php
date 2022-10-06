@@ -1,4 +1,5 @@
 <?
+use Bitrix\Main;
 use Bitrix\Catalog;
 /** @global CUser $USER */
 /** @global CMain $APPLICATION */
@@ -19,6 +20,8 @@ use Bitrix\Catalog;
 /** @global string $SUBCAT_WITHOUT_ORDER */
 /** @global string $SUBCAT_MEASURE_RATIO */
 /** @global string $SUBCAT_BASE_QUANTITY_RESERVED */
+/** @global string $SUBCAT_VAT_ID */
+/** @global string $SUBCAT_VAT_INCLUDED */
 /** @global array $arCatalogBaseGroup */
 /** @global array $arCatalogBasePrices */
 /** @global array $arCatalogPrices */
@@ -32,8 +35,9 @@ if ($USER->CanDoOperation('catalog_price'))
 	if (0 < $IBLOCK_ID && 0 < $ID)
 	{
 		$PRODUCT_ID = CIBlockElement::GetRealElement($ID);
-		$bUseStoreControl = (COption::GetOptionString('catalog','default_use_store_control') == "Y");
+		$bUseStoreControl = Catalog\Config\State::isUsedInventoryManagement();
 		$bEnableReservation = (COption::GetOptionString('catalog', 'enable_reservation') != 'N');
+		$enableQuantityRanges = Catalog\Config\Feature::isPriceQuantityRangesEnabled();
 
 		if (CIBlockElementRights::UserHasRightTo($IBLOCK_ID, $PRODUCT_ID, "element_edit_price"))
 		{
@@ -41,7 +45,10 @@ if ($USER->CanDoOperation('catalog_price'))
 
 			if ('' == $strWarning)
 			{
-				$bUseExtForm = (isset($_POST['subprice_useextform']) && 'Y' == $_POST['subprice_useextform']);
+				if ($enableQuantityRanges)
+					$bUseExtForm = (isset($_POST['subprice_useextform']) && 'Y' == $_POST['subprice_useextform']);
+				else
+					$bUseExtForm = false;
 
 				$arCatalog = CCatalog::GetByID($IBLOCK_ID);
 
@@ -65,7 +72,7 @@ if ($USER->CanDoOperation('catalog_price'))
 							"QUANTITY_TO" => $arCatalogBasePrices[$i]["QUANTITY_TO"]
 						);
 
-						if (strlen($arCatalogPrice_tmp[$i]["CURRENCY"]) <= 0)
+						if ($arCatalogPrice_tmp[$i]["CURRENCY"] == '')
 						{
 							$arCatalogPrice_tmp[$i]["CURRENCY"] = $arCatalogBasePrices[$i]["CURRENCY"];
 						}
@@ -90,7 +97,6 @@ if ($USER->CanDoOperation('catalog_price'))
 				}
 
 				$arUpdatedIDs = array();
-				$availCanBuyZero = COption::GetOptionString("catalog", "default_can_buy_zero");
 				$quantityTrace = $_POST['SUBCAT_BASE_QUANTITY_TRACE'];
 				if(!$quantityTrace || $quantityTrace == '')
 					$quantityTrace = 'D';
@@ -248,7 +254,13 @@ if ($USER->CanDoOperation('catalog_price'))
 					$arFields["RECUR_SCHEME_LENGTH"] = $SUBCAT_RECUR_SCHEME_LENGTH;
 					$arFields["TRIAL_PRICE_ID"] = $SUBCAT_TRIAL_PRICE_ID;
 					$arFields["WITHOUT_ORDER"] = $SUBCAT_WITHOUT_ORDER;
+					$arFields["QUANTITY_TRACE"] = Catalog\ProductTable::STATUS_NO;
+					$arFields["CAN_BUY_ZERO"] = Catalog\ProductTable::STATUS_NO;
 				}
+
+				$userFieldManager = Main\UserField\Internal\UserFieldHelper::getInstance()->getManager();
+				$userFieldManager->EditFormAddFields(Catalog\ProductTable::getUfId(), $arFields);
+				unset($userFieldManager);
 
 				$iterator = Catalog\Model\Product::getList(array(
 					'select' => ['ID'],
@@ -317,9 +329,9 @@ if ($USER->CanDoOperation('catalog_price'))
 				}
 				unset($currentRatio);
 				if ($newRatio)
-					CCatalogMeasureRatio::add($arMeasureRatio);
+					$currentRatioID = (int)CCatalogMeasureRatio::add($arMeasureRatio);
 				else
-					CCatalogMeasureRatio::update($currentRatioID, $arMeasureRatio);
+					$currentRatioID = CCatalogMeasureRatio::update($currentRatioID, $arMeasureRatio);
 				unset($newRatio, $arMeasureRatio);
 
 				if ($currentRatioID > 0)
@@ -344,7 +356,7 @@ if ($USER->CanDoOperation('catalog_price'))
 				$intCountBasePrice = count($arCatalogBasePrices);
 				for ($i = 0; $i < $intCountBasePrice; $i++)
 				{
-					if (strlen($arCatalogBasePrices[$i]["PRICE"]) > 0)
+					if ($arCatalogBasePrices[$i]["PRICE"] <> '')
 					{
 						$arCatalogFields = array(
 							"EXTRA_ID" => false,
@@ -388,7 +400,7 @@ if ($USER->CanDoOperation('catalog_price'))
 					$intCountPrices = count($arCatalogPrice_tmp);
 					for ($i = 0; $i < $intCountPrices; $i++)
 					{
-						if (strlen($arCatalogPrice_tmp[$i]["PRICE"]) > 0)
+						if ($arCatalogPrice_tmp[$i]["PRICE"] <> '')
 						{
 							$arCatalogFields = array(
 								"EXTRA_ID" => ($arCatalogPrice_tmp[$i]["EXTRA_ID"] > 0 ? $arCatalogPrice_tmp[$i]["EXTRA_ID"] : false),
@@ -449,12 +461,12 @@ if ($USER->CanDoOperation('catalog_price'))
 
 					$arAvailContentGroups = array();
 					$availContentGroups = COption::GetOptionString("catalog", "avail_content_groups");
-					if (strlen($availContentGroups) > 0)
+					if ($availContentGroups <> '')
 						$arAvailContentGroups = explode(",", $availContentGroups);
 
 					$dbGroups = CGroup::GetList(
-						($b = "c_sort"),
-						($o = "asc"),
+						"c_sort",
+						"asc",
 						array("ANONYMOUS" => "N")
 					);
 					while ($arGroup = $dbGroups->Fetch())

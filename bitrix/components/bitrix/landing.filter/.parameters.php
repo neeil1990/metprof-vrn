@@ -14,6 +14,10 @@ $arComponentParameters = Array(
 			'NAME' => getMessage('LANDING_CMP_PAR_SETTING_LINK'),
 			'TYPE' => 'STRING'
 		),
+		'FOLDER_ID' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_FOLDER_ID'),
+			'TYPE' => 'STRING'
+		),
 		'FOLDER_SITE_ID' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_FOLDER_SITE_ID'),
 			'TYPE' => 'STRING'
@@ -21,6 +25,10 @@ $arComponentParameters = Array(
 		'BUTTONS' => array(
 			'NAME' => getMessage('LANDING_CMP_PAR_BUTTONS'),
 			'TYPE' => 'LIST'
-		)
+		),
+		'DRAFT_MODE' => array(
+			'NAME' => getMessage('LANDING_CMP_PAR_DRAFT_MODE'),
+			'TYPE' => 'CHECKBOX'
+		),
 	)
 );

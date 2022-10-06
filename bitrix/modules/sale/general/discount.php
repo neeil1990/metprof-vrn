@@ -22,11 +22,22 @@ class CAllSaleDiscount
 	static protected $cacheDiscountHandlers = array();
 	static protected $usedModules = array();
 
-	public static function DoProcessOrder(
-		&$arOrder,
-		/** @noinspection PhpUnusedParameterInspection */$arOptions,
-		/** @noinspection PhpUnusedParameterInspection */&$arErrors
-	)
+	/**
+	 * @deprecated strongly deprecated since sale 15.5.0.
+	 * @see \Bitrix\Sale\Discount
+	 *
+	 * @param array &$arOrder
+	 * @param array $arOptions
+	 * @param array &$arErrors
+	 * @return void
+	 * @throws Main\ArgumentException
+	 * @throws Main\ArgumentNullException
+	 * @throws Main\ArgumentOutOfRangeException
+	 * @throws Main\ObjectException
+	 * @throws Main\ObjectPropertyException
+	 * @throws Main\SystemException
+	 */
+	public static function DoProcessOrder(&$arOrder, $arOptions, &$arErrors)
 	{
 		if (empty($arOrder['BASKET_ITEMS']) || !is_array($arOrder['BASKET_ITEMS']))
 			return;
@@ -506,12 +517,12 @@ class CAllSaleDiscount
 						$itemDiscountsApply = true;
 						$descr = $row['RESULT']['DESCR_DATA'][0];
 						$validDiscount = (
-							isset($descr['TYPE']) && $descr['TYPE'] == Sale\OrderDiscountManager::DESCR_TYPE_VALUE
+							isset($descr['TYPE']) && $descr['TYPE'] == Sale\Discount\Formatter::TYPE_VALUE
 							&& (
-								$descr['VALUE_ACTION'] == Sale\OrderDiscountManager::DESCR_VALUE_ACTION_DISCOUNT
-								|| $descr['VALUE_ACTION'] == Sale\OrderDiscountManager::DESCR_VALUE_ACTION_ACCUMULATE
+								$descr['VALUE_ACTION'] == Sale\Discount\Formatter::VALUE_ACTION_DISCOUNT
+								|| $descr['VALUE_ACTION'] == Sale\Discount\Formatter::VALUE_ACTION_CUMULATIVE
 							)
-							&& $descr['VALUE_TYPE'] == Sale\OrderDiscountManager::DESCR_VALUE_TYPE_PERCENT
+							&& $descr['VALUE_TYPE'] == Sale\Discount\Formatter::VALUE_TYPE_PERCENT
 						);
 
 						if (!$validDiscount)
@@ -552,9 +563,9 @@ class CAllSaleDiscount
 						}
 						$descr = $discount['RESULT']['BASKET'][$code]['DESCR_DATA'][0];
 						if (
-							isset($descr['TYPE']) && $descr['TYPE'] == Sale\OrderDiscountManager::DESCR_TYPE_VALUE
-							&& $descr['VALUE_ACTION'] == Sale\OrderDiscountManager::DESCR_VALUE_ACTION_DISCOUNT
-							&& $descr['VALUE_TYPE'] == Sale\OrderDiscountManager::DESCR_VALUE_TYPE_PERCENT
+							isset($descr['TYPE']) && $descr['TYPE'] == Sale\Discount\Formatter::TYPE_VALUE
+							&& $descr['VALUE_ACTION'] == Sale\Discount\Formatter::VALUE_ACTION_DISCOUNT
+							&& $descr['VALUE_TYPE'] == Sale\Discount\Formatter::VALUE_TYPE_PERCENT
 						)
 						{
 							$simplePercentValue = $descr['VALUE'];
@@ -634,12 +645,12 @@ class CAllSaleDiscount
 		$val = (float)$val;
 
 		$baseSiteCurrency = '';
-		if (isset($arFilter["LID"]) && strlen($arFilter["LID"]) > 0)
+		if (isset($arFilter["LID"]) && $arFilter["LID"] <> '')
 			$baseSiteCurrency = CSaleLang::GetLangCurrency($arFilter["LID"]);
-		elseif (isset($arFilter["CURRENCY"]) && strlen($arFilter["CURRENCY"]) > 0)
+		elseif (isset($arFilter["CURRENCY"]) && $arFilter["CURRENCY"] <> '')
 			$baseSiteCurrency = $arFilter["CURRENCY"];
 
-		if (strlen($baseSiteCurrency) <= 0)
+		if ($baseSiteCurrency == '')
 			return false;
 
 		$strSqlSearch = '';
@@ -714,7 +725,7 @@ class CAllSaleDiscount
 		{
 			return false;
 		}
-		$ACTION = strtoupper($ACTION);
+		$ACTION = mb_strtoupper($ACTION);
 		if ('UPDATE' != $ACTION && 'ADD' != $ACTION)
 			return false;
 
@@ -771,7 +782,7 @@ class CAllSaleDiscount
 		if ((is_set($arFields, "SORT") || $ACTION=="ADD") && intval($arFields["SORT"])<=0)
 			$arFields["SORT"] = 100;
 
-		if ((is_set($arFields, "LID") || $ACTION=="ADD") && strlen($arFields["LID"])<=0)
+		if ((is_set($arFields, "LID") || $ACTION=="ADD") && $arFields["LID"] == '')
 			return false;
 
 		if (is_set($arFields, "LID"))
@@ -791,7 +802,7 @@ class CAllSaleDiscount
 			$arFields['CURRENCY'] = CSaleLang::GetLangCurrency($arFields["LID"]);
 		}
 
-		if ((is_set($arFields, "CURRENCY") || $ACTION=="ADD") && strlen($arFields["CURRENCY"])<=0)
+		if ((is_set($arFields, "CURRENCY") || $ACTION=="ADD") && $arFields["CURRENCY"] == '')
 			return false;
 
 		if (is_set($arFields, "CURRENCY"))
@@ -1312,7 +1323,7 @@ class CAllSaleDiscount
 		$discountResult['BASKET'] = array_values($discountResult['BASKET']);
 	}
 
-	protected function __Unpack($arOrder, $strUnpack)
+	protected static function __Unpack($arOrder, $strUnpack)
 	{
 		$checkOrder = null;
 		if (empty($strUnpack))
@@ -1325,7 +1336,7 @@ class CAllSaleDiscount
 		return $boolRes;
 	}
 
-	protected function __ApplyActions(&$arOrder, $strActions)
+	protected static function __ApplyActions(&$arOrder, $strActions)
 	{
 		$applyOrder = null;
 		if (!empty($strActions))
@@ -1567,6 +1578,7 @@ class CAllSaleDiscount
 								'Value' => (string)roundEx($arFields['DISCOUNT_VALUE'], SALE_VALUE_PRECISION),
 								'Unit' => 'Perc',
 								'All' => 'AND',
+								'True' => 'True'
 							),
 							'CHILDREN' => array(
 							),
@@ -1582,6 +1594,7 @@ class CAllSaleDiscount
 								'Value' => (string)$dblValue,
 								'Unit' => 'CurAll',
 								'All' => 'AND',
+								'True' => 'True'
 							),
 							'CHILDREN' => array(
 							),
@@ -1618,7 +1631,7 @@ class CAllSaleDiscount
 			{
 				if (CheckSerializedData($arFields['CONDITIONS']))
 				{
-					$arConditions = unserialize($arFields['CONDITIONS']);
+					$arConditions = unserialize($arFields['CONDITIONS'], ['allowed_classes' => false]);
 				}
 			}
 			else
@@ -1644,7 +1657,7 @@ class CAllSaleDiscount
 			{
 				if (CheckSerializedData($arFields['ACTIONS']))
 				{
-					$arActions = unserialize($arFields['ACTIONS']);
+					$arActions = unserialize($arFields['ACTIONS'], ['allowed_classes' => false]);
 				}
 			}
 			else
@@ -1672,7 +1685,7 @@ class CAllSaleDiscount
 		return $boolResult;
 	}
 
-	protected function prepareDiscountConditions(&$conditions, &$result, &$handlers, $type, $site)
+	protected static function prepareDiscountConditions(&$conditions, &$result, &$handlers, $type, $site)
 	{
 		global $APPLICATION;
 
@@ -1698,7 +1711,7 @@ class CAllSaleDiscount
 				}
 				return false;
 			}
-			$conditions = unserialize($conditions);
+			$conditions = unserialize($conditions, ['allowed_classes' => false]);
 			if (!is_array($conditions) || empty($conditions))
 			{
 				if ($type == self::PREPARE_CONDITIONS)
@@ -1735,7 +1748,7 @@ class CAllSaleDiscount
 			array(
 				'ORDER' => '$arOrder',
 				'ORDER_FIELDS' => '$arOrder',
-				'ORDER_PROPS' => '$arOrder[\'PROPS\']',
+				'ORDER_PROPS' => '$arOrder[\'ORDER_PROP\']',
 				'ORDER_BASKET' => '$arOrder[\'BASKET_ITEMS\']',
 				'BASKET' => '$arBasket',
 				'BASKET_ROW' => '$row',
@@ -1764,7 +1777,7 @@ class CAllSaleDiscount
 		return true;
 	}
 
-	protected function updateDiscountHandlers($discountID, $handlers, $update)
+	protected static function updateDiscountHandlers($discountID, $handlers, $update)
 	{
 		$discountID = (int)$discountID;
 		if ($discountID <= 0 || empty($handlers) || !is_array($handlers))
@@ -1773,7 +1786,7 @@ class CAllSaleDiscount
 			Sale\Internals\DiscountModuleTable::updateByDiscount($discountID, $handlers['MODULES'], $update);
 	}
 
-	protected function getDiscountHandlers($discountList)
+	protected static function getDiscountHandlers($discountList)
 	{
 		$result = array();
 		if (!empty($discountList) && is_array($discountList))
@@ -1798,7 +1811,7 @@ class CAllSaleDiscount
 	* @deprecated deprecated since sale 14.11.0
 	* @see \Bitrix\Sale\Internals\DiscountGroupTable::updateByDiscount
 	*/
-	protected function updateUserGroups($discountID, $userGroups, $active = '', $updateData)
+	protected function updateUserGroups($discountID, $userGroups, $active, $updateData)
 	{
 		Sale\Internals\DiscountGroupTable::updateByDiscount($discountID, $userGroups, $active, $updateData);
 	}
@@ -1837,7 +1850,7 @@ class CAllSaleDiscount
 			{
 				$fields[$oldField] = (string)$fields[$oldField];
 				if (CheckSerializedData($fields[$oldField]))
-					$fields[$oldField] = unserialize($fields[$oldField]);
+					$fields[$oldField] = unserialize($fields[$oldField], ['allowed_classes' => false]);
 				else
 					$fields[$oldField] = null;
 			}

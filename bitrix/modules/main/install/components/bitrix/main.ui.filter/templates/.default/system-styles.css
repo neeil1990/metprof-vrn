@@ -617,6 +617,10 @@ input[type=number].main-ui-number-input::-webkit-outer-spin-button {
 	opacity: 0;
 }
 
+.main-ui-filter-field-limits-active .main-ui-filter-search-square + .main-ui-filter-search-filter {
+	opacity: 1;
+}
+
 .main-ui-filter-no-search .main-ui-filter-search-square:nth-last-child(3)::after {
 	display: none;
 }
@@ -693,18 +697,6 @@ input[type=number].main-ui-number-input::-webkit-outer-spin-button {
 	margin-right: 0;
 }
 
-.main-ui-filter-popup-field-list [data-item*='"REQUIRED":true'] {
-	pointer-events: none;
-	opacity: .6;
-}
-
-.main-ui-search-square-required {
-	padding-right: 14px!important;
-}
-
-.main-ui-search-square-required .main-ui-square-delete {
-	display: none!important;
-}
 
 /*.main-ui-filter-preset-field .main-ui-control,*/
 /*.main-ui-filter-preset-field .main-ui-date-input{*/

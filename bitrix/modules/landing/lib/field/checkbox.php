@@ -24,9 +24,19 @@ class Checkbox extends \Bitrix\Landing\Field
 		?>class="<?= isset($params['class']) ? \htmlspecialcharsbx($params['class']) : ''?>" <?
 		?>data-code="<?= \htmlspecialcharsbx($this->code)?>" <?
 		?>name="<?= $name?>" <?
+		?><?= (isset($params['disabled']) && $params['disabled']) ? ' disabled ' : ''?><?
 		?>value="Y"<?if ($this->value == 'Y'){?> checked="checked"<?}?> <?
 		?> />
 		<?
+	}
+
+	/**
+	 * Gets true, if current value is empty.
+	 * @return bool
+	 */
+	public function isEmptyValue()
+	{
+		return $this->value !== 'Y';
 	}
 
 	/**

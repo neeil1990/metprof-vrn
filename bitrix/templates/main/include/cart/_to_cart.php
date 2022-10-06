@@ -2,6 +2,13 @@
 $arOffers = [];
 $arOffers = isset($arParams["OFFERS"][0]) ? $arParams["OFFERS"][0] : $arParams["OFFERS"];
 
+if(empty($arOffers)){
+	$CCatalogProduct = CCatalogProduct::GetByID($arParams['ID']);
+	
+	$arOffers['CATALOG_QUANTITY'] = $CCatalogProduct["QUANTITY"];
+	$arOffers['ID'] = $arParams["ID"];
+}
+
 if(!isset($arOffers["CATALOG_QUANTITY"]))
     throw new ErrorException("CATALOG_QUANTITY must be included!");
 

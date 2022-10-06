@@ -12,6 +12,7 @@ class Actions
 	const VALUE_TYPE_FIX = 'F';
 	const VALUE_TYPE_PERCENT = 'P';
 	const VALUE_TYPE_SUMM = 'S';
+	const VALUE_TYPE_CLOSEOUT = 'C';
 
 	const GIFT_SELECT_TYPE_ONE = 'one';
 	const GIFT_SELECT_TYPE_ALL = 'all';
@@ -31,10 +32,14 @@ class Actions
 
 	const RESULT_ENTITY_BASKET = 0x0001;
 	const RESULT_ENTITY_DELIVERY = 0x0002;
+	const RESULT_ENTITY_ORDER = 0x0004;
 
 	const APPLY_RESULT_MODE_COUNTER = 0x0001;
 	const APPLY_RESULT_MODE_DESCR = 0x0002;
 	const APPLY_RESULT_MODE_SIMPLE = 0x0004;
+
+	const ACTION_TYPE_DISCOUNT = 'D';
+	const ACTION_TYPE_EXTRA = 'E';
 
 	protected static $useMode = self::MODE_CALCULATE;
 	protected static $applyCounter = self::APPLY_COUNTER_START;
@@ -128,7 +133,7 @@ class Actions
 	}
 
 	/**
-	 * Return current use actions mode.
+	 * Returns current use actions mode.
 	 *
 	 * @return int
 	 */
@@ -165,6 +170,17 @@ class Actions
 	public static function isMixedMode()
 	{
 		return self::$useMode === self::MODE_MIXED;
+	}
+
+	/**
+	 * Check current use actions mode.
+	 *
+	 * @param array $list
+	 * @return bool
+	 */
+	public static function checkUseMode(array $list)
+	{
+		return (in_array(self::$useMode, $list, true));
 	}
 
 	/**
@@ -453,39 +469,62 @@ class Actions
 			$maxBound = (isset($action['MAX_BOUND']) && $action['MAX_BOUND'] == 'Y');
 		$valueAction = (
 			$value < 0
-			? Sale\OrderDiscountManager::DESCR_VALUE_ACTION_DISCOUNT
-			: Sale\OrderDiscountManager::DESCR_VALUE_ACTION_EXTRA
+			? Formatter::VALUE_ACTION_DISCOUNT
+			: Formatter::VALUE_ACTION_EXTRA
 		);
 
 		$actionDescription = array(
-			'ACTION_TYPE' => Sale\OrderDiscountManager::DESCR_TYPE_VALUE,
+			'ACTION_TYPE' => Formatter::TYPE_VALUE,
 			'VALUE' => abs($value),
 			'VALUE_ACTION' => $valueAction
 		);
 		switch ($unit)
 		{
 			case self::VALUE_TYPE_SUMM:
-				$actionDescription['VALUE_TYPE'] = Sale\OrderDiscountManager::DESCR_VALUE_TYPE_SUMM;
-				$actionDescription['VALUE_UNIT'] = $currency;
+				$actionDescription = [
+					'ACTION_TYPE' => Formatter::TYPE_VALUE,
+					'VALUE' => abs($value),
+					'VALUE_ACTION' => ($value < 0 ? Formatter::VALUE_ACTION_DISCOUNT : Formatter::VALUE_ACTION_EXTRA),
+					'VALUE_TYPE' => Formatter::VALUE_TYPE_SUMM,
+					'VALUE_UNIT' => $currency
+				];
 				break;
 			case self::VALUE_TYPE_PERCENT:
-				$actionDescription['VALUE_TYPE'] = Sale\OrderDiscountManager::DESCR_VALUE_TYPE_PERCENT;
+				$actionDescription = [
+					'ACTION_TYPE' => Formatter::TYPE_VALUE,
+					'VALUE' => abs($value),
+					'VALUE_ACTION' => ($value < 0 ? Formatter::VALUE_ACTION_DISCOUNT : Formatter::VALUE_ACTION_EXTRA),
+					'VALUE_TYPE' => Formatter::VALUE_TYPE_PERCENT
+				];
 				break;
 			case self::VALUE_TYPE_FIX:
-				$actionDescription['VALUE_TYPE'] = Sale\OrderDiscountManager::DESCR_VALUE_TYPE_CURRENCY;
-				$actionDescription['VALUE_UNIT'] = $currency;
-				if ($maxBound)
-					$actionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_MAX_BOUND;
+				$actionDescription = [
+					'ACTION_TYPE' => ($maxBound ? Formatter::TYPE_MAX_BOUND : Formatter::TYPE_VALUE),
+					'VALUE' => abs($value),
+					'VALUE_ACTION' => ($value < 0 ? Formatter::VALUE_ACTION_DISCOUNT : Formatter::VALUE_ACTION_EXTRA),
+					'VALUE_TYPE' => Formatter::VALUE_TYPE_CURRENCY,
+					'VALUE_UNIT' => $currency
+				];
+				break;
+			case self::VALUE_TYPE_CLOSEOUT:
+				$actionDescription = [
+					'ACTION_TYPE' => Formatter::TYPE_FIXED,
+					'VALUE' => abs($value),
+					'VALUE_ACTION' => Formatter::VALUE_ACTION_DISCOUNT,
+					'VALUE_TYPE' => Formatter::VALUE_TYPE_CURRENCY,
+					'VALUE_UNIT' => $currency
+				];
 				break;
 			default:
 				return;
 				break;
 		}
+		$valueAction = $actionDescription['VALUE_ACTION'];
 
 		if(!empty($limitValue))
 		{
-			$actionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_LIMIT_VALUE;
-			$actionDescription['LIMIT_TYPE'] = Sale\OrderDiscountManager::DESCR_LIMIT_MAX;
+			$actionDescription['ACTION_TYPE'] = Formatter::TYPE_LIMIT_VALUE;
+			$actionDescription['LIMIT_TYPE'] = Formatter::LIMIT_MAX;
 			$actionDescription['LIMIT_UNIT'] = $orderCurrency;
 			$actionDescription['LIMIT_VALUE'] = $limitValue;
 		}
@@ -513,9 +552,9 @@ class Actions
 			{
 				$value = static::getPercentByValue($applyBasket, $value);
 				if (
-					($valueAction == Sale\OrderDiscountManager::DESCR_VALUE_ACTION_DISCOUNT && ($value >= 0 || $value < -100))
+					($valueAction == Formatter::VALUE_ACTION_DISCOUNT && ($value >= 0 || $value < -100))
 					||
-					($valueAction == Sale\OrderDiscountManager::DESCR_VALUE_ACTION_EXTRA && $value <= 0)
+					($valueAction == Formatter::VALUE_ACTION_EXTRA && $value <= 0)
 				)
 					return;
 				$unit = self::VALUE_TYPE_PERCENT;
@@ -547,8 +586,8 @@ class Actions
 
 				if(!empty($limitValue))
 				{
-					$rowActionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_LIMIT_VALUE;
-					$rowActionDescription['LIMIT_TYPE'] = Sale\OrderDiscountManager::DESCR_LIMIT_MAX;
+					$rowActionDescription['ACTION_TYPE'] = Formatter::TYPE_LIMIT_VALUE;
+					$rowActionDescription['LIMIT_TYPE'] = Formatter::LIMIT_MAX;
 					$rowActionDescription['LIMIT_UNIT'] = $orderCurrency;
 					$rowActionDescription['LIMIT_VALUE'] = $limitValue;
 				}
@@ -580,7 +619,7 @@ class Actions
 		$sumConfiguration = $configuration['sum']?: array();
 		$applyIfMoreProfitable = $configuration['apply_if_more_profitable'] === 'Y';
 
-		if (in_array(self::getUseMode(), array(self::MODE_MANUAL, self::MODE_MIXED)))
+		if (static::checkUseMode(array(self::MODE_MANUAL, self::MODE_MIXED)))
 		{
 			$actionStoredData = self::getActionStoredData();
 			$cumulativeOrderUserValue = $actionStoredData['cumulative_value'];
@@ -632,23 +671,23 @@ class Actions
 		$maxBound = false;
 		if ($unit == self::VALUE_TYPE_FIX && $value < 0)
 			$maxBound = (isset($action['MAX_BOUND']) && $action['MAX_BOUND'] == 'Y');
-		$valueAction = Sale\OrderDiscountManager::DESCR_VALUE_ACTION_CUMULATIVE;
+		$valueAction = Formatter::VALUE_ACTION_CUMULATIVE;
 
 		$actionDescription = array(
-			'ACTION_TYPE' => Sale\OrderDiscountManager::DESCR_TYPE_VALUE,
+			'ACTION_TYPE' => Formatter::TYPE_VALUE,
 			'VALUE' => abs($value),
 			'VALUE_ACTION' => $valueAction
 		);
 		switch ($unit)
 		{
 			case self::VALUE_TYPE_PERCENT:
-				$actionDescription['VALUE_TYPE'] = Sale\OrderDiscountManager::DESCR_VALUE_TYPE_PERCENT;
+				$actionDescription['VALUE_TYPE'] = Formatter::VALUE_TYPE_PERCENT;
 				break;
 			case self::VALUE_TYPE_FIX:
-				$actionDescription['VALUE_TYPE'] = Sale\OrderDiscountManager::DESCR_VALUE_TYPE_CURRENCY;
+				$actionDescription['VALUE_TYPE'] = Formatter::VALUE_TYPE_CURRENCY;
 				$actionDescription['VALUE_UNIT'] = $currency;
 				if ($maxBound)
-					$actionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_MAX_BOUND;
+					$actionDescription['ACTION_TYPE'] = Formatter::TYPE_MAX_BOUND;
 				break;
 			default:
 				return;
@@ -667,8 +706,8 @@ class Actions
 
 		if(!empty($limitValue))
 		{
-			$actionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_LIMIT_VALUE;
-			$actionDescription['LIMIT_TYPE'] = Sale\OrderDiscountManager::DESCR_LIMIT_MAX;
+			$actionDescription['ACTION_TYPE'] = Formatter::TYPE_LIMIT_VALUE;
+			$actionDescription['LIMIT_TYPE'] = Formatter::LIMIT_MAX;
 			$actionDescription['LIMIT_UNIT'] = $orderCurrency;
 			$actionDescription['LIMIT_VALUE'] = $limitValue;
 		}
@@ -729,14 +768,15 @@ class Actions
 
 				if(!empty($limitValue))
 				{
-					$rowActionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_LIMIT_VALUE;
-					$rowActionDescription['LIMIT_TYPE'] = Sale\OrderDiscountManager::DESCR_LIMIT_MAX;
+					$rowActionDescription['ACTION_TYPE'] = Formatter::TYPE_LIMIT_VALUE;
+					$rowActionDescription['LIMIT_TYPE'] = Formatter::LIMIT_MAX;
 					$rowActionDescription['LIMIT_UNIT'] = $orderCurrency;
 					$rowActionDescription['LIMIT_VALUE'] = $limitValue;
 				}
 
 				if ($applyIfMoreProfitable)
 				{
+					//TODO: remove this hack
 					//revert apply on affected basket items
 					$rowActionDescription['REVERT_APPLY'] = true;
 				}
@@ -827,25 +867,25 @@ class Actions
 			$maxBound = (isset($action['MAX_BOUND']) && $action['MAX_BOUND'] == 'Y');
 
 		$actionDescription = array(
-			'ACTION_TYPE' => Sale\OrderDiscountManager::DESCR_TYPE_VALUE,
+			'ACTION_TYPE' => Formatter::TYPE_VALUE,
 			'VALUE' => abs($value),
 			'VALUE_ACTION' => (
 				$value < 0
-				? Sale\OrderDiscountManager::DESCR_VALUE_ACTION_DISCOUNT
-				: Sale\OrderDiscountManager::DESCR_VALUE_ACTION_EXTRA
+				? Formatter::VALUE_ACTION_DISCOUNT
+				: Formatter::VALUE_ACTION_EXTRA
 			)
 		);
 		if ($maxBound)
-			$actionDescription['ACTION_TYPE'] = Sale\OrderDiscountManager::DESCR_TYPE_MAX_BOUND;
+			$actionDescription['ACTION_TYPE'] = Formatter::TYPE_MAX_BOUND;
 
 		switch ($unit)
 		{
 			case self::VALUE_TYPE_PERCENT:
-				$actionDescription['VALUE_TYPE'] = Sale\OrderDiscountManager::DESCR_VALUE_TYPE_PERCENT;
+				$actionDescription['VALUE_TYPE'] = Formatter::VALUE_TYPE_PERCENT;
 				$value = ($order['PRICE_DELIVERY'] * $value) / 100;
 				break;
 			case self::VALUE_TYPE_FIX:
-				$actionDescription['VALUE_TYPE'] = Sale\OrderDiscountManager::DESCR_VALUE_TYPE_CURRENCY;
+				$actionDescription['VALUE_TYPE'] = Formatter::VALUE_TYPE_CURRENCY;
 				$actionDescription['VALUE_UNIT'] = $currency;
 				if ($currency != $orderCurrency)
 					$value = \CCurrencyRates::ConvertCurrency($value, $currency, $orderCurrency);
@@ -859,7 +899,7 @@ class Actions
 			!isset($order['PRICE_DELIVERY'])
 			|| (
 				static::roundZeroValue($order['PRICE_DELIVERY']) == 0
-				&& $actionDescription['VALUE_ACTION'] == Sale\OrderDiscountManager::DESCR_VALUE_ACTION_DISCOUNT
+				&& $actionDescription['VALUE_ACTION'] == Formatter::VALUE_ACTION_DISCOUNT
 			)
 		)
 			return;
@@ -904,8 +944,7 @@ class Actions
 		static::increaseApplyCounter();
 
 		$actionDescription = array(
-			'ACTION_TYPE' => Sale\OrderDiscountManager::DESCR_TYPE_SIMPLE,
-			'ACTION_DESCRIPTION' => Loc::getMessage('BX_SALE_DISCOUNT_ACTIONS_SIMPLE_GIFT_DESCR')
+			'ACTION_TYPE' => Formatter::TYPE_SIMPLE_GIFT
 		);
 		static::setActionDescription(self::RESULT_ENTITY_BASKET, $actionDescription);
 
@@ -940,8 +979,7 @@ class Actions
 
 		foreach ($applyBasket as $basketCode => $basketRow)
 		{
-			$basketRow['DISCOUNT_PRICE'] = $basketRow['BASE_PRICE'];
-			$basketRow['PRICE'] = 0;
+			self::fillDiscountPrice($basketRow, 0, $basketRow['PRICE']);
 
 			$order['BASKET_ITEMS'][$basketCode] = $basketRow;
 
@@ -1009,7 +1047,7 @@ class Actions
 									end(self::$applyResult['BASKET'][$code]);
 									$descr = current(self::$applyResult['BASKET'][$code]);
 									if (
-										$descr['TYPE'] == Sale\OrderDiscountManager::DESCR_TYPE_SIMPLE
+										$descr['TYPE'] == Formatter::TYPE_SIMPLE
 										&& $descr['DESCR'] == $action['GIFT_TITLE']
 									)
 										$result[$code] = $basket[$code];
@@ -1049,25 +1087,25 @@ class Actions
 		if (empty($description) || !is_array($description) || !isset($description['ACTION_TYPE']))
 			return;
 		$actionType = $description['ACTION_TYPE'];
-		if ($actionType == Sale\OrderDiscountManager::DESCR_TYPE_SIMPLE)
+		if ($actionType == Formatter::TYPE_SIMPLE)
 			$description = (isset($description['ACTION_DESCRIPTION']) ? $description['ACTION_DESCRIPTION'] : '');
 
-		$prepareResult = Sale\OrderDiscountManager::prepareDiscountDescription($actionType, $description);
+		$prepareResult = Sale\Discount\Formatter::prepareRow($actionType, $description);
 		unset($actionType);
 
-		if ($prepareResult->isSuccess())
+		if ($prepareResult !== null)
 		{
 			switch ($type)
 			{
 				case self::RESULT_ENTITY_BASKET:
 					if (!isset(self::$actionDescription['BASKET']))
 						self::$actionDescription['BASKET'] = array();
-					self::$actionDescription['BASKET'][static::getApplyCounter()] = $prepareResult->getData();
+					self::$actionDescription['BASKET'][static::getApplyCounter()] = $prepareResult;
 					break;
 				case self::RESULT_ENTITY_DELIVERY:
 					if (!isset(self::$actionDescription['DELIVERY']))
 						self::$actionDescription['DELIVERY'] = array();
-					self::$actionDescription['DELIVERY'][static::getApplyCounter()] = $prepareResult->getData();
+					self::$actionDescription['DELIVERY'][static::getApplyCounter()] = $prepareResult;
 					break;
 			}
 		}
@@ -1087,14 +1125,14 @@ class Actions
 			return;
 
 		$actionType = $actionResult['ACTION_TYPE'];
-		if ($actionType == Sale\OrderDiscountManager::DESCR_TYPE_SIMPLE)
+		if ($actionType == Formatter::TYPE_SIMPLE)
 			$actionDescription = (isset($actionResult['ACTION_DESCRIPTION']) ? $actionResult['ACTION_DESCRIPTION'] : '');
 		else
 			$actionDescription = $actionResult;
-		$prepareResult = Sale\OrderDiscountManager::prepareDiscountDescription($actionType, $actionDescription);
+		$prepareResult = Sale\Discount\Formatter::prepareRow($actionType, $actionDescription);
 		unset($actionDescription, $actionType);
 
-		if ($prepareResult->isSuccess())
+		if ($prepareResult !== null)
 		{
 			switch ($entity)
 			{
@@ -1104,13 +1142,16 @@ class Actions
 					$basketCode = $actionResult['BASKET_CODE'];
 					if (!isset(self::$actionResult['BASKET'][$basketCode]))
 						self::$actionResult['BASKET'][$basketCode] = array();
-					self::$actionResult['BASKET'][$basketCode][static::getApplyCounter()] = $prepareResult->getData();
+					//TODO: remove this hack
+					if (isset($actionResult['REVERT_APPLY']))
+						$prepareResult['REVERT_APPLY'] = $actionResult['REVERT_APPLY'];
+					self::$actionResult['BASKET'][$basketCode][static::getApplyCounter()] = $prepareResult;
 					unset($basketCode);
 					break;
 				case self::RESULT_ENTITY_DELIVERY:
 					if (!isset(self::$actionResult['DELIVERY']))
 						self::$actionResult['DELIVERY'] = array();
-					self::$actionResult['DELIVERY'][static::getApplyCounter()] = $prepareResult->getData();
+					self::$actionResult['DELIVERY'][static::getApplyCounter()] = $prepareResult;
 					break;
 			}
 		}
@@ -1253,7 +1294,7 @@ class Actions
 			{
 				if (CheckSerializedData($discount['ACTIONS']))
 				{
-					$actionStructure = unserialize($discount['ACTIONS']);
+					$actionStructure = unserialize($discount['ACTIONS'], ['allowed_classes' => false]);
 				}
 			}
 			else
@@ -1289,13 +1330,13 @@ class Actions
 		$value = abs($action['VALUE']);
 		$valueAction = (
 			$action['VALUE'] < 0
-			? Sale\OrderDiscountManager::DESCR_VALUE_ACTION_DISCOUNT
-			: Sale\OrderDiscountManager::DESCR_VALUE_ACTION_EXTRA
+			? Formatter::VALUE_ACTION_DISCOUNT
+			: Formatter::VALUE_ACTION_EXTRA
 		);
 
 		switch ($resultDescr['TYPE'])
 		{
-			case Sale\OrderDiscountManager::DESCR_TYPE_VALUE:
+			case Formatter::TYPE_VALUE:
 				if (
 					$resultDescr['VALUE'] == $value
 					&& $resultDescr['VALUE_ACTION'] = $valueAction
@@ -1306,29 +1347,29 @@ class Actions
 						case self::VALUE_TYPE_SUMM:
 							$result = (
 								(
-									$resultDescr['VALUE_TYPE'] == Sale\OrderDiscountManager::DESCR_VALUE_TYPE_SUMM_BASKET
-									|| $resultDescr['VALUE_TYPE'] == Sale\OrderDiscountManager::DESCR_VALUE_TYPE_SUMM
+									$resultDescr['VALUE_TYPE'] == Formatter::VALUE_TYPE_SUMM_BASKET
+									|| $resultDescr['VALUE_TYPE'] == Formatter::VALUE_TYPE_SUMM
 								)
 								&& $resultDescr['VALUE_UNIT'] == $currency
 							);
 							break;
 						case self::VALUE_TYPE_PERCENT:
-							$result = ($resultDescr['VALUE_TYPE'] == Sale\OrderDiscountManager::DESCR_VALUE_TYPE_PERCENT);
+							$result = ($resultDescr['VALUE_TYPE'] == Formatter::VALUE_TYPE_PERCENT);
 							break;
 						case self::VALUE_TYPE_FIX:
 							$result = (
-								$resultDescr['VALUE_TYPE'] == Sale\OrderDiscountManager::DESCR_VALUE_TYPE_CURRENCY
+								$resultDescr['VALUE_TYPE'] == Formatter::VALUE_TYPE_CURRENCY
 								&& $resultDescr['VALUE_UNIT'] == $currency
 							);
 							break;
 					}
 				}
 				break;
-			case Sale\OrderDiscountManager::DESCR_TYPE_MAX_BOUND:
+			case Formatter::TYPE_MAX_BOUND:
 				$result = (
 					$resultDescr['VALUE'] == $value
 					&& $resultDescr['VALUE_ACTION'] == $valueAction
-					&& $resultDescr['VALUE_TYPE'] == Sale\OrderDiscountManager::DESCR_VALUE_TYPE_CURRENCY
+					&& $resultDescr['VALUE_TYPE'] == Formatter::VALUE_TYPE_CURRENCY
 					&& $resultDescr['VALUE_UNIT'] == $currency
 				);
 				break;
@@ -1357,14 +1398,29 @@ class Actions
 			$calculateValue = static::percentToValue($basketRow, $calculateValue);
 		$calculateValue = static::roundValue($calculateValue, $basketRow['CURRENCY']);
 
-		if (!empty($limitValue) && $limitValue + $calculateValue <= 0)
-			$calculateValue = -$limitValue;
-
-		$result = static::roundZeroValue($basketRow['PRICE'] + $calculateValue);
-		if ($maxBound && $result < 0)
+		if ($unit == self::VALUE_TYPE_CLOSEOUT)
 		{
-			$result = 0;
-			$calculateValue = -$basketRow['PRICE'];
+			if ($calculateValue < $basketRow['PRICE'])
+			{
+				$result = $calculateValue;
+				$calculateValue = $result - $basketRow['PRICE'];
+			}
+			else
+			{
+				$result = -1;
+			}
+		}
+		else
+		{
+			if (!empty($limitValue) && $limitValue + $calculateValue <= 0)
+				$calculateValue = -$limitValue;
+
+			$result = static::roundZeroValue($basketRow['PRICE'] + $calculateValue);
+			if ($maxBound && $result < 0)
+			{
+				$result = 0;
+				$calculateValue = -$basketRow['PRICE'];
+			}
 		}
 
 		return [$calculateValue, $result];

@@ -7,8 +7,6 @@
 	var isString = BX.Landing.Utils.isString;
 	var isEmpty = BX.Landing.Utils.isEmpty;
 	var addClass = BX.Landing.Utils.addClass;
-	var show = BX.Landing.Utils.Show;
-	var hide = BX.Landing.Utils.Hide;
 
 
 	/**
@@ -16,6 +14,9 @@
 	 * @extends {BX.PopupWindow}
 	 * @param {object} options
 	 * @constructor
+	 *
+	 * @deprecated Do not use it
+	 * @see BX.Main.Popup
 	 */
 	BX.Landing.UI.Tool.Popup = function(options)
 	{
@@ -39,16 +40,13 @@
 		show: function()
 		{
 			BX.PopupWindow.prototype.show.call(this);
-			return show(this.popupContainer);
+			return Promise.resolve();
 		},
 
 		close: function()
 		{
 			BX.PopupWindow.prototype.close.call(this);
-			this.popupContainer.style.display = "block";
-			return hide(this.popupContainer).then(function() {
-				this.popupContainer.style.display = "none";
-			}.bind(this));
+			return Promise.resolve();
 		}
 	}
 })();

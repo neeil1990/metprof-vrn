@@ -62,7 +62,11 @@ abstract class Field
 	/** @var null|callback[] */
 	protected $additionalSaveDataModifiers = array();
 
-	/** @var bool */
+	/**
+	 * @deprecated
+	 * @see ArrayField
+	 * @var bool
+	 */
 	protected $isSerialized = false;
 
 	/** @var Field */
@@ -94,7 +98,7 @@ abstract class Field
 	 */
 	public function __construct($name, $parameters = array())
 	{
-		if (!strlen($name))
+		if ($name == '')
 		{
 			throw new SystemException('Field name required');
 		}
@@ -332,7 +336,7 @@ abstract class Field
 	}
 
 	/**
-	 * @param $modifier
+	 * @param \callable $modifier
 	 *
 	 * @return $this
 	 * @throws SystemException
@@ -353,7 +357,7 @@ abstract class Field
 	}
 
 	/**
-	 * @param $modifier
+	 * @param \callable $modifier
 	 *
 	 * @throws SystemException
 	 */
@@ -408,7 +412,7 @@ abstract class Field
 	}
 
 	/**
-	 * @param $modifier
+	 * @param \callable $modifier
 	 *
 	 * @return $this
 	 * @throws SystemException
@@ -429,7 +433,7 @@ abstract class Field
 	}
 
 	/**
-	 * @param $modifier
+	 * @param \callable $modifier
 	 *
 	 * @throws SystemException
 	 */
@@ -470,6 +474,7 @@ abstract class Field
 	}
 
 	/**
+	 * @deprecated
 	 * @return $this
 	 * @throws SystemException
 	 */
@@ -515,6 +520,23 @@ abstract class Field
 		}
 
 		return $this->title = $this->name;
+	}
+
+	public function setParameter($name, $value)
+	{
+		$this->initialParameters[$name] = $value;
+
+		return $this;
+	}
+
+	public function getParameter($name)
+	{
+		return $this->initialParameters[$name];
+	}
+
+	public function hasParameter($name)
+	{
+		return array_key_exists($name, $this->initialParameters);
 	}
 
 	/**
@@ -618,7 +640,7 @@ abstract class Field
 
 	public function unserialize($value)
 	{
-		return unserialize($value);
+		return unserialize((string)$value);
 	}
 
 	/**

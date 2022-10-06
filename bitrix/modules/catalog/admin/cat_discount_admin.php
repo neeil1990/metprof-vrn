@@ -123,7 +123,7 @@ if (!$bReadOnly && ($arID = $lAdmin->GroupAction()))
 
 	foreach ($arID as $ID)
 	{
-		if (strlen($ID) <= 0)
+		if ($ID == '')
 			continue;
 
 		switch ($_REQUEST['action'])
@@ -445,7 +445,7 @@ while ($arDiscount = $dbResultList->Fetch())
 		$strDiscountValue = '';
 		if ($arDiscount["VALUE_TYPE"] == CCatalogDiscount::TYPE_PERCENT)
 		{
-			$strDiscountValue = roundEx($arDiscount["VALUE"], CATALOG_VALUE_PRECISION)."%";
+			$strDiscountValue = $arDiscount["VALUE"]."%";
 		}
 		elseif ($arDiscount["VALUE_TYPE"] == CCatalogDiscount::TYPE_SALE)
 		{

@@ -1,9 +1,11 @@
-<?
+<?php
+$MESS["BT_CAT_ADM_TOOLS_TAB_PRODUCT"] = "Параметры товара";
+$MESS["BT_CAT_ADM_TOOLS_TAB_TITLE_PRODUCT"] = "Системные настройки товара";
 $MESS["BT_CAT_ADM_TOOLS_TAB_CATALOG"] = "Торговый каталог";
 $MESS["BT_CAT_ADM_TOOLS_TAB_SKU"] = "Торговые предложения";
 $MESS["BT_CAT_ADM_TOOLS_TAB_SET"] = "Комплект";
 $MESS["BT_CAT_ADM_TOOLS_TAB_GROUP"] = "Набор";
-$MESS["BT_CAT_ADM_TOOLS_ADD_PROD"] = "Создать товар";
+$MESS["BT_CAT_ADM_TOOLS_ADD_PROD_EXT"] = "Создать товар";
 $MESS["BT_CAT_ADM_TOOLS_ADD_PROD_TITLE"] = "Нажмите для создания товара без торговых предложений";
 $MESS["BT_CAT_ADM_TOOLS_ADD_SKU"] = "Создать товар с торговыми предложениями";
 $MESS["BT_CAT_ADM_TOOLS_ADD_SKU_TITLE"] = "Нажмите для создания товара с торговыми предложениями";
@@ -13,6 +15,8 @@ $MESS["BT_CAT_ADM_TOOLS_ADD_GROUP"] = "Создать набор";
 $MESS["BT_CAT_ADM_TOOLS_ADD_GROUP_TITLE"] = "Нажмите для создания набора";
 $MESS["BT_CAT_ADM_TOOLS_ADD_EXT"] = "Создать другие типы товаров";
 $MESS["BT_CAT_ADM_TOOLS_ADD_EXT_TITLE"] = "Нажмите, чтобы создать другие типы товаров";
+$MESS["BT_CAT_ADM_TOOLS_ADD_INSTAGRAM_IMPORT"] = "Импорт Instagram";
+$MESS["BT_CAT_ADM_TOOLS_ADD_INSTAGRAM_IMPORT_TITLE"] = "Нажмите, чтобы добавить товары с помощью Instagram";
 $MESS["BT_CAT_SET_HEADER_ACTIVE"] = "Акт";
 $MESS["BT_CAT_SET_HEADER_QUANTITY"] = "Количество";
 $MESS["BT_CAT_SET_HEADER_DISCOUNT_PERCENT_EXT"] = "Процент распределения скидки";

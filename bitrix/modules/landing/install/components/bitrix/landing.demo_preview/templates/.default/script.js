@@ -6,14 +6,12 @@
 	var slice = BX.Landing.Utils.slice;
 	var proxy = BX.Landing.Utils.proxy;
 	var bind = BX.Landing.Utils.bind;
-	var unbind = BX.Landing.Utils.unbind;
 	var addClass = BX.Landing.Utils.addClass;
 	var removeClass = BX.Landing.Utils.removeClass;
 	var isNumber = BX.Landing.Utils.isNumber;
 	var style = BX.Landing.Utils.style;
 	var data = BX.Landing.Utils.data;
 	var addQueryParams = BX.Landing.Utils.addQueryParams;
-	var getDeltaFromEvent = BX.Landing.Utils.getDeltaFromEvent;
 
 	/**
 	 * Implements interface for works with template preview
@@ -23,20 +21,57 @@
 	{
 		this.closeButton = document.querySelector(".landing-template-preview-close");
 		this.createButton = document.querySelector(".landing-template-preview-create");
-		this.palette = document.querySelector(".landing-template-preview-palette");
+		this.createByImportButton = document.querySelector(".landing-template-preview-create-by-import");
+		this.title = document.querySelector(".landing-template-preview-input-title");
+		this.description = document.querySelector(".landing-template-preview-input-description");
+		this.themesPalette = document.querySelector(".landing-template-preview-themes");
+		this.themesSiteColorNode = document.querySelector(".landing-template-preview-site-color");
+		this.themesSiteCustomColorNode = document.querySelector(".landing-demo-preview-custom-color");
 		this.imageContainer = document.querySelector(".preview-desktop-body-image");
 		this.loaderContainer = document.querySelector(".preview-desktop-body-loader-container");
 		this.previewFrame = document.querySelector(".preview-desktop-body-preview-frame");
+		this.baseUrlNode = document.querySelector(".landing-template-preview-base-url");
+		this.siteGroupPalette = document.querySelector(".landing-template-preview-site-group");
 		this.loader = new BX.Loader({});
 		this.messages = params.messages || {};
 		this.loaderText = null;
+		this.progressBar = null;
 		this.IsLoadedFrame = false;
+		this.baseUrl = '';
+		this.color = null;
+		this.ajaxUrl = '';
+		this.ajaxParams = {};
+
+		this.createStore = BX.type.isBoolean(params.createStore)
+						? params.createStore
+						: false;
+		this.disableStoreRedirect = BX.type.isBoolean(params.disableStoreRedirect)
+						? params.disableStoreRedirect
+						: false;
+		this.disableClickHandler = BX.type.isBoolean(params.disableClickHandler)
+						? params.disableClickHandler
+						: false;
+		this.adminSection = BX.type.isBoolean(params.adminSection)
+						? params.adminSection
+						: null;
+		this.zipInstallPath = params.zipInstallPath
+						? params.zipInstallPath
+						: null;
+		this.siteId = params.siteId || 0;
+		this.langId = BX.type.isString(params.langId)
+						? params.langId
+						: '';
 
 		this.onCreateButtonClick = proxy(this.onCreateButtonClick, this);
 		this.onCancelButtonClick = proxy(this.onCancelButtonClick, this);
+		this.onColorPickerThemeSelect = proxy(this.onColorPickerThemeSelect, this);
 		this.onFrameLoad = proxy(this.onFrameLoad, this);
 
+		BX.addCustomEvent('BX.Landing.ColorPickerTheme:onSelectColor', this.onColorPickerThemeSelect);
+
 		this.init();
+
+		return this;
 	};
 
 	/**
@@ -57,31 +92,135 @@
 		 */
 		init: function()
 		{
-			slice(this.palette.children)
-				.forEach(this.initSelectableItem, this);
+			// themes
+			var colorItems = slice(this.themesPalette.children);
+			if(this.themesSiteColorNode)
+			{
+				colorItems = colorItems.concat(slice(this.themesSiteColorNode.children));
+			}
+			if(this.themesSiteCustomColorNode)
+			{
+				colorItems = colorItems.concat(slice(this.themesSiteCustomColorNode.children));
+			}
+			colorItems.forEach(this.initSelectableItem, this);
+
+			// site group
+			if(this.siteGroupPalette )
+			{
+				var siteGroupItems = slice(this.siteGroupPalette.children);
+				siteGroupItems.forEach(this.initSelectableItem, this);
+			}
 
 			bind(this.previewFrame, "load", this.onFrameLoad);
 			bind(this.closeButton, "click", this.onCancelButtonClick);
-			bind(this.createButton, "click", this.onCreateButtonClick);
 
-			void this.showPreview(data(this.palette.querySelector(".active"), "data-src"));
+			if (!this.disableClickHandler)
+			{
+				bind(this.createButton, "click", this.onCreateButtonClick);
+			}
+
+			this.setBaseUrl();
+			this.setDefaultColor();
+			this.showPreview();
+		},
+
+		setBaseUrl: function(url) {
+			if (url === undefined)
+			{
+				this.baseUrl = data(this.baseUrlNode, "data-base-url");
+			}
+			else
+			{
+				this.baseUrl = url;
+			}
+		},
+
+		setColor: function(theme) {
+			if (theme !== undefined)
+			{
+				this.color = theme;
+			}
+		},
+
+		setDefaultColor: function()
+		{
+			if (this.getActiveColorNode())
+			{
+				this.color = data(this.getActiveColorNode(), "data-value");
+			}
+		},
+
+		getColor: function()
+		{
+			return this.color;
+		},
+
+		createPreviewUrl: function() {
+			var queryParams = {};
+			if (!this.baseUrl)
+			{
+				this.setBaseUrl();
+			}
+
+			if (this.getColor())
+			{
+				queryParams = {color: this.getColor()};
+			}
+
+			return addQueryParams(this.baseUrl, queryParams);
 		},
 
 		onFrameLoad: function() {
+			if (this.createStore)
+			{
+				new BX.Landing.SaveBtn(document.querySelector(".landing-template-preview-create"));
+			}
 			this.IsLoadedFrame = true;
 		},
 
 		/**
+		 *
+		 * @returns {HTMLElement|null}
+		 */
+		getActiveColorNode: function()
+		{
+			var active = this.themesPalette.querySelector(".active");
+			if (!active && this.themesSiteColorNode)
+			{
+				active = this.themesSiteColorNode.querySelector(".active");
+			}
+			if (!active && this.themesSiteCustomColorNode)
+			{
+				active = this.themesSiteCustomColorNode.querySelector(".active");
+			}
+
+			return active;
+		},
+
+		/**
+		 *
+		 * @returns {HTMLElement}
+		 */
+		getActiveSiteGroupItem: function()
+		{
+			return this.siteGroupPalette.querySelector(".active");
+		},
+
+		/**
 		 * Shows preview
-		 * @param {string} src
+		 * @param {?string} src
 		 * @return {Promise<T>}
 		 */
 		showPreview: function(src)
 		{
+			if(src === undefined)
+			{
+				src = this.createPreviewUrl();
+			}
+
 			return this.showLoader()
 				.then(this.createFrameIfNeeded())
 				.then(this.loadPreview(src))
-				.then(this.delay(200))
 				.then(this.hideLoader());
 		},
 
@@ -93,22 +232,44 @@
 		{
 			return function()
 			{
-				new Promise(function(resolve) {
+				return new Promise(function(resolve) {
+					var createFrame = function() {
+						if (!this.previewFrame)
+						{
+							this.previewFrame = BX.create('iframe', {
+								props: {
+									className: 'preview-desktop-body-preview-frame'
+								}
+							});
 
-					if (!this.previewFrame.style.width)
+							this.imageContainer.appendChild(this.previewFrame);
+							bind(this.previewFrame, "load", this.onFrameLoad);
+						}
+
+						if (!this.previewFrame.style.width)
+						{
+							var containerWidth = this.imageContainer.clientWidth;
+
+							void style(this.previewFrame, {
+								"width": "1000px",
+								"height": "calc((100vh - 140px) * (100 / "+((containerWidth/1000)*100)+"))",
+								"transform": "scale("+(containerWidth/1000)+") translateZ(0)",
+								"transform-origin": "top left",
+								"border": "none"
+							});
+						}
+
+						resolve(this.previewFrame);
+					}.bind(this);
+
+					if (document.readyState !== "complete")
 					{
-						var containerWidth = this.imageContainer.clientWidth;
-
-						void style(this.previewFrame, {
-							"width": "1000px",
-							"height": "calc((100vh - 140px) * (100 / "+((containerWidth/1000)*100)+"))",
-							"transform": "scale("+(containerWidth/1000)+") translateZ(0)",
-							"transform-origin": "top left",
-							"border": "none"
-						});
+						BX.bind(window, 'load', createFrame.bind(this));
 					}
-
-					resolve(this.previewFrame);
+					else
+					{
+						createFrame();
+					}
 				}.bind(this));
 			}.bind(this)
 		},
@@ -190,7 +351,25 @@
 		getValue: function()
 		{
 			var result = {};
-			result[data(this.palette, "data-name")] = data(this.palette.querySelector(".active"), "data-value");
+
+			if (this.getActiveColorNode())
+			{
+				if (this.themesSiteColorNode && this.getActiveColorNode().parentElement === this.themesSiteColorNode)
+				{
+					result[this.themesSiteColorNode.dataset.name] = this.getActiveColorNode().dataset.value;
+				}
+				if (this.siteGroupPalette)
+				{
+					result[this.siteGroupPalette.dataset.name] = this.getActiveSiteGroupItem().dataset.value;
+				}
+				result[this.themesPalette.dataset.name] = this.getActiveColorNode().dataset.value;
+				if (this.themesSiteCustomColorNode)
+				{
+					result[this.themesPalette.dataset.name] = this.getActiveColorNode().dataset.value;
+				}
+			}
+			result[this.title.dataset.name] = this.title.value;
+			result[this.description.dataset.name] = this.description.value;
 
 			return result;
 		},
@@ -222,19 +401,167 @@
 		{
 			event.preventDefault();
 
-			if(this.isStore() && this.IsLoadedFrame) {
+			const metrika = new BX.Landing.Metrika(true);
+			metrika.sendLabel(
+				null,
+				'createTemplate',
+				event.target.href
+			);
+
+			if (this.isStore() && this.IsLoadedFrame)
+			{
 				this.loaderText = BX.create("div", { props: { className: "landing-template-preview-loader-text"},
 					text: this.messages.LANDING_LOADER_WAIT});
 
+				this.progressBar = new BX.UI.ProgressBar({
+					column: true
+				});
+
+				this.progressBar.getContainer().classList.add("ui-progressbar-landing-preview");
+
 				this.loaderContainer.appendChild(this.loaderText);
+				this.loaderContainer.appendChild(this.progressBar.getContainer());
 			}
 
-			this.showLoader()
-				.then(this.delay(200))
-				.then(function() {
-					top.location = this.getCreateUrl();
-				}.bind(this));
+			if (this.isStore())
+			{
+				if (this.IsLoadedFrame)
+				{
+					this.initCatalogParams();
+					this.createCatalog();
+				}
+			}
+			else if (this.zipInstallPath)
+			{
+				this.finalRedirectAjax(
+					this.getCreateUrl()
+				);
+			}
+			else
+			{
+				this.showLoader()
+					.then(this.delay(200))
+					.then(function() {
+						this.finalRedirectAjax(
+							this.getCreateUrl()
+						);
+					}.bind(this));
+			}
+		},
 
+		/**
+		 * Init params for create catalog.
+		 */
+		initCatalogParams: function()
+		{
+			if (this.createButton.hasAttribute('data-href'))
+			{
+				this.ajaxUrl = this.createButton.getAttribute('data-href');
+			}
+			this.ajaxParams = this.getValue();
+			this.ajaxParams['start'] = 'Y';
+			this.ajaxParams['showcaseId'] = 'clothes';
+		},
+
+		/**
+		 * Base actions for create catalog.
+		 */
+		createCatalog: function()
+		{
+			if (this.ajaxUrl === '')
+			{
+				this.hideLoader();
+				return;
+			}
+			BX.ajax({
+				'method': 'POST',
+				'dataType': 'json',
+				'url': this.ajaxUrl,
+				'data':  BX.ajax.prepareData(this.ajaxParams),
+				'onsuccess': BX.proxy(this.createCatalogResult, this)
+			})
+		},
+
+		/**
+		 * Result step in create catalog.
+		 * @param data
+		 */
+		createCatalogResult: function(data)
+		{
+			if (data.status === 'continue')
+			{
+				this.ajaxParams['start'] = 'N';
+				this.progressBar.update(data.progress);
+				this.progressBar.setTextAfter(data.message);
+				this.createCatalog();
+			}
+			else
+			{
+				this.finalRedirectAjax(data.url);
+			}
+		},
+
+		/**
+		 * Redirect to final URL or submit it by ajax and close slider.
+		 * @param url
+		 */
+		finalRedirectAjax: function(url)
+		{
+			if (this.zipInstallPath)
+			{
+				let add = [];
+				const value = this.getValue();
+				for (let name in value)
+				{
+					add['additional[' + name + ']'] = value[name];
+				}
+
+				add['additional[siteId]'] = this.siteId;
+				add['additional[folderId]'] = this.folderId;
+				add['from'] = this.createParamsStrFromUrl(url);
+
+				if (this.adminSection && this.langId !== '')
+				{
+					add['lang'] = this.langId;
+				}
+
+				if (typeof top.BX.SidePanel !== 'undefined')
+				{
+					top.BX.SidePanel.Instance.open(
+						addQueryParams(this.zipInstallPath, add),
+						{
+							cacheable: false,
+							allowChangeHistory: false,
+							width: 491,
+							data: {
+								rightBoundary: 0,
+							},
+						}
+					);
+				}
+			}
+			else if (this.disableStoreRedirect)
+			{
+				BX.ajax({
+					'method': 'POST',
+					'dataType': 'html',
+					'url': url,
+					'onsuccess': function()
+					{
+						if (typeof top.BX.SidePanel !== 'undefined')
+						{
+							setTimeout(function() {
+								top.BX.onCustomEvent('Landing:onDemoCreateStart');
+								top.BX.SidePanel.Instance.close();
+							}, 100);
+						}
+					}
+				});
+			}
+			else
+			{
+				window.location = url;
+			}
 		},
 
 		/**
@@ -254,18 +581,98 @@
 		{
 			event.preventDefault();
 
-			removeClass(event.currentTarget.parentElement.querySelector(".active"), "active");
-			addClass(event.currentTarget, "active");
-
-			if (event.currentTarget.parentElement === this.palette)
+			// themes
+			if (
+				event.currentTarget.parentElement === this.themesPalette ||
+				(this.themesSiteColorNode && event.currentTarget.parentElement === this.themesSiteColorNode)
+			)
 			{
-				this.showPreview(data(event.currentTarget.parentElement.querySelector(".active"), "data-src"));
+				if (this.getActiveColorNode())
+				{
+					this.getActiveColorNode().classList.remove("active");
+				}
+				addClass(event.currentTarget, "active");
+
+				this.setColor(data(event.currentTarget, 'data-value'));
+				this.showPreview();
+			}
+
+			// site group
+			if (event.currentTarget.parentElement === this.siteGroupPalette)
+			{
+				removeClass(this.getActiveSiteGroupItem(), "active");
+				addClass(event.currentTarget, "active");
+				this.setBaseUrl(data(event.currentTarget, 'data-base-url'));
+				this.showPreview();
 			}
 		},
 
 		isStore: function()
 		{
-			return top.location.href.includes("/stores");
+			return this.createStore;
+		},
+
+		onColorPickerThemeSelect: function(params)
+		{
+			[
+				this.themesPalette,
+				this.themesSiteCustomColorNode,
+				this.themesSiteColorNode
+			].forEach(function(control) {
+				if (control)
+				{
+					BX.removeClass(control.querySelector('.active'), 'active');
+				}
+			});
+			params.data.node.classList.add("active");
+
+
+			var loader = new BX.Loader({});
+			var loaderContainer = document.querySelector(".preview-desktop-body-loader-container");
+			loader.show(loaderContainer);
+			var imageContainer = document.querySelector(".preview-desktop-body-image");
+			addClass(imageContainer, "landing-template-preview-overlay");
+
+			var frame = document.querySelector('.preview-desktop-body-preview-frame');
+			if (frame)
+			{
+				var url = new URL(frame.getAttribute('src'));
+				var search = new URLSearchParams(url.search);
+				search.set('color', params.data.color.substr(1));
+				url.search = search.toString();
+
+				frame.setAttribute('src', url.toString());
+				setTimeout(hideFrameLoader, 1600);
+			}
+
+			function hideFrameLoader() {
+				loader.hide();
+				removeClass(imageContainer, "landing-template-preview-overlay");
+			}
+		},
+
+		createParamsStrFromUrl(url)
+		{
+			var appCodeMatch = url.match(/&app_code=[^&]+/i);
+			var appCode = '';
+			if (appCodeMatch !== null)
+			{
+				appCode = appCodeMatch[0].substr(10);
+			}
+			var titleMatch = url.match(/&title=[^&]+/iu);
+			var title = '';
+			if (titleMatch !== null)
+			{
+				title = titleMatch[0].substr(7);
+			}
+			var hrefUrlMatch = url.match(/&preview_url=[^&]+/i);
+			var hrefUrl = '';
+			if (hrefUrlMatch !== null)
+			{
+				hrefUrl = hrefUrlMatch[0].substr(13);
+			}
+
+			return 'app_code:' + appCode + ':title:' + title + ':preview_url:' + hrefUrl;
 		}
 	};
 })();

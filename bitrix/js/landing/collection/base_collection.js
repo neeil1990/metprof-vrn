@@ -3,6 +3,8 @@
 
 	BX.namespace("BX.Landing.Collection");
 
+	var isFunction = BX.Landing.Utils.isFunction;
+	var isEmpty = BX.Landing.Utils.isEmpty;
 
 	/**
 	 * Implements base interface for works with collection
@@ -133,11 +135,39 @@
 			this.forEach(function(item) {
 				if (item.selector.split("@")[1] !== "-1")
 				{
-					values[item.selector] = item.getValue();
+					if (isFunction(item.getAttrValue))
+					{
+						values[item.selector] = item.getAttrValue();
+					}
+					else
+					{
+						values[item.selector] = item.getValue();
+					}
 				}
 			});
 
 			return values;
+		},
+
+		/**
+		 * Gets nodes value
+		 * @return {object}
+		 */
+		fetchAdditionalValues: function()
+		{
+			return this.reduce(function(result, item) {
+				if (item.selector.split("@")[1] !== "-1" && item.getAdditionalValue)
+				{
+					var values = item.getAdditionalValue();
+
+					if (!isEmpty(values))
+					{
+						result[item.selector] = values;
+					}
+				}
+
+				return result;
+			}, {});
 		},
 
 
@@ -206,6 +236,13 @@
 			});
 
 			return result;
+		},
+
+		getByLayout: function(layout)
+		{
+			return this.find(function(item) {
+				return BX.Type.isObject(item) && item.layout === layout;
+			});
 		}
 	};
 })();

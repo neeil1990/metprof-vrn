@@ -70,18 +70,34 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 	public static function getRepository()
 	{
 		$items = array();
+		$siteId = Manager::getMainSiteId();
+		$siteTemplateId = Manager::getTemplateId($siteId);
+		$langPortal = LANGUAGE_ID;
+		if (in_array($langPortal, ['ru', 'kz', 'by']))
+		{
+			$langPortal = 'ru';
+		}
 
 		$res = self::getList(array(
 			'select' => array(
 				'ID', 'NAME', 'DATE_CREATE', 'DESCRIPTION',
-				'SECTIONS', 'PREVIEW', 'APP_CODE',
+				'SECTIONS', 'PREVIEW', 'APP_CODE', 'MANIFEST',
 				new \Bitrix\Main\Entity\ExpressionField(
 					'DATE_CREATE_TIMESTAMP',
 					'UNIX_TIMESTAMP(DATE_CREATE)'
 				)
 			),
 			'filter' => array(
-				'=ACTIVE' => 'Y'
+				'=ACTIVE' => 'Y',
+				Manager::isTemplateIdSystem($siteTemplateId)
+					? array(
+						'LOGIC' => 'OR',
+						['=SITE_TEMPLATE_ID' => $siteTemplateId],
+						['=SITE_TEMPLATE_ID' => false]
+					)
+					: array(
+						['=SITE_TEMPLATE_ID' => $siteTemplateId]
+					)
 			),
 			'order' => array(
 				'ID' => 'DESC'
@@ -89,10 +105,25 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 		));
 		while ($row = $res->fetch())
 		{
+			$manifest = unserialize($row['MANIFEST'], ['allowed_classes' => false]);
+			if (isset($manifest['lang'][$langPortal][$row['NAME']]))
+			{
+				$row['NAME'] = $manifest['lang'][$langPortal][$row['NAME']];
+			}
+			else if (
+				isset($manifest['lang_original']) &&
+				$manifest['lang_original'] != $langPortal &&
+				$manifest['lang']['en'][$row['NAME']]
+			)
+			{
+				$row['NAME'] = $manifest['lang']['en'][$row['NAME']];
+			}
+
 			$items['repo_'. $row['ID']] = array(
+				'id' => null,
 				'name' => $row['NAME'],
 				'namespace' => $row['APP_CODE'],
-				'new' => (time() - $row['DATE_CREATE_TIMESTAMP']) < \Bitrix\Landing\Block::NEW_BLOCK_LT,
+				'new' => (time() - $row['DATE_CREATE_TIMESTAMP']) < Block::NEW_BLOCK_LT,
 				'section' => explode(',', $row['SECTIONS']),
 				'description' => $row['DESCRIPTION'],
 				'preview' => $row['PREVIEW'],
@@ -119,10 +150,17 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 			$manifest[$id] = array();
 			if (($block = self::getById($id)->fetch()))
 			{
-				$manifestLocal = unserialize($block['MANIFEST']);
+				$manifestLocal = unserialize($block['MANIFEST'], ['allowed_classes' => false]);
 				if (!is_array($manifestLocal))
 				{
 					$manifestLocal = array();
+				}
+				if (
+					isset($manifestLocal['block']) &&
+					is_array($manifestLocal['block'])
+				)
+				{
+					$blockDesc = $manifestLocal['block'];
 				}
 				$manifestLocal['block'] = array(
 					'name' => $block['NAME'],
@@ -132,9 +170,15 @@ class Repo extends \Bitrix\Landing\Internals\BaseTable
 					'preview' => $block['PREVIEW'],
 					'restricted' => true,
 					'repo_id' => $block['ID'],
+					'xml_id' => $block['XML_ID'],
 					'app_code' => $block['APP_CODE']
 				);
+				if (isset($blockDesc['subtype']))
+				{
+					$manifestLocal['block']['subtype'] = $blockDesc['subtype'];
+				}
 				$manifest[$id] = $manifestLocal;
+				$manifest[$id]['timestamp'] = $block['DATE_MODIFY']->getTimeStamp();
 			}
 		}
 

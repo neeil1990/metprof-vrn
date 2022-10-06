@@ -21,6 +21,7 @@
 	var toggleClass = BX.Landing.Utils.toggleClass;
 	var create = BX.Landing.Utils.create;
 	var debounce = BX.Landing.Utils.debounce;
+	var throttle = BX.Landing.Utils.throttle;
 	var fireCustomEvent = BX.Landing.Utils.fireCustomEvent;
 	var onCustomEvent = BX.Landing.Utils.onCustomEvent;
 	var bind = BX.Landing.Utils.bind;
@@ -36,6 +37,7 @@
 	var decodeDataValue = BX.Landing.Utils.decodeDataValue;
 	var encodeDataValue = BX.Landing.Utils.encodeDataValue;
 	var data = BX.Landing.Utils.data;
+	var attr = BX.Landing.Utils.attr;
 	var removePanels = BX.Landing.Utils.removePanels;
 	var getCSSSelector = BX.Landing.Utils.getCSSSelector;
 	var remove = BX.Landing.Utils.remove;
@@ -45,6 +47,8 @@
 	var random = BX.Landing.Utils.random;
 	var htmlToElement = BX.Landing.Utils.htmlToElement;
 	var proxy = BX.Landing.Utils.proxy;
+	var escapeText = BX.Landing.Utils.escapeText;
+	var isValidElementId = BX.Landing.Utils.isValidElementId;
 
 	// Collections
 	var BaseCollection = BX.Landing.Collection.BaseCollection;
@@ -60,7 +64,7 @@
 
 	// Buttons
 	var BaseButton = BX.Landing.UI.Button.BaseButton;
-	var ActionButton = BX.Landing.UI.Button.Action;
+	var ActionButton = BX.Landing.UI.Button.ActionButton;
 	var PlusButton = BX.Landing.UI.Button.Plus;
 	var CardActionButton = BX.Landing.UI.Button.CardAction;
 
@@ -77,9 +81,7 @@
 	var Group = BX.Landing.Group;
 	var BlockEvent = BX.Landing.Event.Block;
 	var TabCard = BX.Landing.UI.Card.TabCard;
-	var Menu = BX.Landing.UI.Tool.Menu;
-
-	var Backend = BX.Landing.Backend.getInstance();
+	var DynamicFieldsGroup = BX.Landing.UI.Card.DynamicFieldsGroup;
 
 	// noinspection JSUnusedLocalSymbols
 	/**
@@ -110,7 +112,18 @@
 	function getTypeSettings(prop)
 	{
 		var lp = BX.Landing.Main.getInstance();
-		return lp.options.style["bitrix"]["style"][prop];
+		var type = lp.options.style["bitrix"]["style"][prop];
+		if (prop === 'background')
+		{
+			type.items = type.items.concat(lp.options.style["bitrix"]["style"]['background-overlay'].items);
+		}
+		return type;
+	}
+
+	function getAttrsTypeSettings(prop)
+	{
+		var lp = BX.Landing.Main.getInstance();
+		return lp.options.attrs["bitrix"]["attrs"][prop];
 	}
 
 	function isGroup(prop)
@@ -178,6 +191,14 @@
 		return !!selector && selector.includes("@");
 	}
 
+	var onBlockInitDebounced = BX.debounce(function() {
+		BX.Landing.PageObject.getBlocks().forEach(function(block) {
+			block.adjustSortButtonsState();
+		});
+	}, 400);
+
+	onCustomEvent("BX.Landing.Block:init", onBlockInitDebounced);
+
 	/**
 	 * Implements interface for works with landing block
 	 *
@@ -200,14 +221,22 @@
 		this.lid = data(element.parentElement, "data-landing");
 		this.id = isNumber(parseInt(options.id)) ? parseInt(options.id) : 0;
 		this.selector = join("#block", (isNumber(options.id) ? options.id : 0), " > :first-child");
+		this.repoId = isNumber(options.repoId) ? options.repoId : null;
 		this.active = isBoolean(options.active) ? options.active : true;
+		this.allowedByTariff = isBoolean(options.allowedByTariff) ? options.allowedByTariff : true;
 		this.manifest = isPlainObject(options.manifest) ? options.manifest : {};
 		this.manifest.nodes = isPlainObject(options.manifest.nodes) ? options.manifest.nodes : {};
 		this.manifest.cards = isPlainObject(options.manifest.cards) ? options.manifest.cards : {};
 		this.manifest.attrs = isPlainObject(options.manifest.attrs) ? options.manifest.attrs : {};
-		this.onStyleInputWithDebounce = debounce(this.onStyleInput, 1000, this);
+		this.onStyleInputWithDebounce = debounce(this.onStyleInput, 300, this);
 		this.changeTimeout = null;
+		this.php = options.php;
+		this.designed = options.designed;
 		this.access = options.access;
+		this.anchor = options.anchor;
+		this.savedAnchor = options.anchor;
+		this.requiredUserActionOptions = options.requiredUserAction;
+		this.dynamicParams = options.dynamicParams || {};
 
 		// Make entities collections
 		this.nodes = new NodeCollection();
@@ -217,10 +246,11 @@
 		this.changedNodes = new BaseCollection();
 		this.styles = new BaseCollection();
 		this.forms = new FormCollection();
+		this.menu = [];
 
-		if (isPlainObject(options.requiredUserAction) && !isEmpty(options.requiredUserAction))
+		if (isPlainObject(this.requiredUserActionOptions) && !isEmpty(this.requiredUserActionOptions))
 		{
-			this.showRequiredUserAction(options.requiredUserAction);
+			this.showRequiredUserAction(this.requiredUserActionOptions);
 			this.requiredUserActionIsShown = true;
 		}
 
@@ -230,7 +260,6 @@
 		this.onMouseMove = this.onMouseMove.bind(this);
 		this.onStorage = this.onStorage.bind(this);
 		this.onBlockRemove = this.onBlockRemove.bind(this);
-		this.onBlockInit = this.onBlockInit.bind(this);
 
 		// Make manifest read only
 		deepFreeze(this.manifest);
@@ -244,17 +273,48 @@
 		// Init panels
 		this.initPanels();
 		this.initStyles();
+		this.initMenu();
 		this.adjustContextSensitivityStyles();
 
-		top.BX.Landing.Block.storage.push(this);
+		var envOptions = BX.Landing.Env.getInstance().getOptions();
+		var specialType = envOptions.specialType;
+		if (this.isDefaultCrmFormBlock())
+		{
+			var showOptions = {
+				formId: envOptions.formEditorData.formOptions.id,
+				formOptions: this.getCrmFormOptions(),
+				block: this,
+				showWithOptions: true,
+			};
+			var uri = new BX.Uri(window.top.location.toString());
+			if (BX.Text.toBoolean(uri.getQueryParam('formCreated')))
+			{
+				showOptions.state = 'presets';
+			}
+
+			void BX.Landing.UI.Panel.FormSettingsPanel
+				.getInstance()
+				.show(showOptions);
+		}
+
+		BX.Landing.PageObject.getBlocks().push(this);
 
 		// Fire block init event
-		fireCustomEvent(window, "BX.Landing.Block:init", [this.createEvent()]);
+
+		var eventData = {};
+
+		if (this.requiredUserActionIsShown)
+		{
+			eventData.requiredUserActionIsShown = true;
+			eventData.layout = this.node.firstElementChild;
+			eventData.button = this.node.firstElementChild.querySelector(".ui-btn");
+		}
+
+		fireCustomEvent(window, "BX.Landing.Block:init", [this.createEvent({data: eventData})]);
 
 		onCustomEvent("BX.Landing.Editor:enable", this.onEditorEnabled);
 		onCustomEvent("BX.Landing.Editor:disable", this.onEditorDisabled);
 		onCustomEvent("BX.Landing.Block:afterRemove", this.onBlockRemove);
-		onCustomEvent("BX.Landing.Block:init", this.onBlockInit);
 
 		bind(this.node, "mousemove", this.onMouseMove);
 		bind(this.node, "keydown", this.adjustPanelsPosition);
@@ -282,25 +342,57 @@
 			}
 		},
 
+		getBlockNode: function()
+		{
+			return this.node;
+		},
+
+		isAllowedByTariff: function()
+		{
+			return this.allowedByTariff;
+		},
+
 		showRequiredUserAction: function(data)
 		{
-			this.node.innerHTML = (
+			let container = this.node;
+			if (data.targetNodeSelector)
+			{
+				container = this.node.querySelector(data.targetNodeSelector);
+			}
+			container.innerHTML = (
 				"<div class=\"landing-block-user-action\">" +
 					"<div class=\"landing-block-user-action-inner\">" +
 						(data.header ? (
-							"<h3>"+data.header+"</h3>"
+							"<h3>"+"<i class=\"fa fa-exclamation-triangle g-mr-15\"></i>"+data.header+"</h3><hr>"
 						) : "") +
 						(data.description ? (
 							"<p>"+data.description+"</p>"
 						) : "") +
-						(data.href && data.text ? (
+						((data.href || data.onClick || data.className) && data.text ? (
 							"<div>" +
-								"<a href=\""+data.href+"\" class=\"ui-btn\">"+data.text+"</a>" +
+								"<a href=\""+data.href+"\" class=\"landing-trusted-link ui-btn "+data.className+"\" target=\""+(data.target ? data.target : '')+"\">"+data.text+"</a>" +
 							"</div>"
 						) : "") +
 					"</div>" +
 				"</div>"
 			);
+
+			if (data.onClick)
+			{
+				var button = container.querySelector('.landing-block-user-action .ui-btn');
+				bind(button, 'click', function(event) {
+					event.preventDefault();
+
+					try
+					{
+						BX.evalGlobal(data.onClick);
+					}
+					catch (err)
+					{
+						console.error(err);
+					}
+				});
+			}
 		},
 
 
@@ -317,7 +409,11 @@
 					return node.node.contains(item);
 				});
 
-				if (!this.nodes.getByNode(item) && !isChildOfNode)
+				var isMenuItem = this.menu.some(function(menu) {
+					return menu.root.contains(item);
+				});
+
+				if (!this.nodes.getByNode(item) && !isChildOfNode && !isMenuItem)
 				{
 					item.style.pointerEvents = "none";
 				}
@@ -354,7 +450,9 @@
 
 						if (styleNode)
 						{
+							styleNode.setIsSelectGroup(true);
 							styleNode.setValue("col-lg-12", columnsSettings.items);
+							styleNode.unsetIsSelectGroupFlag();
 						}
 					}, this);
 
@@ -391,7 +489,7 @@
 				block: this.node,
 				node: !!options && !!options.node ? options.node : null,
 				card: !!options && !!options.card ? options.card : null,
-				data: !!options && options.data,
+				data: (!!options && options.data) || {},
 				onForceInit: this.forceInit.bind(this)
 			});
 		},
@@ -406,10 +504,26 @@
 			this.initCards();
 			this.initNodes();
 			this.initGroups();
-			this.initCardsLabels();
 			this.disableLinks();
 		},
 
+		initMenu: function()
+		{
+			if (BX.type.isPlainObject(this.manifest.menu))
+			{
+				this.menu = Object.entries(this.manifest.menu).map(function(entry) {
+					var code = entry[0];
+					var value = entry[1];
+
+					return new BX.Landing.Menu.Menu({
+						code: code,
+						root: this.node.querySelector(code),
+						manifest: value,
+						block: this.id,
+					});
+				}, this);
+			}
+		},
 
 		initCardsLabels: function()
 		{
@@ -435,18 +549,33 @@
 			});
 
 			groupsIds.forEach(function(groupId) {
-				var nodes = this.nodes.filter(function(node) {
-					return node.manifest.group === groupId;
-				});
-
-				this.groups.add(
-					new Group({
-						id: groupId,
-						name: groups[groupId],
-						nodes: nodes,
-						onClick: this.onGroupClick.bind(this)
+				var nodes = this.nodes
+					.filter(function(node) {
+						return node.manifest.group === groupId;
 					})
-				);
+					.reduce(function(accumulator, node) {
+						var nodeIndex = parseInt(node.selector.split("@")[1]);
+
+						if (!accumulator[nodeIndex])
+						{
+							accumulator[nodeIndex] = new NodeCollection();
+						}
+
+						accumulator[nodeIndex].push(node);
+
+						return accumulator;
+					}, {});
+
+				Object.keys(nodes).forEach(function(key) {
+					this.groups.add(
+						new Group({
+							id: groupId,
+							name: groups[groupId],
+							nodes: nodes[key],
+							onClick: this.onGroupClick.bind(this)
+						})
+					);
+				}, this);
 			}, this);
 		},
 
@@ -457,12 +586,17 @@
 		 */
 		onGroupClick: function(group)
 		{
-			this.showContentPanel({
-				name: group.name,
-				nodes: group.nodes,
-				compact: true,
-				nodesOnly: true
-			});
+			if (!BX.Landing.UI.Panel.StylePanel.getInstance().isShown())
+			{
+				this.showContentPanel({
+					name: group.name,
+					nodes: group.nodes,
+					compact: true,
+					nodesOnly: true,
+					showAll: true,
+					hideCheckbox: true
+				});
+			}
 		},
 
 
@@ -481,13 +615,31 @@
 
 				createPanel.addButton(
 					new PlusButton("insert_after", {
-						text: BX.message("ACTION_BUTTON_CREATE"),
-						onClick: this.addBlockAfterThis.bind(this)
+						text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
+						onClick: throttle(this.addBlockAfterThis, 600, this)
 					})
 				);
 
 				createPanel.show();
 				this.addPanel(createPanel);
+
+				if (this.isCrmFormPage())
+				{
+					var createBeforePanel = new BaseButtonPanel(
+						"create_before_action",
+						"landing-ui-panel-create-before-action"
+					);
+
+					createBeforePanel.addButton(
+						new PlusButton("insert_before", {
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
+							onClick: throttle(this.addBlockBeforeThis, 600, this)
+						})
+					);
+
+					createBeforePanel.show();
+					this.addPanel(createBeforePanel);
+				}
 
 				createPanel.buttons[0].on("mouseover", this.onCreateButtonMouseover.bind(this));
 				createPanel.buttons[0].on("mouseout", this.onCreateButtonMouseout.bind(this));
@@ -516,26 +668,26 @@
 					{
 						case hasClass(this.parent, "landing-main"):
 							addButton.setText([
-								BX.message("ACTION_BUTTON_CREATE"),
-								BX.message("LANDING_ADD_BLOCK_TO_MAIN")
+								BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
+								BX.Landing.Loc.getMessage("LANDING_ADD_BLOCK_TO_MAIN")
 							].join(" "));
 							break;
 						case hasClass(this.parent, "landing-header"):
 							addButton.setText([
-								BX.message("ACTION_BUTTON_CREATE"),
-								BX.message("LANDING_ADD_BLOCK_TO_HEADER")
+								BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
+								BX.Landing.Loc.getMessage("LANDING_ADD_BLOCK_TO_HEADER")
 							].join(" "));
 							break;
 						case hasClass(this.parent, "landing-sidebar"):
 							addButton.setText([
-								BX.message("ACTION_BUTTON_CREATE"),
-								BX.message("LANDING_ADD_BLOCK_TO_SIDEBAR")
+								BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
+								BX.Landing.Loc.getMessage("LANDING_ADD_BLOCK_TO_SIDEBAR")
 							].join(" "));
 							break;
 						case hasClass(this.parent, "landing-footer"):
 							addButton.setText([
-								BX.message("ACTION_BUTTON_CREATE"),
-								BX.message("LANDING_ADD_BLOCK_TO_FOOTER")
+								BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"),
+								BX.Landing.Loc.getMessage("LANDING_ADD_BLOCK_TO_FOOTER")
 							].join(" "));
 							break;
 					}
@@ -568,7 +720,7 @@
 				if (areas.length > 1)
 				{
 					var addButton = this.panels.get("create_action").buttons[0];
-					addButton.setText(BX.message("ACTION_BUTTON_CREATE"));
+					addButton.setText(BX.Landing.Loc.getMessage("ACTION_BUTTON_CREATE"));
 
 					removeClass(this.parent, "landing-area-highlight");
 
@@ -579,6 +731,270 @@
 			}
 		},
 
+		isInSidebar: function()
+		{
+			return !!this.node.closest(".landing-sidebar");
+		},
+
+
+		initSidebarActionPanel: function()
+		{
+			if (this.isInSidebar() && !this.panels.contains("sidebar_actions"))
+			{
+				var sidebarActionsPanel = new BaseButtonPanel(
+					"sidebar_actions",
+					"landing-ui-panel-sidebar-actions"
+				);
+
+				sidebarActionsPanel.addButton(
+					new ActionButton("showSidebarActions", {
+						onClick: this.onShowSidebarActionsClick.bind(this),
+					})
+				);
+
+				this.addPanel(sidebarActionsPanel);
+				sidebarActionsPanel.show();
+			}
+		},
+
+		onShowSidebarActionsClick: function(event)
+		{
+			var bindElement = (
+				this.panels.get("sidebar_actions").buttons.get('showSidebarActions')
+			);
+
+			if (!this.sidebarActionsMenu)
+			{
+				this.sidebarActionsMenu = BX.Main.MenuManager.create({
+					id: this.id + '_sidebar_actions',
+					bindElement: bindElement.layout,
+					className: "landing-ui-block-actions-popup",
+					angle: {position: "top", offset: 95},
+					offsetTop: -6,
+					offsetLeft: -26,
+					events: {
+						onPopupClose: function() {
+							this.panels.get("sidebar_actions").buttons.get("showSidebarActions").deactivate();
+							removeClass(this.node, "landing-ui-hover");
+						}.bind(this)
+					},
+					items: [
+						(function() {
+							if (
+								(isPlainObject(this.manifest.nodes) || isPlainObject(this.manifest.attrs))
+								&& this.isAllowedByTariff()
+							)
+							{
+								return new BX.Main.MenuItem({
+									id: "content",
+									text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CONTENT"),
+									onclick: function() {
+										this.onShowContentPanel();
+										this.sidebarActionsMenu.close();
+									}.bind(this)
+								});
+							}
+						}.bind(this))(),
+						(function() {
+							if (isPlainObject(this.manifest.style) && this.isAllowedByTariff())
+							{
+								return new BX.Main.MenuItem({
+									id: "style",
+									text: BX.Landing.Loc.getMessage("ACTION_BUTTON_STYLE"),
+									onclick: function() {
+										this.onStyleShow();
+										this.sidebarActionsMenu.close();
+									}.bind(this),
+									className: this.access < ACCESS_V ? "landing-ui-disabled" : ""
+								});
+							}
+						}.bind(this))(),
+						(function() {
+							if (isPlainObject(this.manifest.style) && this.isAllowedByTariff())
+							{
+								return new BX.Main.MenuItem({
+									id: "designblock",
+									text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
+									className: (this.access < ACCESS_W || this.php || this.isCrmFormBlock()) ? "landing-ui-disabled" : "",
+									onclick: function() {
+										this.onDesignerBlockClick();
+										this.sidebarActionsMenu.close();
+									}.bind(this)
+								});
+							}
+						}.bind(this))(),
+						(function() {
+							if (this.isAllowedByTariff())
+							{
+								return new BX.Main.MenuItem({
+									delimiter: true,
+								});
+							}
+						}.bind(this))(),
+						(function() {
+							var allPlacements = BX.Landing.Main.getInstance().options.placements.blocks;
+
+							if (isPlainObject(allPlacements) && (this.manifest.code in allPlacements || allPlacements["*"]))
+							{
+								var placementsList = [];
+
+								if (this.manifest.code in allPlacements)
+								{
+									Object.keys(allPlacements[this.manifest.code]).forEach(function(key) {
+										placementsList.push(allPlacements[this.manifest.code][key]);
+									}, this);
+								}
+
+								if (allPlacements["*"])
+								{
+									Object.keys(allPlacements["*"]).forEach(function(key) {
+										placementsList.push(allPlacements["*"][key]);
+									}, this);
+								}
+
+								if (placementsList.length)
+								{
+									if (typeof BX.Landing.PageObject.getRootWindow().BX.rest !== "undefined" &&
+										typeof BX.Landing.PageObject.getRootWindow().BX.rest.AppLayout !== "undefined")
+									{
+										var codes = ["*", this.manifest.code];
+										for (var i = 0, c = codes.length; i < c; i++)
+										{
+											var MessageInterface = BX.Landing.PageObject.getRootWindow().BX.rest.AppLayout.initializePlacement(
+												"LANDING_BLOCK_" + codes[i]
+											);
+											if (MessageInterface)
+											{
+												MessageInterface.prototype.refreshBlock = function(params, cb) {
+													var block = BX.Landing.PageObject.getBlocks().get(params.id);
+
+													if (block)
+													{
+														block
+															.reload()
+															.then(cb);
+													}
+												};
+											}
+
+										}
+									}
+
+									return new BX.Main.MenuItem({
+										id: "actions",
+										text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CONTENT_MORE"),
+										items: placementsList.map(function(placement) {
+											return new BX.Main.MenuItem({
+												id: "placement_" + placement.id + "_" + random(),
+												text: encodeDataValue(placement.title),
+												onclick: this.onPlacementClick.bind(this, placement)
+											})
+										}, this),
+										className: this.access < ACCESS_V ? "landing-ui-disabled" : ""
+									});
+								}
+							}
+						}.bind(this))(),
+
+						new BX.Main.MenuItem({
+							id: "down",
+							text: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN"),
+							onclick: function() {
+								this.moveDown();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							id: "up",
+							text: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_UP"),
+							onclick: function() {
+								this.moveUp();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							delimiter: true,
+						}),
+						new BX.Main.MenuItem({
+							id: "show_hide",
+							text: BX.Landing.Loc.getMessage(this.isEnabled() ? "ACTION_BUTTON_HIDE" : "ACTION_BUTTON_SHOW"),
+							className: this.access < ACCESS_W ? "landing-ui-disabled" : "",
+							onclick: function() {
+								this.onStateChange();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							delimiter: true,
+						}),
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_CUT"),
+							className: this.access < ACCESS_X ? "landing-ui-disabled" : "",
+							onclick: function() {
+								BX.Landing.Main.getInstance().onCutBlock.bind(BX.Landing.Main.getInstance(), this)();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_COPY"),
+							onclick: function() {
+								BX.Landing.Main.getInstance().onCopyBlock.bind(BX.Landing.Main.getInstance(), this)();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							id: "block_paste",
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_PASTE"),
+							title: window.localStorage.landingBlockName,
+							className: window.localStorage.landingBlockId ? "": "landing-ui-disabled",
+							onclick: function() {
+								BX.Landing.Main.getInstance().onPasteBlock.bind(BX.Landing.Main.getInstance(), this)();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							delimiter: true,
+						}),
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"),
+							onclick: function() {
+								BX.Landing.Main.getInstance().showSliderFeedbackForm({
+									blockName: this.manifest.block.name,
+									blockCode: this.manifest.code,
+									blockSection: this.manifest.block.section,
+									landingId: BX.Landing.Main.getInstance().id,
+									target: "blockActions"
+								});
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON"),
+							onclick: function() {
+								this.saveBlock();
+								this.sidebarActionsMenu.close();
+							}.bind(this)
+						}),
+						new BX.Main.MenuItem({
+							delimiter: true,
+						}),
+						new BX.Main.MenuItem({
+							id: "remove",
+							text: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_REMOVE"),
+							onclick: function() {
+								this.deleteBlock();
+								this.sidebarActionsMenu.close();
+							}.bind(this),
+							className: this.access < ACCESS_X ? "landing-ui-disabled" : ""
+						})
+					]
+				});
+			}
+
+			this.sidebarActionsMenu.show();
+			addClass(this.node, "landing-ui-hover");
+		},
+
 
 		/**
 		 * Initializes action panels of block
@@ -586,15 +1002,22 @@
 		 */
 		lazyInitPanels: function()
 		{
+			if (this.isInSidebar())
+			{
+				this.initSidebarActionPanel();
+			}
+
 			var allPlacements = BX.Landing.Main.getInstance().options.placements.blocks;
 
 			// Make content actions panel
-			if (!this.panels.contains("content_actions") &&
-				!this.requiredUserActionIsShown &&
-				(
-					(isPlainObject(this.manifest.nodes) && !isEmpty(this.manifest.nodes)) ||
-					(isPlainObject(this.manifest.style) && !isEmpty(this.manifest.style)) ||
-					(isPlainObject(allPlacements) && !isEmpty(allPlacements))))
+			if (
+				!this.panels.contains("content_actions")
+				&& (
+					(isPlainObject(this.manifest.nodes) && !isEmpty(this.manifest.nodes))
+					|| (isPlainObject(this.manifest.style) && !isEmpty(this.manifest.style))
+					|| (isPlainObject(allPlacements) && !isEmpty(allPlacements))
+				)
+			)
 			{
 				var contentPanel = new BaseButtonPanel(
 					"content_actions",
@@ -603,32 +1026,55 @@
 
 				contentPanel.addButton(
 					new ActionButton("collapse", {
-						html: "<span class='fa fa-caret-right'></span>",
+						html: "<span class='fas fa-caret-right'></span>",
 						onClick: this.onCollapseActionPanel.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE")},
+						separate: true,
 					})
 				);
 
-				if (isPlainObject(this.manifest.nodes))
+				if (this.isAllowedByTariff())
 				{
-					contentPanel.addButton(
-						new ActionButton("content", {
-							text: BX.message("ACTION_BUTTON_CONTENT"),
-							onClick: this.onShowContentPanel.bind(this),
-							disabled: this.access < ACCESS_W,
-							attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_EDIT")}
-						})
-					);
-				}
+					if (isPlainObject(this.manifest.style))
+					{
+						contentPanel.addButton(
+							new ActionButton("designblock", {
+								text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK"),
+								onClick: this.onDesignerBlockClick.bind(this),
+								disabled: this.access < ACCESS_W || this.php || (this.isCrmFormPage() && this.isCrmFormBlock()),
+								attrs: { title: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_DESIGN_BLOCK") },
+								separate: true,
+							})
+						);
 
-				if (isPlainObject(this.manifest.style))
-				{
+						contentPanel.addButton(
+							new ActionButton("style", {
+								text: BX.Landing.Loc.getMessage("ACTION_BUTTON_STYLE"),
+								onClick: this.onStyleShow.bind(this),
+								disabled: this.access < ACCESS_V || isEmpty(this.manifest.style),
+								attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_DESIGN")},
+								separate: true,
+							})
+						);
+					}
+
+					if (isPlainObject(this.manifest.nodes) || isPlainObject(this.manifest.attrs) )
+					{
+						contentPanel.addButton(
+							new ActionButton("content", {
+								text: BX.Landing.Loc.getMessage("ACTION_BUTTON_CONTENT"),
+								onClick: this.onShowContentPanel.bind(this),
+								attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_EDIT")},
+								separate: true,
+							})
+						);
+					}
+				}
+				else {
 					contentPanel.addButton(
-						new ActionButton("style", {
-							text: BX.message("ACTION_BUTTON_STYLE"),
-							onClick: this.onStyleShow.bind(this),
-							disabled: this.access < ACCESS_V,
-							attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_DESIGN")}
+						new ActionButton("expired", {
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_EXPIRED"),
+							separate: true,
 						})
 					);
 				}
@@ -655,19 +1101,45 @@
 					{
 						contentPanel.addButton(
 							new ActionButton("actions", {
-								html: BX.message("ACTION_BUTTON_CONTENT_MORE"),
-								onClick: this.onPlacementButtonClick.bind(this, placementsList)
+								html: BX.Landing.Loc.getMessage("ACTION_BUTTON_CONTENT_MORE"),
+								onClick: this.onPlacementButtonClick.bind(this, placementsList),
+								separate: true,
 							})
 						);
-					}
 
-					addClass(contentPanel.buttons.get("style").layout, "landing-ui-no-rounded");
+						if (typeof BX.Landing.PageObject.getRootWindow().BX.rest !== "undefined" &&
+							typeof BX.Landing.PageObject.getRootWindow().BX.rest.AppLayout !== "undefined")
+						{
+							var codes = ["*", this.manifest.code];
+							for (var i = 0, c = codes.length; i < c; i++)
+							{
+								var MessageInterface = BX.Landing.PageObject.getRootWindow().BX.rest.AppLayout.initializePlacement(
+									"LANDING_BLOCK_" + codes[i]
+								);
+								if (MessageInterface)
+								{
+									MessageInterface.prototype.refreshBlock = function(params, cb) {
+										var block = BX.Landing.PageObject.getBlocks().get(params.id);
+
+										if (block)
+										{
+											block
+												.reload()
+												.then(cb);
+										}
+									};
+								}
+
+							}
+						}
+					}
 				}
 
 				if (isPlainObject(this.manifest.style))
 				{
 					var blockDisplay = new ActionButton("block_display_info", {
-						html: "&nbsp;"
+						html: "&nbsp;",
+						separate: true,
 					});
 
 					bind(blockDisplay.layout, "mouseenter", this.onBlockDisplayMouseenter.bind(this));
@@ -696,9 +1168,10 @@
 				if (block && block.restricted)
 				{
 					var restrictedButton = new ActionButton("restricted", {
-						html: "&nbsp;",
+						html: "!",
 						className: "landing-ui-block-restricted-button",
-						onClick: this.onRestrictedButtonClick.bind(this)
+						onClick: this.onRestrictedButtonClick.bind(this),
+						separate: true
 					});
 
 					bind(restrictedButton.layout, "mouseenter", this.onRestrictedButtonMouseenter.bind(this));
@@ -709,42 +1182,43 @@
 
 				blockPanel.addButton(
 					new ActionButton("down", {
-						html: BX.message("ACTION_BUTTON_DOWN"),
+						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_DOWN"),
 						onClick: this.moveDown.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_DOWN")}
 					})
 				);
 
 				blockPanel.addButton(
 					new ActionButton("up", {
-						html: BX.message("ACTION_BUTTON_UP"),
+						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_UP"),
 						onClick: this.moveUp.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_ACTION_SORT_UP")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_SORT_UP")}
 					})
 				);
 
 				blockPanel.addButton(
 					new ActionButton("actions", {
-						html: BX.message("ACTION_BUTTON_ACTIONS"),
+						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS"),
 						onClick: this.showBlockActionsMenu.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_ACTION_ADDITIONAL_ACTIONS")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_ADDITIONAL_ACTIONS")}
 					})
 				);
 
 				blockPanel.addButton(
 					new ActionButton("remove", {
-						html: BX.message("ACTION_BUTTON_REMOVE"),
-						disabled: this.access < ACCESS_X,
+						html: BX.Landing.Loc.getMessage("ACTION_BUTTON_REMOVE"),
+						disabled: this.access < ACCESS_X || (this.isCrmFormBlock() && this.isDefaultCrmFormBlock()),
 						onClick: this.deleteBlock.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_ACTION_REMOVE")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_REMOVE")}
 					})
 				);
 
 				blockPanel.addButton(
 					new ActionButton("collapse", {
-						html: "<span class='fa fa-caret-right'></span>",
+						html: "<span class='fas fa-caret-right'></span>",
 						onClick: this.onCollapseActionPanel.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_BLOCK_ACTION_COLLAPSE")},
+						separate: true
 					})
 				);
 
@@ -813,14 +1287,17 @@
 				var blockActionMenuId = join("block_", this.id, "content_placement_actions_", random());
 
 				var menuItems = placements.map(function(placement) {
-					return new BX.PopupMenuItem({
-						id: "placement_" + placement.id + "_" + random(),
+					return new BX.Main.MenuItem({
+						id: "placement_" + (placement.id || random()) + "_" + random(),
 						text: encodeDataValue(placement.title),
-						onclick: this.onPlacementClick.bind(this, placement)
+						disabled: placement.disabled === true,
+						onclick: (typeof placement.onClick === 'function')
+							? placement.onClick
+							: this.onPlacementClick.bind(this, placement)
 					})
 				}, this);
 
-				this.blockPlacementsActionsMenu = new Menu({
+				this.blockPlacementsActionsMenu = new BX.PopupMenuWindow({
 					id: blockActionMenuId,
 					bindElement: blockActionButton.layout,
 					items: menuItems,
@@ -839,12 +1316,94 @@
 			this.blockPlacementsActionsMenu.show();
 		},
 
+		onDesignerBlockClick: function()
+		{
+			// get actual block content before designer edit
+			var oldContent = null;
+			BX.Landing.Backend.getInstance()
+				.action("Block::getContent", {
+					block: this.id,
+					lid: this.lid,
+					siteId: this.siteId,
+					editMode: 1
+				})
+				.then(function(response) {
+					oldContent = response.content;
+				});
+
+			// open slider with designer
+			var envOptions = BX.Landing.Env.getInstance().getOptions();
+			var sliderUrl = envOptions.params.sef_url["design_block"]
+				.replace("__block_id__", this.id)
+				.replace("__site_show__", this.siteId)
+				.replace("__landing_edit__", this.lid)
+				+ "&code=" + this.manifest.code
+				+ "&designed=" + (this.designed ? "Y" : "N");
+			BX.SidePanel.Instance.open(
+				sliderUrl,
+				{
+					cacheable: false,
+					allowChangeHistory: false,
+					requestMethod: "post",
+					customLeftBoundary: 40,
+					events: {
+						onClose: function(event)
+						{
+							// get actual block content after designer edit
+							BX.Landing.Backend.getInstance()
+								.action("Block::getContent", {
+									block: this.id,
+									lid: this.lid,
+									siteId: this.siteId,
+									editMode: 1
+								})
+								.then(function(response) {
+									var newContent = response.content;
+									if (oldContent !== newContent)
+									{
+										BX.Landing.History.getInstance().push(
+											new BX.Landing.History.Entry({
+												block: this.id,
+												selector: "#block" + this.id,
+												command: "updateContent",
+												undo: oldContent,
+												redo: newContent
+											})
+										);
+										void this.reload();
+										// analytic label on close
+										var metrika = new BX.Landing.Metrika(true);
+										metrika.sendLabel(
+											null,
+											"designerBlock",
+											"close" +
+											"&designed=" + (this.designed ? "Y" : "N") +
+											"&code=" + this.manifest.code
+										);
+									}
+								}.bind(this));
+						}.bind(this)
+					}
+				}
+			);
+
+			if (this.blockPlacementsActionsMenu)
+			{
+				this.blockPlacementsActionsMenu.close();
+			}
+		},
+
+		saveBlock: function()
+		{
+			BX.Landing.Main.getInstance().showSaveBlock(this);
+		},
+
 		onRestrictedButtonMouseenter: function(event)
 		{
 			clearTimeout(this.displayBlockTimer);
 			this.displayBlockTimer = setTimeout(function(target) {
 				BX.Landing.UI.Tool.Suggest.getInstance().show(target, {
-					description: BX.message("LANDING_BLOCK_RESTRICTED_TEXT")
+					description: BX.Landing.Loc.getMessage("LANDING_BLOCK_RESTRICTED_TEXT")
 				});
 			}.bind(this), 200, event.currentTarget);
 		},
@@ -864,7 +1423,7 @@
 					{
 						name: create("div", {
 							props: {className: "landing-ui-block-display-message-header"},
-							html: BX.message("LANDING_BLOCK_DISABLED_ON_DESKTOP_NAME")
+							html: BX.Landing.Loc.getMessage("LANDING_BLOCK_DISABLED_ON_DESKTOP_NAME_2")
 						}).outerHTML,
 						description: this.getBlockDisplayItems()
 					}
@@ -893,7 +1452,7 @@
 						create("div", {
 							props: {className: "landing-ui-block-display-message-right"},
 							children: [
-								create("p", {html: BX.message("LANDING_BLOCK_HIDDEN_ON_"+(mod ? mod.toUpperCase() : ""))})
+								create("p", {html: BX.Landing.Loc.getMessage("LANDING_BLOCK_HIDDEN_ON_"+(mod ? mod.toUpperCase() : ""))})
 							]
 						})
 					]
@@ -929,30 +1488,16 @@
 			var blockRect = rect(this.node);
 			var contentActionsPanel = this.panels.get("content_actions");
 			var blockActionsPanel = this.panels.get("block_action");
+			var action = blockRect.height < 80 ? addClass : removeClass;
 
-			if (blockRect.height < 80)
+			if (contentActionsPanel)
 			{
-				if (contentActionsPanel)
-				{
-					addClass(contentActionsPanel.layout, "landing-ui-panel-actions-compact");
-				}
-
-				if (blockActionsPanel)
-				{
-					addClass(blockActionsPanel.layout, "landing-ui-panel-actions-compact");
-				}
+				action(contentActionsPanel.layout, "landing-ui-panel-actions-compact");
 			}
-			else
-			{
-				if (contentActionsPanel)
-				{
-					removeClass(contentActionsPanel.layout, "landing-ui-panel-actions-compact");
-				}
 
-				if (blockActionsPanel)
-				{
-					removeClass(blockActionsPanel.layout, "landing-ui-panel-actions-compact");
-				}
+			if (blockActionsPanel)
+			{
+				action(blockActionsPanel.layout, "landing-ui-panel-actions-compact");
 			}
 		},
 
@@ -983,9 +1528,10 @@
 
 		onStorage: function()
 		{
-			if (this.blockActionsMenu)
+			var menu = (this.blockActionsMenu || this.sidebarActionsMenu);
+			if (menu)
 			{
-				var item = this.blockActionsMenu.getMenuItem("block_paste");
+				var item = menu.getMenuItem("block_paste");
 
 				if (item)
 				{
@@ -1019,7 +1565,7 @@
 				var blockActionMenuId = join("block_", this.id, "_actions_", random());
 				var landing = BX.Landing.Main.getInstance();
 
-				this.blockActionsMenu = new Menu({
+				this.blockActionsMenu = new BX.PopupMenuWindow({
 					id: blockActionMenuId,
 					bindElement: blockActionButton.layout,
 					className: "landing-ui-block-actions-popup",
@@ -1030,45 +1576,49 @@
 						onPopupClose: function() {
 							this.panels.get("block_action").buttons.get("actions").deactivate();
 							removeClass(this.node, "landing-ui-hover");
+						}.bind(this),
+						onPopupShow: function() {
+							BX.Event.EventEmitter.emit('BX.Landing.PopupMenuWindow:onShow');
 						}.bind(this)
 					},
 					items: [
-						new BX.PopupMenuItem({
+						new BX.Main.MenuItem({
 							id: "show_hide",
-							text: BX.message(this.isEnabled() ? "ACTION_BUTTON_HIDE" : "ACTION_BUTTON_SHOW"),
-							className: this.access < ACCESS_W ? "landing-ui-disabled" : "",
+							text: BX.Landing.Loc.getMessage(this.isEnabled() ? "ACTION_BUTTON_HIDE" : "ACTION_BUTTON_SHOW"),
+							className: (this.access < ACCESS_W) || this.isDefaultCrmFormBlock() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								this.onStateChange();
 								this.blockActionsMenu.close();
 							}.bind(this)
 						}),
-						new BX.PopupMenuItem({
-							text: BX.message("ACTION_BUTTON_ACTIONS_CUT"),
-							className: this.access < ACCESS_X ? "landing-ui-disabled" : "",
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_CUT"),
+							className: (this.access < ACCESS_X) || this.isDefaultCrmFormBlock() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								landing.onCutBlock.bind(landing, this)();
 								this.blockActionsMenu.close();
 							}.bind(this)
 						}),
-						new BX.PopupMenuItem({
-							text: BX.message("ACTION_BUTTON_ACTIONS_COPY"),
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_COPY"),
+							className: this.isDefaultCrmFormBlock() ? "landing-ui-disabled" : "",
 							onclick: function() {
 								landing.onCopyBlock.bind(landing, this)();
 								this.blockActionsMenu.close();
 							}.bind(this)
 						}),
-						new BX.PopupMenuItem({
+						new BX.Main.MenuItem({
 							id: "block_paste",
-							text: BX.message("ACTION_BUTTON_ACTIONS_PASTE"),
+							text: BX.Landing.Loc.getMessage("ACTION_BUTTON_ACTIONS_PASTE"),
 							title: window.localStorage.landingBlockName,
-							className: window.localStorage.landingBlockId ? "": "landing-ui-disabled",
+							className: window.localStorage.landingBlockId && !this.isDefaultCrmFormBlock() ? "": "landing-ui-disabled",
 							onclick: function() {
 								landing.onPasteBlock.bind(landing, this)();
 								this.blockActionsMenu.close();
 							}.bind(this)
 						}),
-						new BX.PopupMenuItem({
-							text: BX.message("LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"),
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_FEEDBACK_BUTTON"),
 							onclick: function() {
 								BX.Landing.Main.getInstance().showSliderFeedbackForm({
 									blockName: this.manifest.block.name,
@@ -1079,7 +1629,17 @@
 								});
 								this.blockActionsMenu.close();
 							}.bind(this)
-						})
+						}),
+						new BX.Main.MenuItem({
+							delimiter: true,
+						}),
+						new BX.Main.MenuItem({
+							text: BX.Landing.Loc.getMessage("LANDING_BLOCKS_ACTIONS_SAVE_BLOCK_BUTTON"),
+							onclick: function() {
+								this.saveBlock();
+								this.blockActionsMenu.close();
+							}.bind(this)
+						}),
 					]
 				});
 			}
@@ -1124,7 +1684,7 @@
 					}
 				}.bind(this));
 
-				Backend.action(
+				BX.Landing.Backend.getInstance().action(
 					"Landing::upBlock",
 					{block: this.id, lid: this.lid, siteId: this.siteId},
 					{code: this.manifest.code}
@@ -1168,7 +1728,7 @@
 					}
 				}.bind(this));
 
-				Backend.action(
+				BX.Landing.Backend.getInstance().action(
 					"Landing::downBlock",
 					{block: this.id, lid: this.lid, siteId: this.siteId},
 					{code: this.manifest.code}
@@ -1199,6 +1759,122 @@
 			}
 		},
 
+		/**
+		 *
+		 * @return {{code: string, id: string, type: string}|null}
+		 */
+		getBlockFormId: function()
+		{
+			var formScriptNode = this.node.querySelector('script[data-b24-form]');
+			if (BX.Type.isDomNode(formScriptNode))
+			{
+				var formId = BX.Dom.attr(formScriptNode, 'data-b24-form');
+				if (BX.Type.isStringFilled(formId))
+				{
+					var parsedFormId = formId.split('/');
+					if (BX.Type.isArray(parsedFormId) && parsedFormId.length === 3)
+					{
+						var instanceId = '';
+						var formUid = BX.Dom.attr(
+							formScriptNode.previousSibling.firstChild,
+							'id'
+						);
+
+						if (formUid)
+						{
+							instanceId = formUid.replace('b24-', '');
+						}
+
+						return {
+							id: parsedFormId[1],
+							type: parsedFormId[0],
+							code: parsedFormId[2],
+							instanceId: instanceId
+						};
+					}
+				}
+			}
+
+			formScriptNode = this.node.querySelector('[data-b24form]');
+			if (BX.Type.isDomNode(formScriptNode))
+			{
+				formId = BX.Dom.attr(formScriptNode, 'data-b24form');
+				if (BX.Type.isStringFilled(formId))
+				{
+					parsedFormId = formId.split('|');
+					if (BX.Type.isArray(parsedFormId) && parsedFormId.length === 3)
+					{
+						instanceId = '';
+						formUid = BX.Dom.attr(
+							formScriptNode.querySelector('.b24-form > div[id]'),
+							'id'
+						);
+
+						if (formUid)
+						{
+							instanceId = formUid.replace('b24-', '');
+						}
+
+						return {
+							id: parsedFormId[0],
+							type: parsedFormId[2] || 'inline',
+							code: parsedFormId[1],
+							instanceId: instanceId
+						};
+					}
+				}
+			}
+
+			return null;
+		},
+
+		getCrmFormOptions: function()
+		{
+			var formNode = this.node.querySelector('[data-b24form-use-style]');
+			var useAllowed = BX.Dom.attr(formNode, 'data-b24form-use-style');
+			var primaryMatcher = /--primary([\da-fA-F]{2})/;
+
+			if (BX.Type.isDomNode(formNode) && BX.Text.toBoolean(useAllowed))
+			{
+				var designOptions = BX.Dom.attr(formNode, 'data-b24form-design');
+				if (BX.Type.isPlainObject(designOptions))
+				{
+					var primaryColor = BX.Dom.style(document.documentElement, '--primary').trim();
+					Object.entries(designOptions.color).forEach(function(entry) {
+						if (
+							entry[1] === '--primary'
+							|| entry[1].match(primaryMatcher) !== null
+						)
+						{
+							designOptions.color[entry[0]] = entry[1].replace('--primary', primaryColor);
+						}
+					});
+
+					return {
+						data: {
+							design: designOptions,
+						}
+					};
+				}
+			}
+
+			return {};
+		},
+
+		isCrmFormPage: function()
+		{
+			return BX.Landing.Env.getInstance().getOptions().specialType === 'crm_forms';
+		},
+
+		isCrmFormBlock: function()
+		{
+			return this.isCrmFormPage() && BX.Dom.attr(this.node, 'data-subtype') === 'form';
+		},
+
+		isDefaultCrmFormBlock: function()
+		{
+			return BX.Dom.hasClass(this.node, 'block-66-90-form-new-default');
+		},
 
 		/**
 		 * Handles show panel event
@@ -1206,7 +1882,53 @@
 		 */
 		onShowContentPanel: function()
 		{
-			this.showContentPanel();
+			var formId = this.getBlockFormId();
+			var type = BX.Text.capitalize(
+				BX.Landing.Env.getInstance().getOptions().params.type
+			);
+			if (
+				BX.Type.isPlainObject(formId)
+				&& type !== 'SMN'
+			)
+			{
+				var rootWindow = BX.Landing.PageObject.getRootWindow();
+				void (function() {
+						if (BX.Landing.UI.Panel.FormSettingsPanel)
+						{
+							return Promise.resolve([
+								rootWindow.BX.Landing.UI.Panel,
+								BX.Landing.UI.Panel
+							]);
+						}
+
+						return Promise
+							.all([
+								rootWindow.BX.Runtime
+									.loadExtension('landing.ui.panel.formsettingspanel'),
+								BX.Runtime
+									.loadExtension('landing.ui.panel.formsettingspanel')
+							]);
+					})()
+					.then(function(result) {
+						var FormSettingsPanel = result[1].FormSettingsPanel;
+						if (FormSettingsPanel)
+						{
+							return FormSettingsPanel
+								.getInstance()
+								.show({
+									formId: formId.id,
+									instanceId: formId.instanceId,
+									formOptions: this.getCrmFormOptions(),
+									block: this,
+								});
+						}
+					}.bind(this));
+			}
+			else
+			{
+				this.showContentPanel();
+			}
+
 			BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
 		},
 
@@ -1245,8 +1967,10 @@
 		{
 			this.active = true;
 			removeClass(this.node, "landing-block-disabled");
-			setTextContent(this.blockActionsMenu.getMenuItem("show_hide").getLayout().text, BX.message("ACTION_BUTTON_HIDE"));
-			Backend.action(
+
+			var menu = (this.blockActionsMenu || this.sidebarActionsMenu);
+			setTextContent(menu.getMenuItem("show_hide").getLayout().text, BX.Landing.Loc.getMessage("ACTION_BUTTON_HIDE"));
+			BX.Landing.Backend.getInstance().action(
 				"Landing::showBlock",
 				{block: this.id, lid: this.lid, siteId: this.siteId},
 				{code: this.manifest.code}
@@ -1261,8 +1985,9 @@
 		{
 			this.active = false;
 			addClass(this.node, "landing-block-disabled");
-			setTextContent(this.blockActionsMenu.getMenuItem("show_hide").getLayout().text, BX.message("ACTION_BUTTON_SHOW"));
-			Backend.action(
+			var menu = (this.blockActionsMenu || this.sidebarActionsMenu);
+			setTextContent(menu.getMenuItem("show_hide").getLayout().text, BX.Landing.Loc.getMessage("ACTION_BUTTON_SHOW"));
+			BX.Landing.Backend.getInstance().action(
 				"Landing::hideBlock",
 				{block: this.id, lid: this.lid, siteId: this.siteId},
 				{code: this.manifest.code}
@@ -1308,12 +2033,12 @@
 					{
 						currentLabel = create("span", {
 							props: {className: "landing-card-title-text"},
-							html: create("div", {html: labelNode.getValue()}).innerText
+							html: escapeText(create("div", {html: labelNode.getValue()}).innerText)
 						});
 						children.push(currentLabel);
 
-						onCustomEvent(labelNode.getField(), "BX.Landing.UI.Field:change", function(value) {
-							currentLabel.innerHTML = create("div", {html: value}).innerText;
+						onCustomEvent(labelNode.getField(), "change", function(value) {
+							currentLabel.innerHTML = escapeText(create("div", {html: value}).innerText);
 						});
 
 						return;
@@ -1323,12 +2048,12 @@
 					{
 						currentLabel = create("span", {
 							props: {className: "landing-card-title-link"},
-							html: labelNode.getValue().text
+							html: escapeText(labelNode.getValue().text)
 						});
 						children.push(currentLabel);
 
-						onCustomEvent(labelNode.getField(), "BX.Landing.UI.Field:change", function(value) {
-							currentLabel.innerHTML = value.text;
+						onCustomEvent(labelNode.getField(), "change", function(value) {
+							currentLabel.innerHTML = escapeText(value.text);
 						});
 
 						return;
@@ -1342,7 +2067,7 @@
 						});
 						children.push(currentLabel);
 
-						onCustomEvent(labelNode.getField(), "BX.Landing.UI.Field:change", function(value) {
+						onCustomEvent(labelNode.getField(), "change", function(value) {
 							currentLabel.firstChild.className = "landing-card-title-icon " + value.classList.join(" ");
 						});
 
@@ -1360,7 +2085,7 @@
 						});
 						children.push(currentLabel);
 
-						onCustomEvent(labelNode.getField(), "BX.Landing.UI.Field:change", function(value) {
+						onCustomEvent(labelNode.getField(), "change", function(value) {
 							currentLabel.innerHTML = "";
 							currentLabel.appendChild(create('img', {props: {src: value.src}}));
 						});
@@ -1380,10 +2105,20 @@
 		 */
 		initCards: function()
 		{
+			if (this.access < ACCESS_W)
+			{
+				return;
+			}
+
 			this.cards.clear();
 			this.forEachCard(function(node, selector, index) {
-				var manifest = this.manifest.cards[selector];
+				var manifest = BX.clone(this.manifest.cards[selector]);
 				var cardSelector = join(selector, "@", index);
+
+				if (this.isDynamicCards(selector))
+				{
+					manifest.allowInlineEdit = false;
+				}
 
 				removePanels(node);
 				var instance = new BX.Landing.Block.Card(node, manifest, cardSelector);
@@ -1402,18 +2137,54 @@
 						html: "&nbsp;",
 						onClick: function(event) {
 							event.stopPropagation();
+
+							if (instance.manifest.sync)
+							{
+								var syncedSelectors = instance.manifest.sync;
+
+								if (isString(instance.manifest.sync))
+								{
+									syncedSelectors = [instance.manifest.sync];
+								}
+
+								if (isArray(syncedSelectors))
+								{
+									syncedSelectors.forEach(function(currentSyncSelector) {
+										this.cloneCard(join(currentSyncSelector, "@", index));
+									}, this);
+								}
+							}
+
 							this.cloneCard(cardSelector);
 						}.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_CARD_ACTION_CLONE")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_CARD_ACTION_CLONE")}
 					}));
 
 					cardAction.addButton(new CardActionButton("remove", {
 						html: "&nbsp;",
 						onClick: function(event) {
 							event.stopPropagation();
+
+							if (instance.manifest.sync)
+							{
+								var syncedSelectors = instance.manifest.sync;
+
+								if (isString(instance.manifest.sync))
+								{
+									syncedSelectors = [instance.manifest.sync];
+								}
+
+								if (isArray(syncedSelectors))
+								{
+									syncedSelectors.forEach(function(currentSyncSelector) {
+										this.removeCard(join(currentSyncSelector, "@", index));
+									}, this);
+								}
+							}
+
 							this.removeCard(cardSelector);
 						}.bind(this),
-						attrs: {title: BX.message("LANDING_TITLE_OF_CARD_ACTION_REMOVE")}
+						attrs: {title: BX.Landing.Loc.getMessage("LANDING_TITLE_OF_CARD_ACTION_REMOVE")}
 					}));
 				}
 
@@ -1445,7 +2216,8 @@
 
 			showButtonLoader(cloneButton);
 
-			return Backend.action("Landing\\Block::cloneCard", requestData, queryParams)
+			return BX.Landing.Backend.getInstance()
+				.action("Landing\\Block::cloneCard", requestData, queryParams)
 				// Before clone
 				.then(function() {
 					fireCustomEvent("BX.Landing.Block:Card:beforeAdd", [
@@ -1470,6 +2242,7 @@
 					]);
 
 					self.initEntities();
+					self.initStyles();
 
 					if (!preventHistory)
 					{
@@ -1519,7 +2292,8 @@
 
 			showButtonLoader(removeButton);
 
-			return Backend.action("Landing\\Block::removeCard", requestData, queryParams)
+			return BX.Landing.Backend.getInstance()
+				.action("Landing\\Block::removeCard", requestData, queryParams)
 				// Before remove
 				.then(function() {
 					fireCustomEvent("BX.Landing.Block:Card:beforeRemove", [
@@ -1529,6 +2303,8 @@
 					if (!preventHistory)
 					{
 						var containerSelector = getCSSSelector(card.node.parentElement);
+
+						removePanels(card.node);
 
 						BX.Landing.History.getInstance().push(
 							new BX.Landing.History.Entry({
@@ -1574,15 +2350,35 @@
 
 			if (card)
 			{
-				var lastCardInCollection = card.node.parentElement.children.length === 1;
-
-				if (lastCardInCollection)
+				var cardAction = card.panels.get("cardAction");
+				if (cardAction)
 				{
-					card.panels.get("cardAction").buttons.get("remove").disable();
-				}
-				else
-				{
-					card.panels.get("cardAction").buttons.get("remove").enable();
+					var cardIntoSlider = BX.hasClass(card.node, 'landing-block-card-carousel-element');
+					var cardsParent = card.node.closest(".landing-block-node-carousel-container");
+					if (!cardIntoSlider || !cardsParent)
+					{
+						var lastCardInCollection = card.node.parentElement.children.length === 1;
+						if (lastCardInCollection)
+						{
+							cardAction.buttons.get("remove").disable();
+						}
+						else
+						{
+							cardAction.buttons.get("remove").enable();
+						}
+					}
+					else
+					{
+						var cardsAmount = cardsParent.querySelectorAll('.landing-block-card-carousel-element').length;
+						if (cardsAmount > 1)
+						{
+							cardAction.buttons.get("remove").enable();
+						}
+						else
+						{
+							cardAction.buttons.get("remove").disable();
+						}
+					}
 				}
 			}
 		},
@@ -1609,7 +2405,8 @@
 			var card = create("div", {html: settings.content}).firstElementChild;
 			var self = this;
 
-			return Backend.action("Landing\\Block::addCard", requestData, queryParams)
+			return BX.Landing.Backend.getInstance()
+				.action("Landing\\Block::addCard", requestData, queryParams)
 				.then(function() {
 					fireCustomEvent("BX.Landing.Block:Card:beforeAdd", [
 						self.createEvent({card: card})
@@ -1677,6 +2474,11 @@
 		 */
 		initNodes: function()
 		{
+			if (this.access < ACCESS_W)
+			{
+				return;
+			}
+
 			var nodes = [];
 
 			this.forEachNodeElements(function(element, selector, index) {
@@ -1715,12 +2517,41 @@
 						}, this);
 					}
 
+					var isDynamic = this.cards.some(function(currentCard) {
+						var cardCode = currentCard.selector.split("@")[0];
+
+						return (
+							this.isDynamicCards(cardCode)
+							&& currentCard.node.contains(element)
+						);
+					}, this);
+
+					if (isDynamic)
+					{
+						manifest.allowInlineEdit = false;
+					}
+					else
+					{
+						var isCardNode = this.cards.some(function(currentCard) {
+							return currentCard.node.contains(element);
+						});
+
+						if (!isCardNode)
+						{
+							if (this.isDynamic())
+							{
+								manifest.allowInlineEdit = false;
+							}
+						}
+					}
+
 					instance = new handler({
 						node: element,
 						manifest: manifest,
 						selector: nodeSelector,
 						onChange: this.onNodeChange.bind(this),
 						onChangeOptions: this.onNodeOptionsChange.bind(this),
+						onAttributeChange: this.onAttributeChange.bind(this),
 						onDesignShow: this.showStylePanel.bind(this),
 						uploadParams: {
 							action: "Block::uploadFile",
@@ -1761,6 +2592,8 @@
 		{
 			if (!isEmpty(data))
 			{
+				this.initStyles();
+
 				var queryParams = {code: this.manifest.code};
 				var requestBody = {};
 
@@ -1805,32 +2638,52 @@
 		 */
 		showContentPanel: function(options)
 		{
-			var nodes = !!options && options.nodes ? options.nodes : this.nodes;
+			var nodes = !!options && options.nodes ? options.nodes : null;
 			var formName = !!options && options.name ? options.name : null;
 			var nodesOnly = !!options && options.nodesOnly ? options.nodesOnly : false;
+			var showAll = !!options && options.showAll ? options.showAll : false;
 			var compactMode = !!options && options.compact;
+			var hideCheckbox = !!options && options.hideCheckbox;
 			var contentPanel = this.panels.get("content_edit");
 
 			if (!contentPanel)
 			{
 				contentPanel = new ContentEditPanel("content_edit", {
-					title: BX.message("LANDING_CONTENT_PANEL_TITLE"),
+					title: BX.Landing.Loc.getMessage("LANDING_CONTENT_PANEL_TITLE"),
 					subTitle: this.manifest.block.name,
-					footer: [
-						new BaseButton("save_block_content", {
-							text: BX.message("BLOCK_SAVE"),
-							onClick: this.onContentSave.bind(this),
-							className: "landing-ui-button-content-save",
-							attrs: {title: BX.message("LANDING_TITLE_OF_SLIDER_SAVE")}
-						}),
-						new BaseButton("cancel_block_content", {
-							text: BX.message("BLOCK_CANCEL"),
-							onClick: this.onContentCancel.bind(this),
-							className: "landing-ui-button-content-cancel",
-							attrs: {title: BX.message("LANDING_TITLE_OF_SLIDER_CANCEL")}
-						})
-					]
+					onSaveHandler: this.onContentSave.bind(this),
+					onCancelHandler: this.onContentCancel.bind(this),
 				});
+
+				var formId = this.getBlockFormId();
+				var type = BX.Text.capitalize(
+					BX.Landing.Env.getInstance().getOptions().params.type
+				);
+				if (
+					BX.Type.isPlainObject(formId)
+					&& type !== 'SMN'
+				)
+				{
+					var button = new BX.UI.Button({
+						text: BX.Landing.Loc.getMessage('LANDING_SHOW_FORM_EDITOR'),
+						color: BX.UI.Button.Color.LIGHT_BORDER,
+						round: true,
+						className: 'landing-ui-panel-top-button',
+						onclick: function() {
+							contentPanel.hide()
+								.then(function() {
+									this.onShowContentPanel();
+								}.bind(this));
+						}.bind(this)
+					});
+
+					BX.Dom.style(button.render(), {
+						position: 'absolute',
+						right: '50px',
+					});
+
+					BX.Dom.append(button.render(), contentPanel.header);
+				}
 
 				this.addPanel(contentPanel);
 			}
@@ -1845,16 +2698,155 @@
 				append(this.getRestrictedMessage(), contentPanel.content);
 			}
 
-			this.getEditForms(nodes, formName, nodesOnly).forEach(contentPanel.appendForm, contentPanel);
+			this.tmpContent = create("div", {
+				props: {hidden: true}
+			});
+
+			this.content.appendChild(this.tmpContent);
+			var html = "";
+
+			Object.keys(this.manifest.cards).forEach(function(cardSelector) {
+				var card = this.manifest.cards[cardSelector];
+
+				if (isPlainObject(card.presets))
+				{
+					Object.keys(card.presets).forEach(function(presetId) {
+						var preset = card.presets[presetId];
+						html += preset.html;
+					}, this);
+				}
+			}, this);
+
+			this.tmpContent.innerHTML = html;
+			this.initEntities();
+			this.initCardsLabels();
+
+			var forms = this.getEditForms({
+				nodes: nodes,
+				formName: formName,
+				nodesOnly: nodesOnly,
+				showAll: showAll,
+				hideCheckbox: hideCheckbox
+			});
+
+			forms.forEach(function(form) {
+				contentPanel.appendForm(form);
+			});
+
+			this.tmpContent.innerHTML = "";
 			contentPanel.show();
+
+			setTimeout(function() {
+				this.lastBlockState = this.fetchRequestData(contentPanel, true);
+			}.bind(this), 300);
 		},
 
+		createHistoryEntry: function(newState)
+		{
+			Promise
+				.all([
+					this.lastBlockState,
+					newState
+				])
+				.then(function(states) {
+					var undoState = states[0];
+					var redoState = states[1];
+
+					BX.Landing.History.getInstance().push(
+						new BX.Landing.History.Entry({
+							block: this.id,
+							selector: "#block" + this.id,
+							command: "updateBlockState",
+							undo: undoState,
+							redo: redoState
+						})
+					);
+				}.bind(this));
+
+			return Promise.resolve(clone(newState));
+		},
+
+		/**
+		 * Updates block's content.
+		 * @param {string} content
+		 */
+		updateContent: function(content)
+		{
+			var updatePromise = BX.Landing.Backend.getInstance().action(
+				"Block::updateContent",
+				{lid: this.lid, block: this.id, content: content.replaceAll(' style="', ' bxstyle="')},
+				{code: this.manifest.code}
+			);
+			var reloadPromise = this.reload();
+			return Promise.all([updatePromise, reloadPromise]);
+		},
+
+		updateBlockState: function(state, preventHistory)
+		{
+			if (
+				BX.type.isPlainObject(state)
+				&& BX.type.isPlainObject(state.dynamicParams)
+			)
+			{
+				this.dynamicParams = clone(state.dynamicParams);
+			}
+			else
+			{
+				this.dynamicParams = {};
+			}
+
+			Promise.resolve(state)
+				.then(function(currentState) {
+					return preventHistory ? currentState : this.createHistoryEntry(currentState);
+				}.bind(this))
+				.then(this.applyMenuChanges.bind(this))
+				.then(this.applyContentChanges.bind(this))
+				.then(this.applyCardsChanges.bind(this))
+				.then(this.applyAttributeChanges.bind(this))
+				.then(this.applySettingsChanges.bind(this))
+				.then(this.saveChanges.bind(this))
+				// Reload only blocks with component
+				.then(this.reload.bind(this))
+				.catch(console.warn);
+
+			var contentPanel = this.panels.get('content_edit');
+
+			if (contentPanel)
+			{
+				var contentForms = new FormCollection();
+
+				contentPanel.forms.forEach(function(form) {
+					if (form.type !== "attrs")
+					{
+						contentForms.add(form);
+
+						if (form.childForms && form.childForms.length > 0)
+						{
+							form.childForms.forEach(function(childForm) {
+								contentForms.add(childForm);
+							});
+						}
+					}
+				});
+
+				contentForms.fetchFields().forEach(function(field) {
+					if (field.tag)
+					{
+						var node = this.nodes.getBySelector(field.selector);
+						if (node)
+						{
+							node.onChangeTag(field.tag);
+						}
+					}
+				}, this);
+			}
+		},
 
 		getRestrictedMessage: function()
 		{
 			return create("div", {
 				props: {className: "ui-alert ui-alert-warning"},
-				html: BX.message("LANDING_BLOCK_RESTRICTED_TEXT"),
+				html: BX.Landing.Loc.getMessage("LANDING_BLOCK_RESTRICTED_TEXT"),
 				attrs: {style: "margin-bottom: 20px"}
 			})
 		},
@@ -1865,8 +2857,32 @@
 		 */
 		onStyleShow: function()
 		{
-			this.showStylePanel(this.selector);
 			BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
+
+			if (this.isCrmFormPage() && this.isCrmFormBlock())
+			{
+				var formSelector = Object.entries(this.manifest.style.nodes).reduce(function(acc, item) {
+					if (item[1].type === 'crm-form')
+					{
+						return item[0];
+					}
+
+					return acc;
+				}, null);
+
+				if (formSelector)
+				{
+					this.showStylePanel(formSelector);
+				}
+				else
+				{
+					this.showStylePanel(this.selector);
+				}
+			}
+			else
+			{
+				this.showStylePanel(this.selector);
+			}
 		},
 
 
@@ -1945,90 +2961,187 @@
 					iframe: window
 				});
 
-				type = this.expandTypeGroups(type);
+				type = this.expandTypeGroups(type).reduce(function(acc, item) {
+					if (!acc.includes(item))
+					{
+						acc.push(item);
+					}
+
+					return acc;
+				}, []);
+
 				type.forEach(function(type) {
 					var typeSettings = getTypeSettings(type);
 					var styleNode = this.styles.get(selector);
 					var field = styleFactory.createField({
+						block: this,
+						styleNode: styleNode,
 						selector: !isBlock ? this.makeRelativeSelector(selector) : selector,
 						property: typeSettings.property,
+						multiple: typeSettings.multiple === true,
 						style: type,
 						pseudoElement: typeSettings["pseudo-element"],
 						pseudoClass: typeSettings["pseudo-class"],
 						type: typeSettings.type,
+						subtype: typeSettings.subtype,
 						title: typeSettings.name,
 						items: typeSettings.items,
-						onChange: function(value, items, postfix, affect) {
-							var exclude = !!typeSettings.exclude ? getTypeSettings(typeSettings.exclude) : null;
+						help: typeSettings.help,
+						onChange: onChange.bind(this),
+						onReset: onReset.bind(this)
+					});
 
-							if (exclude)
-							{
-								form.fields.forEach(function(field) {
-									if (field.style === typeSettings.exclude)
-									{
-										field.reset();
-									}
-								});
-							}
+					function saveHistory(selector, oldValue, newValue) {
+						BX.Landing.History.getInstance().push(
+							new BX.Landing.History.Entry({
+								block: this.id,
+								command: "updateStyle",
+								selector: selector,
+								undo: oldValue,
+								redo: newValue
+							})
+						);
+					}
+					saveHistory = debounce(saveHistory, 500, this);
 
-							var oldValue = {className: "", style: ""};
-							if (styleNode.node[0])
-							{
-								oldValue.className = styleNode.node[0].className;
-								oldValue.style = styleNode.node[0].style.cssText;
-							}
+					// when field changed
+					function onChange(value, items, postfix, affect) {
+						var exclude = !!typeSettings.exclude ? getTypeSettings(typeSettings.exclude) : null;
 
-
-							var event = this.createEvent({
-								data: {
-									selector: selector,
-									value: value,
-									items: items,
-									postfix: postfix,
-									affect: affect,
-									exclude: exclude
+						if (exclude)
+						{
+							form.fields.forEach(function(field) {
+								if (field.style === typeSettings.exclude)
+								{
+									field.reset();
 								}
 							});
-
-							fireCustomEvent(window, "BX.Landing.Block:beforeApplyStyleChanges", [event]);
-
-							styleNode.setValue(value, items, postfix, affect, exclude);
-
-							var newValue = {className: "", style: ""};
-							if (styleNode.node[0])
-							{
-								newValue.className = styleNode.node[0].className;
-								newValue.style = styleNode.node[0].style.cssText;
-							}
-
-							try
-							{
-								if (JSON.stringify(oldValue) !== JSON.stringify(newValue))
-								{
-									BX.Landing.History.getInstance().push(
-										new BX.Landing.History.Entry({
-											block: this.id,
-											command: "updateStyle",
-											selector: !isBlock ? this.makeRelativeSelector(selector) : selector,
-											undo: oldValue,
-											redo: newValue
-										})
-									);
-								}
-							}
-							catch(err) {}
-
-							this.onStyleInputWithDebounce({node: styleNode.getNode(), data: styleNode.getValue()});
-						}.bind(this)
-					});
-
-					var preventEvent = true;
-					styleNode.getValue().classList.forEach(function(className) {
-						if (typeSettings.items.some(function(item) { return item.value === className}))
-						{
-							field.setValue(className, preventEvent);
 						}
-					});
+
+						// todo: now use just node[0]. Need get node by "group select" and save position in history
+						var oldValue = styleNode.getValueForHistory();
+
+						var event = this.createEvent({
+							data: {
+								selector: selector,
+								value: value,
+								items: items,
+								postfix: postfix,
+								affect: affect,
+								exclude: exclude
+							}
+						});
+
+						fireCustomEvent(window, "BX.Landing.Block:beforeApplyStyleChanges", [event]);
+
+						styleNode.setValue(value, items, postfix, affect, exclude);
+
+						var newValue = styleNode.getValueForHistory();
+						try
+						{
+							if (JSON.stringify(oldValue) !== JSON.stringify(newValue))
+							{
+								saveHistory(selector, oldValue, newValue);
+							}
+						}
+						catch(err) {}
+
+						var data = {node: styleNode.getNode(), data: styleNode.getValue()};
+						fireCustomEvent("BX.Landing.Block:updateStyleWithoutDebounce", [
+							this.createEvent(data)
+						]);
+						this.onStyleInputWithDebounce(data);
+					}
+
+					// when field reset
+					function onReset(items, postfix, affect) {
+						// todo: add cache for backend
+						// todo: save history?
+						BX.Landing.Backend.getInstance()
+							.action("Landing\\Block::getContentFromRepository", {
+								code: this.manifest.code
+							})
+							.then(function(response) {
+								var repo = document.createElement('div');
+								repo.id = 'fake';
+								repo.innerHTML = response;
+								repo.style.display = 'none';
+								window.document.body.append(repo);
+
+								var targetNode = null;
+								var targetSelector = null;
+								if (isBlock)
+								{
+									targetSelector = '#fake > :first-child';
+									targetNode = repo.firstElementChild;
+								}
+								else
+								{
+									targetSelector = '#fake ' + selector;
+									var index = styleNode.getElementIndex(styleNode.getTargetElement());
+									targetNode = repo.querySelectorAll(targetSelector)[index];
+								}
+								var fakeStyleNode = new BX.Landing.UI.Style({
+									iframe: window,
+									selector: targetSelector,
+									relativeSelector: targetSelector,
+									node: targetNode
+								});
+								initFieldByStyleNode(fakeStyleNode);
+
+								// match new class list
+								var resetStyleValue = fakeStyleNode.getValue();
+								var resetClasses = [];
+								var currStyleValue = styleNode.getValue();
+								items.forEach(function(item) {
+									if(resetStyleValue.classList.indexOf(item.value) !== -1)
+									{
+										resetClasses.push(item.value);
+									}
+									var currIndex = currStyleValue.classList.indexOf(item.value);
+									if(currIndex !== -1)
+									{
+										delete currStyleValue.classList[currIndex];
+									}
+								});
+								resetStyleValue.classList = currStyleValue.classList.concat(resetClasses);
+								resetStyleValue.className = resetStyleValue.classList;
+								onChange.bind(this)(resetStyleValue, items, postfix, affect);
+								repo.remove();
+							}.bind(this))
+							.catch(function(error){
+								// todo: show err panel
+								console.error("Error on reset", error);
+							});
+					}
+
+					// when field init
+					function initFieldByStyleNode(styleNode)
+					{
+						styleNode.setInlineProperty(field.getInlineProperties());
+						styleNode.setComputedProperty(field.getComputedProperties());
+						styleNode.setPseudoElement(field.getPseudoElement());
+
+						var preventEvent = true;
+						var styleValue = styleNode.getValue(true);
+						if (field.getInlineProperties().length > 0 || field.getComputedProperties().length > 0)
+						{
+							field.setValue(styleValue.style, preventEvent);
+						}
+						else
+						{
+							styleValue.classList.forEach(function (className) {
+								if (typeSettings.items.some(function (item) {return item.value === className;}))
+								{
+									if (field.property !== "display")
+									{
+										field.setValue(className, preventEvent);
+									}
+								}
+							});
+						}
+					}
+					initFieldByStyleNode(styleNode);
 
 					form.addField(field);
 				}, this);
@@ -2049,6 +3162,11 @@
 
 		initStyles: function()
 		{
+			if (this.access < ACCESS_V)
+			{
+				return;
+			}
+
 			this.styles.clear();
 			var node = new BX.Landing.UI.Style({
 				id: this.selector,
@@ -2112,7 +3230,7 @@
 			selector = selector || this.selector;
 			selector = trim(selector);
 			var find = selector === this.selector ? " > :first-child" : this.selector;
-			return trim(selector.replace(find, ""));
+			return trim(selector.replace(find, "").replace("!", ""));
 		},
 
 
@@ -2143,7 +3261,8 @@
 				}, this);
 
 				var post = styles.fetchValues();
-				Backend.action(
+				BX.Landing.Backend.getInstance()
+					.action(
 					"Landing\\Block::updateStyles",
 					{block: this.id, data: post, lid: this.lid, siteId: this.siteId},
 					{code: this.manifest.code}
@@ -2157,14 +3276,60 @@
 		 */
 		showStylePanel: function(selector)
 		{
+			var FormSettingsPanel = BX.Reflection.getClass('BX.Landing.UI.Panel.FormSettingsPanel');
+			var formMode = (
+				FormSettingsPanel
+				&& FormSettingsPanel.getInstance().isShown()
+			);
+			var isBlock = this.isBlockSelector(selector);
+			var options = this.getStyleOptions(selector);
+
 			BX.Landing.PageObject.getInstance().design()
 				.then(function(stylePanel) {
 					stylePanel.clearContent();
-					return stylePanel.show();
-				})
-				.then(function(stylePanel) {
-					var isBlock = this.isBlockSelector(selector);
-					var options = this.getStyleOptions(selector);
+
+					if (options.type === 'crm-form')
+					{
+						var rootWindow = BX.Landing.PageObject.getRootWindow();
+
+						return Promise
+							.all([
+								rootWindow.BX.Runtime.loadExtension('landing.formstyleadapter'),
+								BX.Runtime.loadExtension('landing.formstyleadapter')
+							])
+							.then(function(result) {
+								var FormStyleAdapter = result[1].FormStyleAdapter;
+								var formStyleAdapter = new FormStyleAdapter({
+									formId: this.getBlockFormId().id,
+									instanceId: this.getBlockFormId().instanceId,
+									currentBlock: this,
+								});
+
+								return Promise.all([
+									stylePanel.show(formMode),
+									formStyleAdapter.load()
+								]);
+							}.bind(this))
+							.catch(function(error) {
+								console.log(error);
+							});
+					}
+
+					return stylePanel
+						.show(formMode)
+						.then(function(result) {
+							return [result];
+						});
+				}.bind(this))
+				.then(function(result) {
+					var stylePanel = result[0];
+					var formStyleAdapter = result[1];
+
+					if (formStyleAdapter)
+					{
+						stylePanel.appendForm(formStyleAdapter.getStyleForm());
+						return;
+					}
 
 					if (isArray(options.type) || isString(options.type))
 					{
@@ -2184,6 +3349,7 @@
 								form: StyleForm,
 								selector: selector,
 								group: options.additional,
+								attrsType: options.additional.attrsType,
 								onChange: this.onAttributeChange.bind(this)
 							})
 						);
@@ -2204,6 +3370,43 @@
 						}, this);
 					}
 				}.bind(this))
+				.catch(function(error) {
+					if (BX.Type.isArrayFilled(error))
+					{
+						var accessDeniedCode = 510;
+						var isAccessDenied = error.some(function(error) {
+							return String(error.code) === String(accessDeniedCode);
+						});
+
+						if (isAccessDenied)
+						{
+							BX.Dom.append(
+								this.getAccessMessage(),
+								BX.Landing.UI.Panel.StylePanel.getInstance().content
+							);
+						}
+					}
+				}.bind(this));
+		},
+
+		getAccessMessage: function()
+		{
+			if (!this.accessMessage)
+			{
+				this.accessMessage = BX.create({
+					tag: 'div',
+					props: {className: 'landing-ui-access-error-message'},
+					children: [
+						BX.create({
+							tag: 'div',
+							props: {className: 'landing-ui-access-error-message-text'},
+							text: BX.Landing.Loc.getMessage('LANDING_CRM_ACCESS_ERROR_MESSAGE')
+						})
+					]
+				})
+			}
+
+			return this.accessMessage;
 		},
 
 
@@ -2232,7 +3435,18 @@
 		{
 			var form = new options.form({title: options.group.name, type: "attrs"});
 
-			options.group.attrs.forEach(function(attrOptions) {
+			var attrsSet = [];
+			if (!BX.Type.isUndefined(options.group.attrs))
+			{
+				attrsSet = options.group.attrs;
+			}
+			else
+			{
+				options.attrsType.forEach((atr) => {
+					attrsSet.push(getAttrsTypeSettings(atr));
+				})
+			}
+			attrsSet.forEach(function(attrOptions) {
 				var currentSelector = attrOptions.selector || options.selector;
 				var field;
 
@@ -2263,27 +3477,60 @@
 				form.addField(field);
 			}, this);
 
+			BX.Event.EventEmitter.subscribe('BX.Landing.UI.Form.StyleForm:attributeChange', (event) => {
+				var eventData = event.data;
+				this.prepareAttributeValue(eventData, form);
+			});
 			return form;
 		},
 
+		prepareAttributeValue: function(eventData, form) {
+			var dependencySet = eventData.data.dependency;
+			if (dependencySet)
+			{
+				dependencySet.forEach((dependency) => {
+					var value = eventData.getValue();
+					var index = dependency['conditions'].indexOf(value);
+					if (index >= 0)
+					{
+						form.fields.forEach((field) => {
+							if (field.attribute === dependency['attribute'])
+							{
+								//action 'changeValue'
+								if (dependency['action'] === 'changeValue')
+								{
+									var value = field.getValue();
+									var index = dependency['attributeCurrentValues'].indexOf(value);
+									if (index >= 0)
+									{
+										field.setValue(dependency['attributeNewValue'], true);
+										this.onAttributeChange(field);
+									}
+								}
+								//action 'hideSetting' need to do
+							}
+						})
+					}
+				})
+			}
+		},
 
 		prepareBlockOptions: function(options)
 		{
 			options = isPlainObject(options) ? options : {};
 			options = clone(options);
-			options.name = BX.message("BLOCK_STYLE_OPTIONS");
+			options.name = BX.Landing.Loc.getMessage("BLOCK_STYLE_OPTIONS");
 
 			if (!isPlainObject(options.type) && !isString(options.type) && !isArray(options.type))
 			{
 				options.type = [
 					"display",
+					"background",
 					"padding-top",
 					"padding-bottom",
 					"padding-left",
 					"padding-right",
-					"margin-top",
-					"background-color",
-					"background-gradient"
+					"margin-top"
 				];
 			}
 
@@ -2325,6 +3572,11 @@
 			{
 				var value = data(element, fieldOptions.attribute);
 
+				if (BX.Type.isNil(value))
+				{
+					value = attr(element, fieldOptions.attribute);
+				}
+
 				if (value !== null)
 				{
 					fieldOptions.value = value;
@@ -2337,6 +3589,7 @@
 
 		onAttributeChange: function(field)
 		{
+			BX.Event.EventEmitter.emit('BX.Landing.UI.Form.StyleForm:attributeChange', field);
 			clearTimeout(this.attributeChangeTimeout);
 
 			if (!this.requestData)
@@ -2346,27 +3599,22 @@
 
 			this.appendAttrFieldValue(this.requestData, field);
 
-			if (this.containsPseudoSelector(this.requestData) && !this.attributeChangeLoader)
-			{
-				this.attributeChangeLoader = new BX.Loader({target: this.node, color: "rgba(255, 255, 255, .8)"});
-				this.attributeChangeLoader.layout.style.position = "fixed";
-				this.attributeChangeLoader.layout.style.zIndex = "999";
-				this.attributeChangeLoader.show();
-				BX.Landing.Main.getInstance().showOverlay();
-			}
+			Promise.resolve(this.requestData)
+				.then(this.applyAttributeChanges.bind(this))
+				.then(this.saveChanges.bind(this))
+				// Reload only blocks with component
+				.then(this.reload.bind(this))
+				.then(function() {
+					this.requestData = null;
+				}.bind(this));
+		},
 
-			this.attributeChangeTimeout = setTimeout(function() {
-				Promise.resolve(this.requestData)
-					.then(this.applyAttributeChanges.bind(this))
-					.then(this.saveChanges.bind(this))
-					// Reload only blocks with component
-					.then(this.reload.bind(this))
-					.then(function() {
-						this.requestData = null;
-						this.attributeChangeLoader = null;
-						BX.Landing.Main.getInstance().hideOverlay();
-					}.bind(this));
-			}.bind(this), 800);
+
+		appendSettingsFieldValue: function(requestData, field)
+		{
+			requestData["settings"] = requestData["settings"] || {};
+			requestData["settings"][field.attribute] = field.getValue();
+			return requestData;
 		},
 
 
@@ -2380,15 +3628,40 @@
 			var selector = this.makeAbsoluteSelector(field.selector);
 			var value = field.getValue();
 
-			try {
-				value = encodeDataValue(value);
-			} catch(e) {
-				value = field.getValue();
-			}
-
 			requestData[selector] = requestData[selector] || {};
 			requestData[selector]["attrs"] = requestData[selector]["attrs"] || {};
-			requestData[selector]["attrs"][field.attribute] = value;
+			if(BX.Type.isArray(field.attribute))
+			{
+				field.attribute.forEach(function(attr){
+					var attrData = attr.replace('data-', '');
+					var itemValue = value[attrData];
+					if(itemValue !== undefined)
+					{
+						try {
+							itemValue = encodeDataValue(itemValue);
+						} catch(e) {
+							itemValue = field.getValue()[attrData];
+						}
+						requestData[selector]["attrs"][attr] = itemValue;
+					}
+				});
+			}
+			else
+			{
+				try {
+					value = encodeDataValue(value);
+				} catch(e) {
+					value = field.getValue();
+				}
+				requestData[selector]["attrs"][field.attribute] = value;
+			}
+			return requestData;
+		},
+
+
+		appendMenuValue: function(requestData, menu)
+		{
+			requestData[menu.code] = menu.serialize();
 			return requestData;
 		},
 
@@ -2495,21 +3768,33 @@
 			void style(button.loader.layout.querySelector(".main-ui-loader-svg-circle"), {
 				"stroke-width": "4px"
 			});
+			void style(button.loader.layout.querySelector(".main-ui-loader-svg"), {
+				"margin-top": "-10px"
+			});
 
 			BX.Landing.UI.Panel.EditorPanel.getInstance().hide();
 
 			if (this.blockActionsMenu)
 			{
-				BX.PopupMenu.destroy(this.blockActionsMenu.id);
+				BX.Main.MenuManager.destroy(this.blockActionsMenu.id);
 			}
 
-			window.localStorage.removeItem("landingBlockId");
+			if (this.sidebarActionsMenu)
+			{
+				BX.Main.MenuManager.destroy(this.sidebarActionsMenu.id);
+			}
 
-			Backend.action(
-				"Landing::markDeletedBlock",
-				{block: this.id, lid: this.lid, siteId: this.siteId},
-				{code: this.manifest.code}
-			)
+			if (String(window.localStorage.getItem("landingBlockId")) === String(this.id))
+			{
+				window.localStorage.removeItem("landingBlockId");
+			}
+
+			BX.Landing.Backend.getInstance()
+				.action(
+					"Landing::markDeletedBlock",
+					{block: this.id, lid: this.lid, siteId: this.siteId},
+					{code: this.manifest.code}
+				)
 				.then(function() {
 					button.loader.hide();
 					removeClass(button.text, "landing-ui-hide-icon");
@@ -2520,7 +3805,7 @@
 					slice(this.node.querySelectorAll(".landing-ui-panel")).forEach(remove);
 					if ((isBoolean(preventHistory) && !preventHistory) || !isBoolean(preventHistory))
 					{
-						var prevBlock = top.BX.Landing.Block.storage.getByNode(
+						var prevBlock = BX.Landing.PageObject.getBlocks().getByNode(
 							BX.findPreviousSibling(this.node, {className: "block-wrapper"})
 						);
 
@@ -2532,14 +3817,15 @@
 								undo: {
 									currentBlock: prevBlock ? prevBlock.id : null,
 									lid: this.lid,
-									code: this.manifest.code
+									code: this.manifest.code,
+									insertBefore: prevBlock ? false : true
 								},
 								redo: ""
 							})
 						);
 					}
 
-					top.BX.Landing.Block.storage.remove(this);
+					BX.Landing.PageObject.getBlocks().remove(this);
 					remove(this.node);
 					fireCustomEvent("Landing.Block:onAfterDelete", [this]);
 					fireCustomEvent("BX.Landing.Block:afterRemove", [event]);
@@ -2549,13 +3835,114 @@
 				});
 		},
 
+		getFormEditorAddBlockTour: function()
+		{
+			var rootWindow = BX.Landing.PageObject.getRootWindow();
+			return new rootWindow.BX.UI.Tour.Guide({
+				steps: [
+					{
+						target: '[data-id="save_settings"]',
+						title: BX.Landing.Loc.getMessage('LANDING_FORM_EDITOR_ADD_BLOCK_TOUR_STEP_1_TITLE'),
+						text: BX.Landing.Loc.getMessage('LANDING_FORM_EDITOR_ADD_BLOCK_TOUR_STEP_1_TEXT'),
+					},
+				],
+			});
+		},
 
 		/**
 		 * Shows blocks list panel
 		 */
 		addBlockAfterThis: function()
 		{
-			BX.Landing.Main.getInstance().showBlocksPanel(this);
+			var formSettingsPanel =
+				(BX.Landing.UI && BX.Landing.UI.Panel && BX.Landing.UI.Panel.FormSettingsPanel)
+					? BX.Landing.UI.Panel.FormSettingsPanel.getInstance()
+					: null;
+			if (
+				this.isCrmFormPage()
+				&& formSettingsPanel
+				&& formSettingsPanel.isShown()
+			)
+			{
+				if (!formSettingsPanel.isChanged())
+				{
+					formSettingsPanel
+						.hide()
+						.then(function() {
+							BX.Landing.Main.getInstance().showBlocksPanel(this, null, null, true);
+						}.bind(this));
+				}
+				else
+				{
+					this.getFormEditorAddBlockTour().start();
+				}
+			}
+			else
+			{
+				BX.Landing.Main.getInstance().showBlocksPanel(this);
+			}
+		},
+
+		addBlockBeforeThis: function()
+		{
+			var formSettingsPanel = BX.Landing.UI.Panel.FormSettingsPanel.getInstance();
+			if (
+				this.isCrmFormPage()
+				&& formSettingsPanel.isShown()
+			)
+			{
+				if (!formSettingsPanel.isChanged())
+				{
+					formSettingsPanel
+						.hide()
+						.then(function() {
+							BX.Landing.Main.getInstance().showBlocksPanel(this, null, null, true);
+						}.bind(this));
+				}
+				else
+				{
+					this.getFormEditorAddBlockTour().start();
+				}
+			}
+			else
+			{
+				BX.Landing.Main.getInstance().showBlocksPanel(this, null, null, true);
+			}
+		},
+
+		getFormEditorDesignTour: function()
+		{
+			var rootWindow = BX.Landing.PageObject.getRootWindow();
+			return new rootWindow.BX.UI.Tour.Guide({
+				steps: [
+					{
+						target: '[data-id="save_settings"]',
+						title: BX.Landing.Loc.getMessage('LANDING_FORM_EDITOR_FORM_DESIGN_TOUR_STEP_1_TITLE'),
+						text: BX.Landing.Loc.getMessage('LANDING_FORM_EDITOR_FORM_DESIGN_TOUR_STEP_1_TEXT'),
+					},
+				],
+			});
+		},
+
+		onFormDesignClick: function()
+		{
+			var formSelector = Object.entries(this.manifest.style.nodes).reduce(function(acc, item) {
+				if (item[1].type === 'crm-form')
+				{
+					return item[0];
+				}
+
+				return acc;
+			}, null);
+
+			if (formSelector)
+			{
+				this.showStylePanel(formSelector);
+			}
+			else
+			{
+				this.showStylePanel(this.selector);
+			}
 		},
 
 
@@ -2574,11 +3961,18 @@
 				this.changedNodes.add(node);
 
 				this.changeTimeout = setTimeout(function() {
-					Backend.action(
-						"Landing\\Block::updateNodes",
-						{block: this.id, data: this.changedNodes.fetchValues(), lid: this.lid, siteId: this.siteId},
-						{code: this.manifest.code}
-					);
+					BX.Landing.Backend.getInstance()
+						.action(
+							"Landing\\Block::updateNodes",
+							{
+								block: this.id,
+								data: this.changedNodes.fetchValues(),
+								additional: this.changedNodes.fetchAdditionalValues(),
+								lid: this.lid,
+								siteId: this.siteId
+							},
+							{code: this.manifest.code}
+						);
 
 					this.changedNodes.clear();
 				}.bind(this), 100);
@@ -2597,6 +3991,19 @@
 				var result;
 
 				if (selector === "cards")
+				{
+					return false;
+				}
+
+				if (selector === "dynamicState")
+				{
+					return false;
+				}
+
+				if (
+					BX.type.isPlainObject(this.manifest.menu)
+					&& selector in this.manifest.menu
+				)
 				{
 					return false;
 				}
@@ -2621,6 +4028,39 @@
 			}, this);
 		},
 
+		/**
+		 * Check if data contains attributes, that require block reload
+		 * @param {object} data
+		 * @return {boolean}
+		 */
+		containsReloadRequireAttributes: function(data)
+		{
+			if (
+				isPlainObject(data)
+				&& isPlainObject(this.manifest)
+				&& isPlainObject(this.manifest.attrs)
+			)
+			{
+				return Object.keys(this.manifest.attrs).some(function (selector)
+				{
+					return this.manifest.attrs[selector].some(function (attr)
+					{
+						if (
+							attr.requireReload
+							&& isPlainObject(data[selector])
+							&& isPlainObject(data[selector].attrs)
+							&& data[selector].attrs[attr.attribute]
+						)
+						{
+							return true;
+						}
+						return false;
+					}, this);
+				}, this);
+			}
+
+			return false;
+		},
 
 		/**
 		 * Applies content changes
@@ -2651,6 +4091,8 @@
 				fireCustomEvent(window, "BX.Landing.Block:beforeApplyContentChanges", [event]);
 			}
 
+			var valuePromises = [];
+
 			Object.keys(data).forEach(function(selector) {
 				if (isNodeSelector(selector))
 				{
@@ -2658,16 +4100,66 @@
 
 					if (node)
 					{
-						node.setValue(data[selector], true);
-						data[selector] = node.getValue();
+						var valuePromise = node.setValue(data[selector], true, true);
+						node.preventSave(false);
+						if (valuePromise)
+						{
+							valuePromises.push(valuePromise);
+							valuePromise.then(function() {
+								data[selector] = node.getValue();
+							});
+						}
+						else
+						{
+							data[selector] = node.getValue();
+						}
 					}
 				}
 			}, this);
 
+			return Promise
+				.all(valuePromises)
+				.then(function() {
+					return data;
+				});
+		},
+
+		applyMenuChanges: function(data)
+		{
+			if (!isPlainObject(data))
+			{
+				return Promise.reject(
+					new TypeError("BX.Landing.Block.applyContentChanges: data isn't object")
+				);
+			}
+
+			var menuKeys = Object.keys(this.manifest.menu || {});
+			if (menuKeys.length > 0)
+			{
+				menuKeys.forEach(function(code) {
+					if (code in data)
+					{
+						var menu = this.menu.find(function(menuItem) {
+							return menuItem.code === code;
+						});
+
+						menu.rebuild(data[code]);
+					}
+				}.bind(this));
+
+				data.forceReload = true;
+			}
+
+			this.initMenu();
+
 			return Promise.resolve(data);
 		},
 
-
+		/**
+		 * @private
+		 * @param data
+		 * @return {Promise}
+		 */
 		applyCardsChanges: function(data)
 		{
 			if (!isPlainObject(data))
@@ -2677,11 +4169,15 @@
 				);
 			}
 
+			var nodePromises = [];
+
 			if ('cards' in data && isPlainObject(data.cards))
 			{
 				fireCustomEvent("BX.Landing.Block:Cards:beforeUpdate", [
 					this.createEvent()
 				]);
+
+				var map = {};
 
 				Object.keys(data.cards)
 					.forEach(function(code) {
@@ -2734,8 +4230,6 @@
 						this.initCards();
 						this.initGroups();
 
-						var map = {};
-
 						// Apply nodes values
 						Object.keys(values)
 							.forEach(function(index) {
@@ -2749,27 +4243,102 @@
 
 										if (node)
 										{
-											node.setValue(card[key], true, true);
+											var newValue = card[key];
+											var oldValue = node.getValue();
+
+											if (isPlainObject(newValue) && isString(newValue.url))
+											{
+												newValue.url = decodeDataValue(newValue.url);
+											}
+
+											if (isPlainObject(oldValue) && isString(oldValue.url))
+											{
+												oldValue.url = decodeDataValue(oldValue.url);
+											}
+
+											try
+											{
+												newValue = JSON.stringify(newValue);
+											} catch (e)
+											{
+												newValue = card[key];
+											}
+
+											try
+											{
+												oldValue = JSON.stringify(oldValue);
+											} catch (e)
+											{
+												oldValue = node.getValue();
+											}
+
+											var nodePromise = node.setValue(card[key], true, true) || Promise.resolve();
+											node.preventSave(false);
+												nodePromise.then(function(selectorKey, mapKey, cardKey) {
+													card[join(selectorKey, "@", mapKey)] = node.getValue();
+
+													if (node.manifest.type === "img" || node.manifest.type === "icon")
+													{
+														card[join(selectorKey, "@", mapKey)]["url"] = encodeDataValue(cardKey["url"]);
+													}
+
+													delete card[key];
+												}.bind(this, key, map[key], card[key]));
+
+											nodePromises.push(nodePromise);
 										}
 									}, this);
 							}, this);
 
-						// Reinitialize additional entities
-						this.initCardsLabels();
-						this.initStyles();
+						Promise
+							.all(nodePromises)
+							.then(function() {
+								// Reinitialize additional entities
+								this.initCardsLabels();
+								this.initStyles();
 
-						// Remove unnecessary
-						delete data.cards[code].presets;
-						delete data.cards[code].indexes;
-
+								// Remove unnecessary
+								delete data.cards[code].presets;
+								delete data.cards[code].indexes;
+							}.bind(this));
 					}, this);
 
-				fireCustomEvent("BX.Landing.Block:Cards:update", [
-					this.createEvent()
-				]);
+				Promise
+					.all(nodePromises)
+					.then(function() {
+						fireCustomEvent("BX.Landing.Block:Cards:update", [
+							this.createEvent()
+						]);
+					}.bind(this));
 			}
 
-			return Promise.resolve(data);
+			return Promise
+				.all(nodePromises)
+				.then(function() {
+					return Promise.resolve(data);
+				});
+		},
+
+
+		applySettingsChanges: function(requestData)
+		{
+			if (!isPlainObject(requestData))
+			{
+				return Promise.reject(
+					new TypeError("BX.Landing.Block.applyAttributeChanges: requestData isn't object")
+				);
+			}
+
+			if (isPlainObject(requestData.settings) &&
+				!isEmpty(requestData.settings))
+			{
+				if (requestData.settings.id)
+				{
+					this.content.id = requestData.settings.id;
+				}
+			}
+
+			return Promise.resolve(requestData);
 		},
 
 
@@ -2824,7 +4393,14 @@
 						elements.forEach(function(element) {
 							var decodedValue = decodeDataValue(requestData[selector]["attrs"][attribute]);
 
-							data(element, attribute, decodedValue);
+							if (!attribute.includes("data-"))
+							{
+								attr(element, attribute, decodedValue);
+							}
+							else
+							{
+								data(element, attribute, decodedValue);
+							}
 
 							fireCustomEvent("BX.Landing.Block:Node:updateAttr", [
 								self.createEvent({
@@ -2860,6 +4436,40 @@
 			{
 				var updateNodeParams = {code: this.manifest.code};
 				var updateNodesData = {block: this.id, data: data, lid: this.lid, siteId: this.siteId};
+				var batch = {};
+
+				if (isPlainObject(data.settings) &&
+					!isEmpty(data.settings))
+				{
+					if (data.settings.id)
+					{
+						batch.changeAnchor = {
+							action: "Block::changeAnchor",
+							data: {
+								block: this.id,
+								lid: this.lid,
+								data: data.settings.id
+							}
+						};
+					}
+
+					delete data.settings;
+				}
+
+				if (!isEmpty(data))
+				{
+					var nodes = new NodeCollection();
+
+					Object.keys(updateNodesData).forEach(function(selector) {
+						nodes.add(this.nodes.getBySelector(selector));
+					}, this);
+
+					batch.updateNodes = {
+						action: "Block::updateNodes",
+						data: updateNodesData,
+						additional: nodes.fetchAdditionalValues()
+					};
+				}
 
 				if (!isEmpty(data.cards))
 				{
@@ -2867,7 +4477,9 @@
 
 					delete data.cards;
 
-					var batch = {};
+					var cardsSelectors = BX.Landing.Utils.arrayUnique(Object.keys(cardsData));
+					cardsSelectors = cardsSelectors.length === 1 ? cardsSelectors + " *" : cardsSelectors.join(" *, ");
+					var cardsNodesAdditionalValues = this.nodes.matches(cardsSelectors).fetchAdditionalValues();
 
 					batch.updateCards = {
 						action: "Block::updateCards",
@@ -2875,32 +4487,40 @@
 							block: this.id,
 							lid: this.lid,
 							siteId: this.siteId,
-							data: cardsData
+							data: cardsData,
+							additional: cardsNodesAdditionalValues
 						}
 					};
+				}
 
-					if (!isEmpty(data))
+				if (data.cardsFirst)
+				{
+					var oldBatch = batch;
+					batch = {};
+
+					if (oldBatch.changeAnchor)
 					{
-						batch.updateNodes = {
-							action: "Block::updateNodes",
-							data: updateNodesData
-						};
+						batch.changeAnchor = oldBatch.changeAnchor;
 					}
 
+					if (oldBatch.updateCards)
+					{
+						batch.updateCards = oldBatch.updateCards;
+					}
 
-					return Backend
-						.batch("Landing\\Block::updateNodes", batch)
-						.then(function() {
-							return Promise.resolve(data);
-						});
+					if (oldBatch.updateNodes)
+					{
+						batch.updateNodes = oldBatch.updateNodes;
+					}
+
+					delete data.cardsFirst;
 				}
-				else
-				{
-					return Backend.action("Landing\\Block::updateNodes", updateNodesData, updateNodeParams)
-						.then(function() {
-							return Promise.resolve(data);
-						});
-				}
+
+				return BX.Landing.Backend.getInstance()
+					.batch("Landing\\Block::updateNodes", batch, updateNodeParams)
+					.then(function() {
+						return Promise.resolve(data);
+					});
 			}
 			else
 			{
@@ -2912,25 +4532,32 @@
 		/**
 		 * Fetches request data from content panel
 		 * @param {BX.Landing.UI.Panel.BasePanel} panel
+		 * @param {boolean} all
 		 * @return {Promise<Object>}
 		 */
-		fetchRequestData: function(panel)
+		fetchRequestData: function(panel, all)
 		{
 			var requestData = {};
 			var forms = {};
 
+			var fetchFields = function(collection, all) {
+				return all ? collection : collection.fetchChanges();
+			};
+
 			forms.attrs = new FormCollection();
 			forms.cards = new FormCollection();
+			forms.dynamicCards = new FormCollection();
+			forms.dynamicBlock = new FormCollection();
 			forms.content = new FormCollection();
+			forms.settings = new FormCollection();
+			forms.menu = new FormCollection();
 
 			panel.forms
 				.forEach(function(form) {
 					forms[form.type].push(form);
 				});
 
-			forms.content
-				.fetchFields()
-				.fetchChanges()
+			fetchFields(forms.content.fetchFields(), all)
 				.reduce(proxy(this.appendContentFieldValue, this), requestData);
 
 			var attrFields = new BaseCollection();
@@ -2946,18 +4573,40 @@
 				});
 			});
 
-			attrFields
-				.fetchChanges()
+			fetchFields(attrFields, true)
 				.reduce(proxy(this.appendAttrFieldValue, this), requestData);
 
 			forms.cards
-				.fetchChanges()
 				.reduce(proxy(this.appendCardsFormValue, this), requestData);
 
-			forms.attrs
-				.fetchFields()
-				.fetchChanges()
+			forms.dynamicCards
+				.reduce(proxy(this.appendDynamicCardsFormValue, this), requestData);
+
+			forms.dynamicBlock
+				.reduce(proxy(this.appendDynamicBlockFormValue, this), requestData);
+
+			fetchFields(forms.attrs.fetchFields(), all)
 				.reduce(proxy(this.appendAttrFieldValue, this), requestData);
+
+			fetchFields(forms.settings.fetchFields(), all)
+				.reduce(proxy(this.appendSettingsFieldValue, this), requestData);
+
+			forms.menu
+				.reduce(proxy(this.appendMenuValue, this), requestData);
+
+			requestData.dynamicState = Object.keys(this.manifest.cards)
+				.reduce(function(acc, cardsCode) {
+					acc[cardsCode] = (
+						BX.type.isPlainObject(requestData.dynamicParams)
+						&& cardsCode in requestData.dynamicParams
+					);
+					return acc;
+				}, {});
+
+			requestData.dynamicState.wrapper = (
+				!!requestData.dynamicParams
+				&& "wrapper" in requestData.dynamicParams
+			);
 
 			return Promise.resolve(requestData);
 		},
@@ -2993,6 +4642,23 @@
 			return requestData;
 		},
 
+		appendDynamicCardsFormValue: function(requestData, form)
+		{
+			requestData.dynamicParams = requestData.dynamicParams || {};
+			requestData.dynamicParams[form.code] = {};
+			requestData.dynamicParams[form.code] = form.serialize();
+
+			return requestData;
+		},
+
+		appendDynamicBlockFormValue: function(requestData, form)
+		{
+			requestData.dynamicParams = requestData.dynamicParams || {};
+			requestData.dynamicParams.wrapper = form.serialize();
+
+			return requestData;
+		},
+
 
 		/**
 		 * Reloads block
@@ -3002,10 +4668,20 @@
 		 */
 		reload: function(data)
 		{
-			if (!this.containsPseudoSelector(data))
+			if (isPlainObject(data))
 			{
-				return Promise.resolve(data);
+				var isNeedReload = this.containsPseudoSelector(data) || this.containsReloadRequireAttributes(data);
+				if (!isNeedReload)
+				{
+					return Promise.resolve(data);
+				}
 			}
+
+			var loader = new BX.Loader({target: this.parent.parentElement, color: "rgba(255, 255, 255, .8)"});
+			loader.layout.style.position = "fixed";
+			loader.layout.style.zIndex = "999";
+			loader.show();
+			BX.Landing.Main.getInstance().showOverlay();
 
 			var self = this;
 			return BX.Landing.Backend.getInstance()
@@ -3016,16 +4692,27 @@
 					editMode: 1
 				})
 				.then(function(response) {
+					var event = this.createEvent();
+					fireCustomEvent("BX.Landing.Block:remove", [event]);
+
 					BX.Landing.Main.getInstance().currentBlock = self;
 					BX.Landing.Main.getInstance().currentArea = self.parent;
 					return BX.Landing.Main.getInstance().addBlock(response, true, true);
-				})
+				}.bind(this))
 				.then(function(block) {
 					self.node = block;
 					return Promise.resolve(data);
 				})
+				.then(function(data) {
+					return new Promise(function(resolve) {
+						setTimeout(function() {
+							resolve(data);
+							loader.hide();
+							BX.Landing.Main.getInstance().hideOverlay();
+						}, 800);
+					});
+				});
 		},
-
 
 		/**
 		 * Handles content save event
@@ -3039,36 +4726,18 @@
 				contentPanel.hide();
 
 				this.fetchRequestData(contentPanel)
-					.then(this.applyContentChanges.bind(this))
-					.then(this.applyCardsChanges.bind(this))
-					.then(this.applyAttributeChanges.bind(this))
-					.then(this.saveChanges.bind(this))
-					// Reload only blocks with component
-					.then(this.reload.bind(this))
-					.catch(console.warn);
-
-				var contentForms = new FormCollection();
-
-				contentPanel.forms.forEach(function(form) {
-					if (form.type !== "attrs")
-					{
-						contentForms.add(form);
-					}
-				});
-
-				var nodesOptions = {};
-
-				contentForms.fetchFields().forEach(function(field) {
-					if (field.tag)
-					{
-						nodesOptions[field.selector] = {tagName: field.tag};
-					}
-				}, this);
-
-				this.onNodeOptionsChange(nodesOptions);
+					.then(function(requestData) {
+						return Object.assign(
+							{},
+							requestData,
+							{
+								cardsFirst: true
+							}
+						);
+					})
+					.then(this.updateBlockState.bind(this));
 			}
 		},
-
 
 		/**
 		 * Handles content cancel edit event
@@ -3076,6 +4745,8 @@
 		onContentCancel: function()
 		{
 			this.panels.get("content_edit").hide();
+			this.tmpContent.innerHTML = "";
+			this.anchor = this.savedAnchor;
 		},
 
 
@@ -3101,168 +4772,496 @@
 			fireCustomEvent("BX.Landing.Block:updateStyle", [styleEvent]);
 		},
 
+		/**
+		 * @private
+		 * @param {object} options
+		 * @return {BX.Landing.UI.Form.BaseForm}
+		 */
+		getBlockEditForm: function(options)
+		{
+			var preparedOptions = {};
+
+			if (BX.type.isPlainObject(options))
+			{
+				preparedOptions = Object.assign({}, options);
+			}
+
+			var blockNodes = preparedOptions.nodes || this.nodes;
+
+			// exclude nodes from cards
+			if (this.cards.length > 0 && !options.hideCheckbox)
+			{
+				blockNodes = this.nodes.notMatches(
+					this.getCardsSelector()
+				);
+			}
+
+			var selectors = Object.keys(this.manifest.nodes);
+
+			blockNodes = selectors
+				.reduce(function(acc, selector) {
+					if (!selector.includes(':'))
+					{
+						blockNodes
+							.matches(selector)
+							.getVisible()
+							.filter(function(node) {
+								return node.manifest.allowFormEdit !== false;
+							})
+							.forEach(function(node) {
+								acc.push(node);
+							});
+					}
+
+					return acc;
+				}, new NodeCollection());
+
+			var onBlockFormTypeChangeHandler = this.onBlockFormTypeChange.bind(this);
+
+			var dynamicState = !!(
+				!options.skipBlockState
+				&& BX.type.isPlainObject(this.dynamicParams)
+				&& this.dynamicParams.wrapper
+			);
+
+			var help = "";
+			var helps = BX.Landing.Main.getInstance().options.helps;
+
+			if (BX.type.isPlainObject(helps))
+			{
+				help = helps.DYNAMIC_BLOCKS;
+			}
+
+			var headerCheckbox = {
+				text: BX.Landing.Loc.getMessage("LANDING_BLOCK__MAKE_A_DYNAMIC"),
+				onChange: onBlockFormTypeChangeHandler,
+				state: dynamicState,
+				help: help
+			};
+
+			var blockForm = new BaseForm({
+				title: options.formName || BX.Landing.Loc.getMessage("BLOCK_ELEMENTS"),
+				description: this.manifest.block.formDescription,
+				type: "content",
+				code: this.id,
+				headerCheckbox: (function() {
+					if (!options.hideCheckbox && this.manifest.block.dynamic !== false)
+					{
+						return headerCheckbox;
+					}
+
+					return undefined;
+				}.bind(this))()
+			});
+
+			if (dynamicState)
+			{
+				setTimeout(function() {
+					onBlockFormTypeChangeHandler({
+						form: blockForm,
+						state: true
+					});
+				});
+			}
+
+			blockNodes.forEach(function(node) {
+				blockForm.addField(node.getField());
+			});
+
+			return blockForm;
+		},
+
+		getMenuEditForms: function()
+		{
+			return this.menu.map(function(menu) {
+				return menu.getForm();
+			}, this);
+		},
 
 		/**
-		 * Gets content edit forms
-		 * @param {BX.Landing.Collection.NodeCollection} [nodes = this.nodes]
-		 * @param {?string} [formName]
-		 * @param {boolean} [nodesOnly]
-		 * @return {BX.Landing.UI.Collection.FormCollection}
+		 * @private
+		 * @return {BX.Landing.UI.Form.BaseForm}
 		 */
-		getEditForms: function(nodes, formName, nodesOnly)
+		getAttrsEditForm: function()
 		{
-			var forms = new FormCollection();
-			var nodesSelectors = Object.keys(this.manifest.nodes);
-			var sortedBlockNodes = new NodeCollection();
-			var blockNodes = nodes;
-
-			if (this.cards.length)
-			{
-				blockNodes = nodes.notMatches(this.getCardsSelector());
-			}
-
-			nodesSelectors.forEach(function(selector) {
-				blockNodes.matches(selector).forEach(function(node) {
-					sortedBlockNodes.push(node);
-				});
-			}, this);
-
-			if (sortedBlockNodes.length)
-			{
-				var blockForm = new BaseForm({
-					title: formName || BX.message("BLOCK_HEADER"),
-					type: "content"
-				});
-
-				sortedBlockNodes.forEach(function(node) {
-					blockForm.addField(node.getField());
-				});
-
-				forms.add(blockForm);
-			}
-
-
-			// Make attributes form
 			var keys = Object.keys(this.manifest.attrs);
+			var fields = [];
 
-			if (keys.length && !nodesOnly)
-			{
-				var attrsForm = new BaseForm({id: "attr", type: "attrs", title: BX.message("BLOCK_SETTINGS")});
-				forms.add(attrsForm);
+			keys.forEach(function(selector) {
+				var attr = this.manifest.attrs[selector];
 
-				keys.forEach(function(selector) {
-					var attr = this.manifest.attrs[selector];
-
-					if (!attr.hidden)
-					{
-						attr = !isArray(attr) ? [attr] : attr;
-
-						attr.forEach(function(options) {
-							if (options.hidden)
-							{
-								return;
-							}
-
-							if (isString(options.type))
-							{
-								attrsForm.addField(this.createAttributeField(options, selector));
-								return;
-							}
-
-							if (isString(options.name) && options.attrs)
-							{
-								forms.add(
-									this.createAdditionalForm({
-										form: BaseForm,
-										selector: selector,
-										group: options,
-										onChange: (function() {})
-									})
-								);
-							}
-						}, this);
-					}
-				}, this);
-
-				if (attrsForm.fields.length === 0)
+				if (!attr.hidden)
 				{
-					forms.remove(attrsForm);
-				}
-			}
+					attr = !isArray(attr) ? [attr] : attr;
 
-
-			var cardsSelectors = Object.keys(this.manifest.cards);
-
-			cardsSelectors.forEach(function(currentCardSelector) {
-				var cardBySelector = this.cards.filter(function(card) {
-					return card.selector.split("@")[0] === currentCardSelector;
-				});
-
-				if (cardBySelector.length)
-				{
-					cardBySelector.sort(function(a, b) {
-						return a.sortIndex - b.sortIndex;
-					});
-
-					var groupLabel = this.manifest.cards[currentCardSelector]['group_label'];
-					var cardsForm = new CardsForm({
-						title: groupLabel || BX.message("LANDING_CARDS_FROM_TITLE"),
-						code: currentCardSelector.split("@")[0],
-						presets: cardBySelector[0].manifest.presets
-					});
-
-					// Makes card forms
-					cardBySelector.forEach(function(card) {
-						var cardForm = new CardForm({
-							label: card.getLabel() || card.getName(),
-							labelBindings: card.manifest.label,
-							selector: card.selector,
-							preset: card.preset
-						});
-						var sortedCardNodes = new NodeCollection();
-
-						var cardNodes = nodes.filter(function(node) {
-							return card.node.contains(node.node)
-						});
-
-						if (cardNodes.length)
+					attr.forEach(function(options) {
+						if (!options.hidden && isString(options.type))
 						{
-							nodesSelectors.forEach(function(selector) {
-								var matches = cardNodes.matches(selector);
-								matches.forEach(sortedCardNodes.add, sortedCardNodes);
-							}, this);
-
-							sortedCardNodes.forEach(function(node) {
-								cardForm.addField(node.getField());
-							});
-
-							var additional = this.manifest.cards[currentCardSelector].additional;
-							if (isPlainObject(additional))
-							{
-								if (isArray(additional.attrs))
-								{
-									additional.attrs.forEach(function(attr) {
-										var attrField = this.createAttributeField(attr, card.selector, (function() {}));
-										attrField.type = "attr";
-										cardForm.addField(attrField);
-									}, this);
-								}
-							}
-
-							cardsForm.addChildForm(cardForm);
+							fields.push(
+								this.createAttributeField(options, options.selector || selector)
+							);
 						}
 					}, this);
+				}
+			}, this);
 
-					if (cardsForm.childForms.length)
-					{
-						forms.add(cardsForm);
-					}
+			var attrsForm = new BaseForm({
+				id: "attr",
+				type: "attrs",
+				title: BX.Landing.Loc.getMessage("BLOCK_SETTINGS"),
+				description: this.manifest.block.attrsFormDescription
+			});
+
+			fields.forEach(function(field) {
+				attrsForm.addField(field);
+			});
+
+			return attrsForm;
+		},
+
+		/**
+		 * @private
+		 * @return {Array}
+		 */
+		getAttrsAdditionalEditForms: function()
+		{
+			var keys = Object.keys(this.manifest.attrs);
+			var forms = [];
+
+			keys.forEach(function(selector) {
+				var attr = this.manifest.attrs[selector];
+
+				if (!attr.hidden)
+				{
+					attr = !isArray(attr) ? [attr] : attr;
+
+					attr.forEach(function(options) {
+						if (!options.hidden && isString(options.type))
+						{
+							return;
+						}
+
+						if (isString(options.name) && options.attrs)
+						{
+							forms.push(
+								this.createAdditionalForm({
+									form: BaseForm,
+									selector: selector,
+									group: options,
+									onChange: (function() {})
+								})
+							);
+						}
+					}, this);
 				}
 			}, this);
 
 			return forms;
 		},
 
+		/**
+		 * @private
+		 * @param skipState
+		 * @return {Array}
+		 */
+		getCardsEditForms: function(skipState)
+		{
+			var cardsSelectors = Object.keys(this.manifest.cards);
+			var nodesSelectors = Object.keys(this.manifest.nodes);
+			var forms = [];
+
+			var groupedCards = cardsSelectors.reduce(function(acc, selector) {
+				var cards = this.cards.filter(function(card) {
+					return card.selector.split("@")[0] === selector;
+				});
+
+				if (cards.length > 0)
+				{
+					cards.sort(function(a, b) {
+						return a.sortIndex - b.sortIndex;
+					});
+
+					acc.set(selector, cards);
+				}
+
+				return acc;
+			}.bind(this), new Map());
+
+			groupedCards.forEach(function(cards, selector) {
+				var checkboxState = (
+					BX.type.isPlainObject(this.dynamicParams)
+					&& selector in this.dynamicParams
+					&& !skipState
+				);
+
+				var onCardsFormTypeHandler = this.onCardsFormTypeChange.bind(this);
+				var groupLabel = this.manifest.cards[selector]['group_label'];
+
+				var help = "";
+				var helps = BX.Landing.Main.getInstance().options.helps;
+
+				if (BX.type.isPlainObject(helps))
+				{
+					help = helps.DYNAMIC_BLOCKS;
+				}
+
+				var headerCheckbox = {
+					text: BX.Landing.Loc.getMessage("LANDING_CARDS__MAKE_A_DYNAMIC"),
+					onChange: onCardsFormTypeHandler,
+					state: checkboxState,
+					help: help
+				};
+
+				var cardsForm = new CardsForm({
+					title: groupLabel || BX.Landing.Loc.getMessage("LANDING_CARDS_FROM_TITLE"),
+					code: selector.split("@")[0],
+					presets: cards[0].manifest.presets,
+					sync: cards[0].manifest.sync,
+					description: cards[0].manifest.formDescription,
+					forms: forms,
+					headerCheckbox: (function() {
+						if (this.manifest.block.dynamic !== false)
+						{
+							return headerCheckbox;
+						}
+
+						return undefined;
+					}.bind(this))()
+				});
+
+				forms.push(cardsForm);
+
+				if (checkboxState)
+				{
+					setTimeout(function() {
+						onCardsFormTypeHandler({
+							form: cardsForm,
+							state: true
+						});
+					});
+				}
+
+				cards.forEach(function(card) {
+					var cardForm = new CardForm({
+						label: card.getLabel() || card.getName(),
+						labelBindings: card.manifest.label,
+						selector: card.selector,
+						preset: card.preset
+					});
+
+					var sortedCardNodes = new NodeCollection();
+
+					var cardNodes = this.nodes.filter(function(node) {
+						return card.node.contains(node.node)
+					});
+
+					if (cardNodes.length)
+					{
+						nodesSelectors.forEach(function(nodeSelector) {
+							var matches = cardNodes.matches(nodeSelector);
+							matches.forEach(sortedCardNodes.add, sortedCardNodes);
+						}, this);
+
+						sortedCardNodes.forEach(function(node) {
+							if (node.manifest.allowFormEdit !== false)
+							{
+								cardForm.addField(node.getField());
+							}
+						});
+
+						var additional = this.manifest.cards[selector].additional;
+						if (isPlainObject(additional))
+						{
+							if (isArray(additional.attrs))
+							{
+								additional.attrs.forEach(function(attr) {
+									var attrField = this.createAttributeField(attr, card.selector, (function() {}));
+									attrField.type = "attr";
+									cardForm.addField(attrField);
+								}, this);
+							}
+						}
+
+						if (this.tmpContent.contains(card.node))
+						{
+							cardsForm.addPresetForm(cardForm);
+						}
+						else
+						{
+							cardsForm.addChildForm(cardForm);
+						}
+					}
+				}, this);
+			}, this);
+
+			return forms;
+		},
+
+		/**
+		 * @private
+		 * @return {BX.Landing.UI.Form.BaseForm}
+		 */
+		getBlockSettingsForm: function()
+		{
+			var blockSettingsForm = new BaseForm({
+				title: BX.Landing.Loc.getMessage("BLOCK_SETTINGS"),
+				type: "settings"
+			});
+
+			var fieldFactory = this.createFieldFactory("!" + this.selector);
+			var errorMessage = null;
+			var baseUrl = BX.Landing.Main.getInstance().options.url;
+
+			if (baseUrl[0] === "/")
+			{
+				baseUrl = top.location.origin + baseUrl;
+			}
+
+			this.savedAnchor = (this.anchor || this.node.id);
+
+			var previewText = join(baseUrl, "#", (this.anchor || this.node.id));
+			var anchorField = fieldFactory.create({
+				type: "text",
+				name: BX.Landing.Loc.getMessage("BLOCK_SETTINGS_ANCHOR_FIELD"),
+				description: "<span class='landing-ui-anchor-preview'>"+BX.Text.encode(previewText)+"</span>",
+				attribute: "id",
+				value: this.anchor || this.node.id,
+				onInput: function() {
+					var preview = anchorField.layout.querySelector(".landing-ui-anchor-preview");
+
+					if (preview)
+					{
+						preview.innerHTML = BX.Text.encode(join(baseUrl, "#", BX.Text.decode(anchorField.getValue())));
+					}
+
+					this.anchor = anchorField.getValue();
+
+					if (errorMessage)
+					{
+						remove(errorMessage);
+					}
+
+					if (this.node.id !== anchorField.getValue() &&
+						document.getElementById(anchorField.getValue()))
+					{
+						errorMessage = BX.Landing.UI.Field.BaseField.createDescription(
+							BX.Landing.Loc.getMessage("BLOCK_SETTINGS_ANCHOR_FIELD_VALIDATE_ERROR")
+						);
+
+						addClass(errorMessage, "landing-ui-error");
+
+						append(errorMessage, anchorField.layout);
+					}
+
+					if (!isValidElementId(anchorField.getValue()))
+					{
+						errorMessage = BX.Landing.UI.Field.BaseField.createDescription(
+							BX.Landing.Loc.getMessage("BLOCK_SETTINGS_ANCHOR_FIELD_VALIDATE_INVALID_ID")
+						);
+
+						addClass(errorMessage, "landing-ui-error");
+
+						append(errorMessage, anchorField.layout);
+					}
+				}.bind(this)
+			});
+
+			blockSettingsForm.addField(anchorField);
+
+			return blockSettingsForm;
+		},
+
+		/**
+		 * Gets content edit forms
+		 * @param {object} options
+		 * @return {BX.Landing.UI.Collection.FormCollection}
+		 */
+		getEditForms: function(options)
+		{
+			var preparedOptions = {};
+
+			if (BX.type.isPlainObject(options))
+			{
+				preparedOptions = Object.assign({}, options);
+			}
+
+			if (arguments.length > 1)
+			{
+				preparedOptions.nodes = arguments[0];
+				preparedOptions.formName = arguments[1];
+				preparedOptions.nodesOnly = arguments[2];
+				preparedOptions.showAll = arguments[3];
+				preparedOptions.skipCardsState = arguments[4];
+				preparedOptions.skipBlockState = arguments[5];
+			}
+
+			var forms = new FormCollection();
+
+			if (this.access >= ACCESS_W)
+			{
+				var isEditable = !(
+					isEmpty(this.manifest.nodes)
+					&& isEmpty(this.manifest.attrs)
+					&& isEmpty(this.manifest.menu)
+				);
+
+				if (isEditable)
+				{
+					// Block form
+					var blockEditForm = this.getBlockEditForm(preparedOptions);
+					if (blockEditForm.fields.length > 0)
+					{
+						forms.add(blockEditForm);
+					}
+
+					var menuEditForms = this.getMenuEditForms(preparedOptions);
+					if (menuEditForms.length > 0)
+					{
+						menuEditForms.forEach(function(menuForm) {
+							forms.add(menuForm);
+						});
+					}
+
+					if (!preparedOptions.nodesOnly)
+					{
+						// Attrs forms
+						var attrsEditForm = this.getAttrsEditForm();
+
+						if (attrsEditForm.fields.length > 0)
+						{
+							forms.add(attrsEditForm);
+						}
+
+						// Attrs additional forms
+						var attrsAdditionalEditForms = this.getAttrsAdditionalEditForms();
+						if (attrsAdditionalEditForms.length > 0)
+						{
+							attrsAdditionalEditForms.forEach(function(form) {
+								forms.add(form);
+							});
+						}
+
+						// Cards forms
+						var cardsEditForms = this.getCardsEditForms(preparedOptions.skipCardsState);
+						if (cardsEditForms.length > 0)
+						{
+							cardsEditForms.forEach(function(form) {
+								forms.add(form);
+							});
+						}
+					}
+				}
+
+				// Block settings
+				var blockSettingsForm = this.getBlockSettingsForm();
+				if (blockSettingsForm.fields.length > 0)
+				{
+					forms.push(blockSettingsForm);
+				}
+			}
+
+			return forms;
+		},
 
 		/**
 		 * @return {boolean}
@@ -3277,15 +5276,6 @@
 		 * Handles block remove event
 		 */
 		onBlockRemove: function()
-		{
-			this.adjustSortButtonsState();
-		},
-
-
-		/**
-		 * Handles block init event
-		 */
-		onBlockInit: function()
 		{
 			this.adjustSortButtonsState();
 		},
@@ -3311,7 +5301,344 @@
 					actionPanel.buttons.get("down").enable();
 				}
 			}
+		},
 
+		getFieldType: function(field)
+		{
+			var node = this.nodes.getBySelector(field.selector);
+
+			if (node)
+			{
+				return node.type;
+			}
+
+			return null;
+		},
+
+		getTypeReferences: function(references, type)
+		{
+			return references.filter(function(reference) {
+				return reference.type === type;
+			});
+		},
+
+		convertReferencesToDropdownItems: function(references)
+		{
+			var items = references.map(function(reference) {
+				return {name: reference.name, value: reference.id};
+			});
+
+			items.push({
+				name: BX.Landing.Loc.getMessage('LANDING_BLOCK__DYNAMIC_REFERENCE_HIDE'),
+				html: (
+					"<span class=\"landing-ui-field-dropdown-sep\"></span>" + BX.Landing.Loc.getMessage('LANDING_BLOCK__DYNAMIC_REFERENCE_HIDE')
+				),
+				value: '@hide'
+			});
+
+			return items;
+		},
+
+		getDefaultDropdownItems: function()
+		{
+			return [
+				{name: BX.Landing.Loc.getMessage("LANDING_CARDS__DYNAMIC_FIELD_NOT_SET"), value: ""}
+			];
+		},
+
+		getDynamicFiledValue: function(cardsCode, fieldSelector)
+		{
+			var state = this.dynamicParams || {};
+
+			if (
+				BX.type.isPlainObject(state[cardsCode])
+				&& BX.type.isPlainObject(state[cardsCode].references)
+			)
+			{
+				return state[cardsCode].references[fieldSelector];
+			}
+		},
+
+		convertToDynamicFields: function(fields, cardCode, references)
+		{
+			return fields.map(function(field) {
+				var type = this.getFieldType(field);
+
+				if (
+					type !== "text"
+					&& type !== "img"
+					&& type !== "link"
+					&& type !== "link_ref"
+				)
+				{
+					return field;
+				}
+
+				var typeReferences = this.getTypeReferences(references, type);
+				var dropDownItems = this.convertReferencesToDropdownItems(typeReferences);
+				var value = this.getDynamicFiledValue(cardCode, field.selector);
+
+				if (type === "link")
+				{
+					if (
+						BX.type.isPlainObject(typeReferences[0])
+						&& BX.type.isArray(typeReferences[0].actions)
+					)
+					{
+						return new BX.Landing.UI.Field.ClickAction({
+							title: field.title,
+							selector: field.selector,
+							reference: typeReferences[0],
+							linkField: field,
+							value: value
+						});
+					}
+
+					return field;
+				}
+
+				if (dropDownItems.length === 0)
+				{
+					dropDownItems = this.getDefaultDropdownItems();
+				}
+
+				if (type === "img")
+				{
+					return new BX.Landing.UI.Field.DynamicImage({
+						title: field.title,
+						selector: field.selector,
+						dropdownItems: dropDownItems,
+						value: BX.type.isString(value) ? {id: value} : value,
+						hideCheckbox: cardCode === "wrapper"
+					});
+				}
+
+				return new BX.Landing.UI.Field.DynamicDropdown({
+					title: field.title,
+					selector: field.selector,
+					dropdownItems: dropDownItems,
+					value: BX.type.isString(value) ? {id: value} : value,
+					hideCheckbox: cardCode === "wrapper" || type === "link_ref"
+				});
+			}, this);
+		},
+
+		createDynamicCardsForm: function(options)
+		{
+			var help = "";
+			var helps = BX.Landing.Main.getInstance().options.helps;
+
+			if (BX.type.isPlainObject(helps))
+			{
+				help = helps.DYNAMIC_BLOCKS;
+			}
+
+			var dynamicForm = new BX.Landing.UI.Form.DynamicCardsForm({
+				title: options.title,
+				code: options.code,
+				type: "dynamicCards",
+				dynamicParams: options.dynamicParams,
+				headerCheckbox: {
+					text: BX.Landing.Loc.getMessage("LANDING_CARDS__MAKE_A_DYNAMIC"),
+					onChange: this.onCardsFormTypeChange.bind(this),
+					state: true,
+					help: help
+				},
+				onSourceChange: function(source)
+				{
+					var dynamicFields = this.convertToDynamicFields(
+						options.form.childForms[0].fields,
+						options.code,
+						source.references
+					);
+
+					var dynamicGroup = new DynamicFieldsGroup({
+						id: "references",
+						items: dynamicFields
+					});
+
+					var detailPageField = dynamicForm.detailPageGroup.fields[0];
+					if (!BX.Type.isStringFilled(detailPageField.getValue().href))
+					{
+						var content = {text: '', href: ''};
+						if (source && source.default && source.default.detail)
+						{
+							content.href = source.default.detail;
+						}
+
+						detailPageField.setValue(content);
+						detailPageField.hrefInput.makeDisplayedHrefValue();
+					}
+
+					var oldCard = dynamicForm.cards.get('references');
+					dynamicForm.replaceCard(oldCard, dynamicGroup);
+				}.bind(this)
+			});
+
+			return dynamicForm;
+		},
+
+		onCardsFormTypeChange: function(event)
+		{
+			var contentPanel = this.panels.get("content_edit");
+			var isDynamicEnabled = !!event.state;
+
+			if (isDynamicEnabled)
+			{
+				var dynamicCardParams = {};
+
+				if (
+					BX.type.isPlainObject(this.dynamicParams)
+					&& this.dynamicParams[event.form.code]
+				)
+				{
+					dynamicCardParams = this.dynamicParams[event.form.code];
+				}
+
+				var value = Object.assign(
+					{},
+					dynamicCardParams
+				);
+
+				if (BX.type.isPlainObject(value.settings))
+				{
+					if (!('pagesCount' in value.settings))
+					{
+						value.settings.pagesCount = event.form.childForms.length;
+					}
+				}
+				else
+				{
+					value.settings = {
+						pagesCount: event.form.childForms.length
+					};
+				}
+
+				var dynamicForm = this.createDynamicCardsForm({
+					title: event.form.title,
+					code: event.form.code,
+					form: event.form,
+					dynamicParams: value
+				});
+
+				contentPanel.replaceForm(event.form, dynamicForm);
+				return;
+			}
+
+			delete this.dynamicParams[event.form.code];
+
+			var staticForm = this.getCardsEditForms(true)
+				.find(function(item) {
+					return item.code === event.form.code;
+				});
+
+			contentPanel.replaceForm(event.form, staticForm);
+		},
+
+		isDynamicCards: function(cardsCode)
+		{
+			return cardsCode in this.dynamicParams;
+		},
+
+		onBlockFormTypeChange: function(event)
+		{
+			var contentPanel = this.panels.get("content_edit");
+			var isDynamicEnabled = !!event.state;
+
+			if (isDynamicEnabled)
+			{
+				var dynamicForm = this.createDynamicBlockForm({
+					title: event.form.title,
+					code: event.form.code,
+					form: event.form,
+					dynamicParams: this.dynamicParams
+				});
+
+				contentPanel.replaceForm(event.form, dynamicForm);
+				return;
+			}
+
+			delete this.dynamicParams.wrapper;
+
+			var staticForm = this.getBlockEditForm({
+				skipBlockState: true
+			});
+
+			contentPanel.replaceForm(event.form, staticForm);
+		},
+
+		createDynamicBlockForm: function(options)
+		{
+			var help = "";
+			var helps = BX.Landing.Main.getInstance().options.helps;
+
+			if (BX.type.isPlainObject(helps))
+			{
+				help = helps.DYNAMIC_BLOCKS;
+			}
+
+			var dynamicForm = new BX.Landing.UI.Form.DynamicBlockForm({
+				title: options.title,
+				code: this.id,
+				type: "dynamicBlock",
+				dynamicParams: options.dynamicParams,
+				headerCheckbox: {
+					text: BX.Landing.Loc.getMessage("LANDING_BLOCK__MAKE_A_DYNAMIC"),
+					onChange: this.onBlockFormTypeChange.bind(this),
+					state: true,
+					help: help
+				},
+				onSourceChange: function(source)
+				{
+					var oldCard = dynamicForm.cards.get('references');
+
+					if (BX.type.isPlainObject(source))
+					{
+						var dynamicFields = this.convertToDynamicFields(
+							options.form.fields,
+							"wrapper",
+							source.references
+						);
+
+						var dynamicGroup = new DynamicFieldsGroup({
+							id: "references",
+							items: dynamicFields
+						});
+
+						dynamicForm.replaceCard(oldCard, dynamicGroup);
+						return;
+					}
+
+					dynamicForm.removeCard(oldCard);
+				}.bind(this)
+			});
+
+			return dynamicForm;
+		},
+
+		isDynamic: function(code)
+		{
+			code = code || this.id;
+			var panel = this.panels.get('content_edit');
+
+			if (panel)
+			{
+				var form = panel.forms.toArray().find(function(form) {
+					return form.code === code;
+				});
+
+				if (form)
+				{
+					return form.isCheckboxChecked();
+				}
+			}
+
+			code = code === this.id ? "wrapper" : code;
+
+			return (
+				!!this.dynamicParams
+				&& code in this.dynamicParams
+			);
 		}
 	};
 })();

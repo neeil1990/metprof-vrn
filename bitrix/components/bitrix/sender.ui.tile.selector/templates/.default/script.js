@@ -63,6 +63,9 @@
 		this.duplicates = params.duplicates;
 		this.multiple = params.multiple;
 		this.readonly = params.readonly;
+		this.manualInputEnd = params.manualInputEnd;
+		this.checkOnStatic = params.checkOnStatic;
+		this.notifyContent = params.notifyContent;
 
 		this.attributeId = 'data-bx-id';
 		this.attributeData = 'data-bx-data';
@@ -104,8 +107,12 @@
 			BX.bind(this.tileContainer, 'click', this.onButtonSelect.bind(this));
 		}
 		BX.bind(this.input, 'input', this.onInput.bind(this));
-		BX.bind(this.input, 'blur', this.onInputEnd.bind(this));
-		Helper.handleKeyEnter(this.input, this.onInputEnd.bind(this));
+
+		if (!this.manualInputEnd)
+		{
+			BX.bind(this.input, 'blur', this.onInputEnd.bind(this));
+			Helper.handleKeyEnter(this.input, this.onInputEnd.bind(this));
+		}
 	};
 	TileSelector.prototype.getSearchInput = function ()
 	{
@@ -136,6 +143,8 @@
 				'id': this.id,
 				'caller': this,
 				'context': this.context,
+				'notifyContent': this.notifyContent,
+				'checkOnStatic': this.checkOnStatic,
 				'title': title || ''
 			});
 		}
@@ -289,7 +298,7 @@
 			return null;
 		}
 
-		template = template.innerHTML;
+		template = template.textContent;
 		var style = '';
 		if (color)
 		{
@@ -301,11 +310,10 @@
 		}
 		template = Helper.replace(template, {
 			'id': BX.util.htmlspecialchars(id + ''),
-			'name': BX.util.htmlspecialchars(name),
+			'name': name,
 			'data': BX.util.htmlspecialchars(JSON.stringify(data)),
 			'style': style
 		});
-
 
 		var node = document.createElement('div');
 		node.innerHTML = template;
@@ -536,6 +544,8 @@
 		this.id = params.id;
 		this.context = params.context;
 		this.caller = params.caller;
+		this.checkOnStatic = params.checkOnStatic;
+		this.notifyContent = params.notifyContent;
 
 		this.categories = [];
 		this.items = [];
@@ -568,6 +578,14 @@
 	};
 	Searcher.prototype.onTileAdd = function (tile)
 	{
+		if (tile.data.hasStatic && this.checkOnStatic)
+		{
+			BX.UI.Notification.Center.notify({
+				content: this.notifyContent,
+				position: 'top-right',
+				autoHideDelay: 5000,
+			});
+		}
 		var item = Helper.getObjectByKey(this.items, 'id', tile.id);
 		if (!item)
 		{
@@ -757,18 +775,25 @@
 			return;
 		}
 
-		this.popup = BX.PopupWindowManager.create(
+		this.popup = BX.Main.PopupManager.create(
 			this.id,
 			this.context,
 			{
 				width: 620,
-				height: 225,
+				height: 300,
 				autoHide: true,
 				lightShadow: true,
 				closeByEsc: true,
-				closeIcon: true,
+				closeIcon: false,
 				offsetLeft: 40,
-				angle: true
+				angle: true,
+				buttons: [
+					new BX.UI.CloseButton({
+						onclick: function() {
+							this.popup.close();
+						}.bind(this),
+					})
+				]
 			}
 		);
 

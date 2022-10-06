@@ -1,6 +1,6 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-Bitrix\Main\UI\Extension::load("ui.tooltip");
+Bitrix\Main\UI\Extension::load(["ui.tooltip", "ui.fonts.opensans"]);
 
 \Bitrix\Main\Page\Asset::getInstance()->addCss('/bitrix/js/crm/css/crm.css');
 if(\CCrmSipHelper::isEnabled())
@@ -29,8 +29,19 @@ $publicMode = isset($arParams["PUBLIC_MODE"]) && $arParams["PUBLIC_MODE"] === tr
 			}
 			else
 			{
+				$entityTypeLower = mb_strtolower($entityType);
+
+				if($entityType == 'ORDER')
+				{
+					$url = '/bitrix/components/bitrix/crm.order.details/card.ajax.php';
+				}
+				else
+				{
+					$url = '/bitrix/components/bitrix/crm.'.$entityTypeLower.'.show/card.ajax.php';
+				}
+
 				?><a href="<?=htmlspecialcharsbx($entity['ENTITY_LINK'])?>" target="_blank"
-					 bx-tooltip-user-id="<?=htmlspecialcharsbx($entityId)?>" bx-tooltip-loader="<?=htmlspecialcharsbx('/bitrix/components/bitrix/crm.'.strtolower($entityType).'.show/card.ajax.php')?>" bx-tooltip-classname="crm_balloon<?=($entityType == 'LEAD' || $entityType == 'DEAL'? '_no_photo': '_'.strtolower($entityType))?>"><?=htmlspecialcharsbx($entity['ENTITY_TITLE'])?></a><?
+					 bx-tooltip-user-id="<?=htmlspecialcharsbx($entityId)?>" bx-tooltip-loader="<?=htmlspecialcharsbx($url)?>" bx-tooltip-classname="crm_balloon<?=($entityType == 'LEAD' || $entityType == 'DEAL'? '_no_photo': '_'.$entityTypeLower)?>"><?=htmlspecialcharsbx($entity['ENTITY_TITLE'])?></a><?
 			}
 
 			$first = false;

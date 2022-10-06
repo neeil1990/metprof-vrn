@@ -346,23 +346,35 @@
 			var isPinned = this.isPinned(this.getCurrentPresetId());
 			var promise;
 
-			if (!isPinned)
+			if (this.parent.getParam('VALUE_REQUIRED') &&
+				this.getPinnedPresetId() === 'default_filter')
 			{
-				var pinnedPresetId = this.getPinnedPresetId();
-				var pinnedPresetNode = this.getPinnedPresetNode();
-				var clear = false;
-				var applyPreset = true;
-
+				this.applyPreset('default_filter');
 				this.deactivateAllPresets();
-				this.activatePreset(pinnedPresetNode);
-				this.applyPreset(pinnedPresetId);
-				promise = Filter.applyFilter(clear, applyPreset);
-				Filter.closePopup();
+				promise = this.parent.applyFilter();
 			}
 			else
 			{
-				promise = Filter.resetFilter();
+				if (!isPinned)
+				{
+					var pinnedPresetId = this.getPinnedPresetId();
+					var pinnedPresetNode = this.getPinnedPresetNode();
+					var clear = false;
+					var applyPreset = true;
+
+					this.deactivateAllPresets();
+					this.activatePreset(pinnedPresetNode);
+					this.applyPreset(pinnedPresetId);
+					promise = Filter.applyFilter(clear, applyPreset);
+					Filter.closePopup();
+				}
+				else
+				{
+					promise = Filter.resetFilter();
+				}
 			}
+
+
 
 			return promise;
 		},
@@ -623,7 +635,10 @@
 				}
 			}
 
-			if (field.TYPE === this.parent.types.CUSTOM_ENTITY)
+			if (
+				field.TYPE === this.parent.types.CUSTOM_ENTITY
+				|| field.TYPE === this.parent.types.DEST_SELECTOR
+			)
 			{
 				if (BX.type.isPlainObject(field.VALUES))
 				{
@@ -919,6 +934,11 @@
 					break;
 				}
 
+				case this.parent.types.TEXTAREA : {
+					control = this.parent.getFields().createTextarea(fieldData);
+					break;
+				}
+
 				case this.parent.types.SELECT : {
 					control = this.parent.getFields().createSelect(fieldData);
 					break;
@@ -944,6 +964,11 @@
 					break;
 				}
 
+				case this.parent.types.DEST_SELECTOR : {
+					control = this.parent.getFields().createDestSelector(fieldData);
+					break;
+				}
+
 				case this.parent.types.CUSTOM : {
 					control = this.parent.getFields().createCustom(fieldData);
 					break;
@@ -963,6 +988,16 @@
 			{
 				control.dataset.name = fieldData.NAME;
 				control.FieldController = new BX.Filter.FieldController(control, this.parent);
+
+				if (Boolean(fieldData.REQUIRED))
+				{
+					var removeButton = control.querySelector('.main-ui-filter-field-delete');
+
+					if (removeButton)
+					{
+						BX.remove(removeButton);
+					}
+				}
 			}
 
 			return control;

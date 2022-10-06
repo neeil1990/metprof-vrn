@@ -62,7 +62,10 @@ BX.adminPanel.prototype.setButtonMenu = function(button)
 
 BX.adminPanel.prototype.isFixed = function()
 {
-	return BX.hasClass(document.documentElement, 'adm-header-fixed');
+	return (
+		BX.type.isDomNode(this.panel)
+		&& BX.hasClass(document.documentElement, 'adm-header-fixed')
+	);
 };
 
 BX.adminPanel.prototype.Fix = function(el)
@@ -408,7 +411,7 @@ BX.adminFormTools = {
 	{
 		if ((!BX.browser.IsIE() || BX.browser.IsIE9()) && BX.type.isElementNode(el) && el.tagName.toUpperCase() == 'INPUT' && el.type.toUpperCase() == 'CHECKBOX')
 		{
-			if (!BX.hasClass(el, 'adm-designed-checkbox'))
+			if (!BX.hasClass(el, 'adm-designed-checkbox') && !BX.hasClass(el, 'ui-ctl-element'))
 			{
 				if (!el.id)
 					el.id = 'designed_checkbox_' + Math.random();
@@ -727,6 +730,11 @@ BX.adminMenu.prototype.Init = function()
 	{
 		for (var key in this.dest)
 		{
+			if (!BX('fav_dest_' + key) || !BX('fav_cont_' + key))
+			{
+				continue;
+			}
+
 			this.dest[key] = BX('fav_dest_' + key);
 			this.dest_cont[key] = BX('fav_cont_' + key);
 
@@ -807,7 +815,12 @@ BX.adminMenu.prototype.showFavorites = function(el)
 
 BX.adminMenu.prototype.itemsStretchScroll = function()
 {
-	BX.onCustomEvent(BX.adminMenu, 'onAdminMenuItemsStretchScroll');
+	this.items.forEach(function(item) {
+		if (item && item.MSOVERMIRROR)
+		{
+			item.MSOVERMIRROR.style.display = 'none';
+		}
+	});
 };
 
 BX.adminMenu.prototype.setMinimizedState = function(state)
@@ -1101,7 +1114,6 @@ BX.adminMenu.prototype._registerItem = function(i)
 		case 'submenu-item':
 			BX.bind(this.items[i].NODE, 'mouseover', BX.proxy(this._item_onmouseover, this.items[i]));
 			BX.bind(this.items[i].NODE, 'mouseout', BX.proxy(this._item_onmouseout, this.items[i]));
-			BX.addCustomEvent(this, 'onAdminMenuItemsStretchScroll', BX.proxy(this._item_onmouseout, this.items[i]));
 		break;
 	}
 };
@@ -2162,19 +2174,6 @@ BX.adminList.prototype.DeleteSettings = function(bCommon)
 	}, this));
 };
 
-/****************************** For new grid ********************************/
-BX.adminList.SendSelected = function(gridId)
-{
-	var gridInstance = BX.Main.gridManager.getById(gridId).instance;
-	var values = gridInstance.getActionsPanel().getValues();
-	var selectedRows = gridInstance.getRows().getSelectedIds();
-	var data = {
-		ID: selectedRows,
-		action: values
-	};
-	gridInstance.reloadTable("POST", data);
-};
-
 BX.adminList._onpopupmenushow = function(){BX.addClass(this, 'adm-list-row-active');};
 BX.adminList._onpopupmenuclose = function(){BX.removeClass(this, 'adm-list-row-active');};
 
@@ -2472,6 +2471,8 @@ BX.adminUiList = function(gridId, params)
 {
 	this.gridId = gridId;
 	this.publicMode = (params.publicMode ? params.publicMode : false);
+	this.showTotalCountHtml = (params.showTotalCountHtml ? params.showTotalCountHtml : false);
+	this.serviceUrl = (params.serviceUrl ? params.serviceUrl : "");
 
 	this.init();
 };
@@ -2479,17 +2480,57 @@ BX.adminUiList = function(gridId, params)
 BX.adminUiList.prototype.init = function()
 {
 	this.basePageUrl = window.location.pathname;
+	this.serviceUrl = (this.serviceUrl ? this.serviceUrl : this.basePageUrl);
 	this.gridUrl = window.location.pathname + window.location.search;
 
 	BX.addCustomEvent("SidePanel.Slider:onMessage", BX.proxy(this.onMessage, this));
 	BX.addCustomEvent('AdminUiList:onReloadGrid', BX.proxy(this.onReloadGrid, this));
 
 	BX.addCustomEvent(window, "Grid::beforeRequest", BX.proxy(this.onBeforeRequest, this));
+	BX.addCustomEvent(window, "Grid::updated", BX.proxy(this.onUpdated, this));
+
+	this.bindShowTotalCount();
+};
+
+BX.adminUiList.prototype.onUpdated = function(gridObject)
+{
+	this.bindShowTotalCount();
+};
+
+BX.adminUiList.prototype.bindShowTotalCount = function()
+{
+	if (this.showTotalCountHtml)
+	{
+		BX.bind(BX(this.gridId + "_show_total_count"), "click", BX.proxy(this.onShowTotalCount, this));
+	}
+};
+
+BX.adminUiList.prototype.onShowTotalCount = function(event)
+{
+	BX.ajax({
+		url: this.serviceUrl,
+		method: "POST",
+		dataType: "json",
+		data: {
+			"action": "getTotalCount",
+		},
+		onsuccess: BX.proxy(function(response) {
+			if (response.hasOwnProperty("totalCountHtml"))
+			{
+				BX(this.gridId + "_show_total_count").parentElement.innerHTML = response.totalCountHtml;
+			}
+		}, this)
+	});
+
+	event.preventDefault();
 };
 
 BX.adminUiList.prototype.onMessage = function(SidePanelEvent)
 {
-	if (!(SidePanelEvent instanceof BX.SidePanel.MessageEvent))
+	if (
+		!(SidePanelEvent instanceof BX.SidePanel.MessageEvent)
+		&& !(SidePanelEvent instanceof top.BX.SidePanel.MessageEvent)
+	)
 	{
 		return;
 	}
@@ -2528,8 +2569,19 @@ BX.adminUiList.prototype.onMessage = function(SidePanelEvent)
 
 BX.adminUiList.prototype.onReloadGrid = function()
 {
-	var reloadParams = { apply_filter: 'Y', clear_nav: 'Y' };
-	var gridObject = top.BX.Main.gridManager.getById(this.gridId);
+	var reloadParams = { apply_filter: 'Y'};
+	var gridObject;
+
+	if (BX.Reflection.getClass('top.BX.Main.gridManager.getById'))
+	{
+		gridObject = top.BX.Main.gridManager.getById(this.gridId);
+	}
+
+	if (gridObject === null && BX.Reflection.getClass('BX.Main.gridManager.getById'))
+	{
+		gridObject = BX.Main.gridManager.getById(this.gridId);
+	}
+
 	if (gridObject && gridObject.hasOwnProperty('instance'))
 	{
 		gridObject.instance.reloadTable('POST', reloadParams, false, this.gridUrl);
@@ -2538,6 +2590,12 @@ BX.adminUiList.prototype.onReloadGrid = function()
 
 BX.adminUiList.prototype.onBeforeRequest = function(gridData, requestParams)
 {
+	if (BX.type.isPlainObject(requestParams.data))
+	{
+		var data = requestParams.data;
+		requestParams.data = this.getDataWithPreparedCustomFields(data);
+	}
+
 	if (this.publicMode)
 	{
 		requestParams.url =	BX.util.add_url_param(requestParams.url, {
@@ -2557,6 +2615,58 @@ BX.adminUiList.prototype.onBeforeRequest = function(gridData, requestParams)
 			requestParams.url = this.basePageUrl+window.location.search;
 		}
 	}
+};
+
+BX.adminUiList.prototype.getDataWithPreparedCustomFields = function(data)
+{
+	if (BX.type.isPlainObject(data.FIELDS))
+	{
+		for (var rowId in data.FIELDS)
+		{
+			var rowData = null;
+			if (data.FIELDS.hasOwnProperty(rowId))
+			{
+				rowData = data.FIELDS[rowId];
+			}
+			if (BX.type.isPlainObject(rowData))
+			{
+				for (var field in rowData)
+				{
+					if (rowData.hasOwnProperty(field) && field.indexOf("_custom") !== -1)
+					{
+						if (BX.type.isPlainObject(rowData[field]))
+						{
+							var customFields = {};
+							Object.keys(rowData[field]).forEach(function(inputName, index) {
+								if (rowData[field].hasOwnProperty(inputName))
+								{
+									customFields[index] = customFields[index] || {};
+									customFields[index]["name"] = inputName;
+									customFields[index]["value"] = rowData[field][inputName];
+								}
+							});
+							rowData[field] = customFields;
+							delete rowData[field.replace("_custom", "")];
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return data;
+};
+
+BX.adminUiList.SendSelected = function(gridId)
+{
+	var gridInstance = BX.Main.gridManager.getById(gridId).instance;
+	var values = gridInstance.getActionsPanel().getValues();
+	var selectedRows = gridInstance.getRows().getSelectedIds();
+	var data = Object.assign({
+		ID: selectedRows,
+		action: values
+	}, values);
+	gridInstance.reloadTable("POST", data);
 };
 
 /*** BX.adminSidePanel (BX.SidePanel) ***/
@@ -2730,18 +2840,52 @@ BX.adminSidePanel.prototype.onMessage = function(SidePanelEvent)
 	}
 };
 
-BX.adminSidePanel.onOpenPage = BX.adminSidePanel.prototype.onOpenPage = function(url)
+BX.adminSidePanel.onOpenPage = BX.adminSidePanel.prototype.onOpenPage = function(url, skipModification)
 {
+	if (top.BX.admin && top.BX.admin.dynamic_mode_show_borders)
+	{
+		return;
+	}
+
 	if (top.BX.SidePanel.Instance)
 	{
-		var adminSidePanel = top.window["adminSidePanel"], optionsOpen = {};
-		if (adminSidePanel.publicMode)
+		if (skipModification)
 		{
-			url = BX.util.add_url_param(url, {"publicSidePanel": "Y"});
-			optionsOpen.allowChangeHistory = false;
+			top.BX.SidePanel.Instance.open(url);
 		}
-		top.BX.SidePanel.Instance.open(url, optionsOpen);
+		else
+		{
+			var adminSidePanel = top.window["adminSidePanel"], optionsOpen = {};
+			if (adminSidePanel.publicMode)
+			{
+				url = BX.util.add_url_param(url, {"publicSidePanel": "Y"});
+				optionsOpen.allowChangeHistory = false;
+			}
+
+			top.BX.SidePanel.Instance.open(url, optionsOpen);
+		}
 	}
+};
+
+BX.adminSidePanel.setDefaultQueryParams = BX.adminSidePanel.prototype.setDefaultQueryParams = function(url)
+{
+	if (url.indexOf("IFRAME") === -1)
+	{
+		url = BX.util.add_url_param(url, {"IFRAME": "Y"});
+	}
+
+	if (url.indexOf("IFRAME_TYPE") === -1)
+	{
+		url = BX.util.add_url_param(url, {"IFRAME_TYPE": "SIDE_SLIDER"});
+	}
+
+	var adminSidePanel = top.window["adminSidePanel"];
+	if (adminSidePanel && adminSidePanel.publicMode)
+	{
+		url = BX.util.add_url_param(url, {"publicSidePanel": "Y"});
+	}
+
+	return url;
 };
 
 BX.adminSidePanel.prototype.onSendRequest = function(url)
@@ -2753,10 +2897,8 @@ BX.adminSidePanel.prototype.onSendRequest = function(url)
 
 	var params = {};
 
-	BX.ajax.post(url,
+	BX.ajax.post(BX.adminSidePanel.setDefaultQueryParams(url),
 		{
-			IFRAME: "Y",
-			IFRAME_TYPE: "SIDE_SLIDER",
 			sessid: BX.bitrix_sessid()
 		},
 		BX.delegate(function(result) {
@@ -2801,6 +2943,8 @@ BX.adminTabControl = function (name, unique_name, aTabs, params)
 		BX.type.isNotEmptyString(this.params.isSidePanel) && this.params.isSidePanel === "Y");
 	this.isPublicFrame = !!(this.params.hasOwnProperty("isPublicFrame") &&
 		BX.type.isNotEmptyString(this.params.isPublicFrame) && this.params.isPublicFrame === "Y");
+	this.publicSidePanel = !!(this.params.hasOwnProperty("publicSidePanel") &&
+		BX.type.isNotEmptyString(this.params.publicSidePanel) && this.params.publicSidePanel === "Y");
 	this.isActiveConfirm = false;
 
 	this.bInited = false;
@@ -2972,17 +3116,25 @@ BX.adminTabControl.prototype.Init = function()
 
 BX.adminTabControl.prototype.setFormDataForSidePanel = function()
 {
-	if (!BX.SidePanel.Instance)
+	var sidePanel = top.BX.SidePanel ? top.BX.SidePanel : BX.SidePanel,
+		slider,
+		dictionary;
+	if (typeof sidePanel === 'undefined')
+	{
+		return;
+	}
+	if (!sidePanel.Instance)
 	{
 		return;
 	}
 
-	var slider = BX.SidePanel.Instance.getSliderByWindow(window);
+	slider = sidePanel.Instance.getSliderByWindow(window);
 	if (slider)
 	{
-		var dictionary = slider.getData();
+		dictionary = slider.getData();
 		dictionary.set("adminTabControlInstance", this);
 	}
+	sidePanel = null;
 };
 
 BX.adminTabControl.prototype.onClickSidePanelButtons = function(event)
@@ -3027,11 +3179,16 @@ BX.adminTabControl.prototype.submitAjax = function(buttonType, button)
 
 	this.createEventTypeInput(buttonType);
 
-	var params = {};
+	var params = {}, url = this.form.getAttribute("action");
+
+	if (this.publicSidePanel)
+	{
+		url = BX.adminSidePanel.setDefaultQueryParams(url);
+	}
 
 	BX.ajax.submitAjax(this.form, {
 		method : 'POST',
-		url: this.form.getAttribute("action"),
+		url: url,
 		onsuccess: BX.delegate(function(result) {
 			result = BX.parseJSON(result, {});
 			if (result && result.status)
@@ -3045,7 +3202,7 @@ BX.adminTabControl.prototype.submitAjax = function(buttonType, button)
 					if (button && button.dataset.url)
 						params['addUrl'] = button.dataset.url;
 
-					var listApplyTypes = ["apply", "save_document"];
+					var listApplyTypes = ["apply", "save_document", "save_and_conduct"];
 					if (BX.util.in_array(buttonType, listApplyTypes))
 					{
 						if (result.hasOwnProperty('formParams'))
@@ -3163,10 +3320,14 @@ BX.adminTabControl.prototype.setPublicMode = function(v)
 	this.bPublicMode = !!v;
 	if (this.bPublicMode)
 	{
-		var name = this.name;
-		BX.addCustomEvent(BX.WindowManager.Get(), 'onWindowClose', function(){
-			window[name] = null;
-		});
+		var currentWindow = BX.WindowManager.Get();
+		if (currentWindow)
+		{
+			var name = this.name;
+			BX.addCustomEvent(currentWindow, 'onWindowClose', function(){
+				window[name] = null;
+			});
+		}
 	}
 };
 
@@ -4837,7 +4998,7 @@ BX.AdminFilter = function(filter_id, aRows)
 
 		tab.id = "adm-filter-tab-"+this.filter_id+"-"+newId;
 
-		if(this.url)
+		if(this.url && BX.adminMenu && BX.adminMenu.registerItem)
 		{
 			var registerUrl = BX.util.remove_url_param(this.url,["adm_filter_applied","adm_filter_preset"]);
 			registerUrl += "&adm_filter_applied" + '=' + BX.util.urlencode(newId);
@@ -5530,7 +5691,7 @@ BX.AdminFilter = function(filter_id, aRows)
 				switch(el.value)
 				{
 					case 'exact':
-						dateFrom = new Date(inputFrom.value.replace(/(\d+).(\d+).(\d+)/, '$3/$2/$1'));
+						dateFrom = BX.parseDate(inputFrom.value, false, phpVars.FORMAT_DATE, phpVars.FORMAT_DATETIME);
 						dateTo = dateFrom;
 						break;
 
@@ -6102,8 +6263,15 @@ BX.admFltTab.prototype = {
 
 	_RegisterDD: function(tabId, url, name)
 	{
+		if(!BX.adminMenu || !BX.adminMenu.registerItem)
+		{
+			return;
+		}
+
 		if(!url)
-			return false;
+		{
+			return;
+		}
 
 		var registerUrl = BX.util.remove_url_param(url, ["adm_filter_applied","adm_filter_preset"]);
 		registerUrl += "&adm_filter_applied" + '=' + BX.util.urlencode(this.id);

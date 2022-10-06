@@ -1,25 +1,25 @@
-<?
-
+<?php
 namespace Bitrix\Landing\Update\Block;
 
 
-use \Bitrix\Main\Config\Option;
-use \Bitrix\Main\Update\Stepper;
-use \Bitrix\Landing\Block;
-use \Bitrix\Landing\Internals\BlockTable;
-use \Bitrix\Main\Entity;
+use Bitrix\Landing\Manager;
+use Bitrix\Landing\Subtype\Form;
+use Bitrix\Main\Config\Option;
+use Bitrix\Main\Update\Stepper;
+use Bitrix\Landing\Block;
+use Bitrix\Landing\Internals\BlockTable;
+use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
-use \Bitrix\Main\Loader;
-
+use Bitrix\Main\Loader;
+use Bitrix\Main\Web\DOM\Element;
 
 final class NodeAttributes extends Stepper
 {
 	const CONTINUE_EXECUTING = true;
 	const STOP_EXECUTING = false;
-	const PORTION = 30;
 	const OPTION_NAME = 'blocks_attrs_update';
 	const OPTION_STATUS_NAME = 'blocks_attrs_update_status';
-	const STEP_COUNT = 15;    //count of block CODES to step
+	const STEP_PORTION = 1;    //count of block CODES to step
 	
 	protected static $moduleId = 'landing';
 	protected $dataToUpdate = array();
@@ -35,7 +35,7 @@ final class NodeAttributes extends Stepper
 	{
 //		saved in option
 		$this->status = Option::get('landing', self::OPTION_STATUS_NAME, '');
-		$this->status = ($this->status !== '' ? @unserialize($this->status) : array());
+		$this->status = ($this->status !== '' ? @unserialize($this->status, ['allowed_classes' => false]) : array());
 		$this->status = (is_array($this->status) ? $this->status : array());
 
 //		or default
@@ -46,9 +46,15 @@ final class NodeAttributes extends Stepper
 			$params = array();
 			foreach (Option::getForModule('landing') as $key => $option)
 			{
-				if (strpos($key, self::OPTION_NAME) === 0 && $key != self::OPTION_STATUS_NAME)
+				if (mb_strpos($key, self::OPTION_NAME) === 0 && $key != self::OPTION_STATUS_NAME)
 				{
-					$option = ($option !== '' ? @unserialize($option) : array());
+					$option = ($option !== '' ? @unserialize($option, ['allowed_classes' => false]) : array());
+					
+					if(!isset($option['BLOCKS']))
+					{
+						Option::delete('landing', array('name' => $key));
+						continue;
+					}
 
 //					save params
 					$params[$key] = $option['PARAMS'];
@@ -86,7 +92,7 @@ final class NodeAttributes extends Stepper
 			$this->status['UPDATER_ID'] = '';
 			$this->status['PARAMS'] = $params;
 			
-			Option::set('landing', self::OPTION_STATUS_NAME, $this->status);
+			Option::set('landing', self::OPTION_STATUS_NAME, serialize($this->status));
 		}
 	}
 	
@@ -123,6 +129,7 @@ final class NodeAttributes extends Stepper
 	{
 //		nothing to update
 		$this->loadCurrentStatus();
+
 		if (!$this->status['COUNT'])
 		{
 			self::finish();
@@ -132,6 +139,7 @@ final class NodeAttributes extends Stepper
 
 //		find option. If nothing - we update all
 		$this->status['UPDATER_ID'] = $this->getUpdaterUniqueId();
+
 		if (!$this->status['UPDATER_ID'])
 		{
 			self::finish();
@@ -146,7 +154,7 @@ final class NodeAttributes extends Stepper
 		{
 			$this->finishOption();
 		}
-		
+
 		$result['count'] = $this->status['COUNT'];
 		$result['steps'] = $this->status['STEPS'];
 		
@@ -173,7 +181,7 @@ final class NodeAttributes extends Stepper
 	{
 		foreach (Option::getForModule('landing') as $key => $option)
 		{
-			if (strpos($key, self::OPTION_NAME) === 0)
+			if (mb_strpos($key, self::OPTION_NAME) === 0)
 			{
 				Option::delete('landing', array('name' => $key));
 			}
@@ -194,10 +202,9 @@ final class NodeAttributes extends Stepper
 	private function collectBlocks()
 	{
 		$this->dataToUpdate = Option::get(self::$moduleId, $this->getOptionName());
-		$this->dataToUpdate = ($this->dataToUpdate !== '' ? @unserialize($this->dataToUpdate) : array());
-		
+		$this->dataToUpdate = ($this->dataToUpdate !== '' ? @unserialize($this->dataToUpdate, ['allowed_classes' => false]) : array());
 		$this->codesToStep = array_unique(array_keys($this->dataToUpdate['BLOCKS']));
-		$this->codesToStep = array_slice($this->codesToStep, 0, self::STEP_COUNT);
+		$this->codesToStep = array_slice($this->codesToStep, 0, self::STEP_PORTION);
 
 //		load BLOCKS
 		$filter = array(
@@ -234,7 +241,7 @@ final class NodeAttributes extends Stepper
 		while ($row = $resBlock->fetch())
 		{
 			$this->blocksToUpdate[$row['CODE']][$row['ID']] = new Block($row['ID'], $row);
-			if (count($this->blocksToUpdate) > self::STEP_COUNT)
+			if (count($this->blocksToUpdate) > self::STEP_PORTION)
 			{
 				unset($this->blocksToUpdate[$row['CODE']]);
 				break;
@@ -244,7 +251,7 @@ final class NodeAttributes extends Stepper
 			$this->sitesToUpdate[$row['ID']] = $row['SITE_ID'];
 		}
 	}
-	
+
 	
 	private function processBlocks()
 	{
@@ -279,31 +286,10 @@ final class NodeAttributes extends Stepper
 	{
 		$code = $block->getCode();
 		$doc = $block->getDom();
-		$wrapper = Block::getAnchor($block->getId());
 
-//		save to journal
-		$eventLog = new \CEventLog;
-		$eventLog->Add(array(
-			"SEVERITY" => $eventLog::SEVERITY_SECURITY,
-			"AUDIT_TYPE_ID" => 'LANDING_BLOCK_BEFORE_UPDATE',
-			"MODULE_ID" => "landing",
-			"ITEM_ID" => 'landing_block_' . $block->getId(),
-			"DESCRIPTION" => $doc->getInnerHTML(),
-		));
-		
 		foreach ($this->dataToUpdate['BLOCKS'][$code]['NODES'] as $selector => $rules)
 		{
-//			apply to the all block or by selector
-			if ($selector == $wrapper)
-			{
-				$resultList = array(
-					array_pop($doc->getChildNodesArray()),
-				);
-			}
-			else
-			{
-				$resultList = $doc->querySelectorAll($selector);
-			}
+			$resultList = $doc->querySelectorAll($selector);
 
 //			prepare ATTRS
 			$nodeAttrs = array();
@@ -317,8 +303,44 @@ final class NodeAttributes extends Stepper
 			}
 
 //			PROCESS
-			foreach ($resultList as $resultNode)
+			foreach ($resultList as $nth => $resultNode)
 			{
+//				FILTER
+//				use until cant add some filters in DOM\Parser
+				if (is_array($rules['FILTER']) && !empty($rules['FILTER']))
+				{
+					$notFilterd = false;
+//					By content. May have 'NOT' key
+					if (
+						isset($rules['FILTER']['CONTENT']) && is_array($rules['FILTER']['CONTENT']) &&
+						(
+							$rules['FILTER']['CONTENT']['VALUE'] != $resultNode->getInnerHTML() ||
+							(
+								$rules['FILTER']['CONTENT']['NOT'] &&
+								$rules['FILTER']['CONTENT']['VALUE'] == $resultNode->getInnerHTML()
+							)
+						)
+					)
+					{
+						$notFilterd = true;
+					}
+
+//					by position in DOM
+					if (
+						isset($rules['FILTER']['NTH']) && is_array($rules['FILTER']['NTH']) &&
+						isset($rules['FILTER']['NTH']['VALUE']) &&
+						$nth + 1 != $rules['FILTER']['NTH']['VALUE']
+					)
+					{
+						$notFilterd = true;
+					}
+					
+					if ($notFilterd)
+					{
+						continue;
+					}
+				}
+
 //				CLASSES
 				$classesChange = false;
 				$nodeClasses = $resultNode->getClassList();
@@ -327,11 +349,31 @@ final class NodeAttributes extends Stepper
 					$nodeClasses = array_diff($nodeClasses, $rules['CLASSES_REMOVE']);
 					$classesChange = true;
 				}
+				
 				if (is_array($rules['CLASSES_ADD']) && !empty($rules['CLASSES_ADD']))
 				{
 					$nodeClasses = array_merge($nodeClasses, $rules['CLASSES_ADD']);
 					$classesChange = true;
 				}
+				
+				if (is_array($rules['CLASSES_REPLACE']) &&
+					array_key_exists('PATTERN', $rules['CLASSES_REPLACE']) &&
+					array_key_exists('REPLACE', $rules['CLASSES_REPLACE']))
+				{
+					$nodeClassesStr = implode(' ', $nodeClasses);
+					$nodeClassesReplace = preg_replace(
+						'/' . $rules['CLASSES_REPLACE']['PATTERN'] . '/i',
+						$rules['CLASSES_REPLACE']['REPLACE'],
+						$nodeClassesStr
+					);
+					if ($nodeClassesReplace !== null)
+					{
+						$nodeClasses = explode(' ', $nodeClassesReplace);
+						$classesChange = true;
+					}
+				}
+				
+//				APPLY changes
 				$nodeClasses = array_unique($nodeClasses);
 				if ($classesChange)
 				{
@@ -359,9 +401,87 @@ final class NodeAttributes extends Stepper
 						$resultNode->removeAttribute($name);
 					}
 				}
+
+//				REMOVE NODE
+				if (isset($rules['NODE_REMOVE']) && $rules['NODE_REMOVE'] === true)
+				{
+					$resultNode->getParentNode()->removeChild($resultNode);
+				}
+				
+//				REPLACE CONTENT by regexp
+//				be CAREFUL!
+				if (
+					isset($rules['REPLACE_CONTENT']) && is_array($rules['REPLACE_CONTENT']) &&
+					array_key_exists('regexp', $rules['REPLACE_CONTENT']) &&
+					array_key_exists('replace', $rules['REPLACE_CONTENT'])
+				)
+				{
+					$innerHtml = $resultNode->getInnerHTML();
+					$innerHtml = preg_replace($rules['REPLACE_CONTENT']['regexp'], $rules['REPLACE_CONTENT']['replace'], $innerHtml);
+					if($innerHtml <> '')
+					{
+						$resultNode->setInnerHTML($innerHtml);
+					}
+				}
+			}
+
+
+//			add CONTAINER around nodes.
+			if (
+				isset($rules['CONTAINER_ADD']) && is_array($rules['CONTAINER_ADD']) &&
+				isset($rules['CONTAINER_ADD']['CLASSES']) &&
+				!empty($resultList)
+			)
+			{
+				if (!is_array($rules['CONTAINER_ADD']['CLASSES']))
+				{
+					$rules['CONTAINER_ADD']['CLASSES'] = [$rules['CONTAINER_ADD']['CLASSES']];
+				}
+//				check if container exist
+				$firstNode = $resultList[0];
+				$parentNode = $firstNode->getParentNode();
+				$parentClasses = $parentNode->getClassList();
+				if (!empty(array_diff($rules['CONTAINER_ADD']['CLASSES'], $parentClasses)))
+				{
+//					param TO_EACH - add container to each element. Default (false) - add container once to all nodes
+					if (!isset($rules['CONTAINER_ADD']['TO_EACH']) || $rules['CONTAINER_ADD']['TO_EACH'] !== true)
+					{
+						$containerNode = new Element($rules['CONTAINER_ADD']['TAG'] ? $rules['CONTAINER_ADD']['TAG'] : 'div');
+						$containerNode->setOwnerDocument($doc);
+						$containerNode->setClassName(implode(' ', $rules['CONTAINER_ADD']['CLASSES']));
+						$parentNode->insertBefore($containerNode, $firstNode);
+						foreach ($resultList as $resultNode)
+						{
+							$parentNode->removeChild($resultNode);
+							$containerNode->appendChild($resultNode);
+						}
+					}
+					else
+					{
+						foreach ($resultList as $resultNode)
+						{
+							$containerNode = new Element($rules['CONTAINER_ADD']['TAG'] ? $rules['CONTAINER_ADD']['TAG'] : 'div');
+							$containerNode->setOwnerDocument($doc);
+							$containerNode->setClassName(implode(' ', $rules['CONTAINER_ADD']['CLASSES']));
+							$parentNode->insertBefore($containerNode, $resultNode);
+							
+							$parentNode->removeChild($resultNode);
+							$containerNode->appendChild($resultNode);
+						}
+					}
+				}
 			}
 		}
 		$block->saveContent($doc->saveHTML());
+
+//		updates COMPONENTS params
+		if (is_array($this->dataToUpdate['BLOCKS'][$code]['UPDATE_COMPONENTS']))
+		{
+			foreach ($this->dataToUpdate['BLOCKS'][$code]['UPDATE_COMPONENTS'] as $selector => $params)
+			{
+				$block->updateNodes(array($selector => $params));
+			}
+		}
 
 //		if need remove PHP - we must use block content directly, not DOM parser
 		if (
@@ -382,7 +502,7 @@ final class NodeAttributes extends Stepper
 		{
 			$block->setSort($this->dataToUpdate['BLOCKS'][$code]['SET_SORT']);
 		}
-		
+
 		$block->save();
 	}
 	
@@ -420,7 +540,7 @@ final class NodeAttributes extends Stepper
 			Loader::includeModule('bitrix24')
 			
 			&& false
-//			todo: need this?
+//			dbg: need this?
 		)
 		{
 			foreach (array_unique($this->status['SITES_TO_UPDATE']) as $siteId)
@@ -441,7 +561,7 @@ final class NodeAttributes extends Stepper
 	 */
 	public static function disableBlockDelete(Entity\Event $event)
 	{
-		if (self::checkAgentActivity())
+		if (\Bitrix\Landing\Update\Stepper::checkAgentActivity('\Bitrix\Landing\Update\Block\NodeAttributes'))
 		{
 			$result = new Entity\EventResult();
 			$result->setErrors(array(
@@ -466,7 +586,7 @@ final class NodeAttributes extends Stepper
 	 */
 	public static function disablePublication(\Bitrix\Main\Event $event)
 	{
-		if (self::checkAgentActivity())
+		if (\Bitrix\Landing\Update\Stepper::checkAgentActivity('\Bitrix\Landing\Update\Block\NodeAttributes'))
 		{
 			$result = new Entity\EventResult;
 			$result->setErrors(array(
@@ -488,24 +608,6 @@ final class NodeAttributes extends Stepper
 	/**
 	 * If agent not exist - we must broke events, to preserve infinity blocking publication and delete
 	 */
-	public static function checkAgentActivity()
-	{
-		global $DB;
-		$name = $DB->ForSql("\Bitrix\Landing\Update\Block\NodeAttributes::execAgent();");
-		$res = $DB->Query("
-			SELECT ID
-			FROM b_agent
-			WHERE NAME = '" . $name . "'
-			AND USER_ID IS NULL"
-		);
-		if (!($agent = $res->Fetch()))
-		{
-			return false;
-		}
-		
-		return true;
-	}
-	
 	public static function removeCustomEvents()
 	{
 		$eventManager = \Bitrix\Main\EventManager::getInstance();
@@ -524,64 +626,35 @@ final class NodeAttributes extends Stepper
 		);
 	}
 	
-	public static function updateFormDomain($domains)
-	{
-//		find all CRM FORM blocks
-		$toUpdater = array(
-			'PARAMS' => array(
-				'UPDATE_PUBLISHED_SITES' => 'Y',
-				'BLOCKS' => array(),
-			),
-		);
-
-		$protocol = \CMain::IsHTTPS() ? 'https://' : 'http://';
-
-//		collect form blocks by content
-		$resBlock = BlockTable::getList(array(
-			'filter' => array(
-				'DELETED' => 'N',
-				'%=CONTENT' => '%data-b24form-original-domain%',
-			),
-			'select' => array('ID', 'CODE'),
-		));
-		foreach ($resBlock as $block)
-		{
-			$toUpdater['BLOCKS'][$block['CODE']] = array(
-				'NODES' => array(
-					'.bitrix24forms ' => array(
-						'ATTRS_ADD' => array('data-b24form-original-domain' => $protocol . $domains['new_domain']),
-					),
-				),
-			);
-		}
-
-//		register UPDATER
-		$updaterUniqueId = time();
-		while (true)
-		{
-			if (\Bitrix\Main\Config\Option::get('landing', self::OPTION_NAME . $updaterUniqueId) == '')
-			{
-				break;
-			}
-			$updaterUniqueId++;
-		}
-		\Bitrix\Main\Config\Option::set('landing', self::OPTION_NAME . $updaterUniqueId, serialize($toUpdater));
-		\Bitrix\Main\Update\Stepper::bindClass('\Bitrix\Landing\Update\Block\NodeAttributes', 'landing', 10);
-	}
-
+	
 	/**
-	 * Do nothing for fix bug.
-	 * @return string
+	 * Update form domain, when updated b24 connector
+	 * @param Event $event
+	 * @deprecated
 	 */
-	public static function execAgent()
+	public static function updateFormDomainByConnector($event)
 	{
-		return '';
+		trigger_error(
+			"Now using embedded forms, no need domain. You must remove updateFormDomainByConnector() call",
+			E_USER_WARNING
+		);
 	}
 	
-	
 	/**
-	 * Code for updater.php see in landing/dev/updater
+	 * Set data for NodeUpdater to updating form domain
+	 *
+	 * @param array $domains
+	 * @deprecated
+	 */
+	public static function updateFormDomain($domains = array())
+	{
+		trigger_error(
+			"Now using embedded forms, no need domain. You must remove updateFormDomain() call",
+			E_USER_WARNING
+		);
+	}
+
+	/**
+	 * Code for updater.php see in landing/dev/updater/nodeattributesupdaters.pph
 	 */
 }
-
-?>

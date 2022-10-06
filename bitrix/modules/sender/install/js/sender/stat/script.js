@@ -113,7 +113,7 @@
 			itemInitParams.caller = this;
 			this.callBlockFunction('onInit', itemInitParams);
 
-			BX.bind(window, 'scroll', BX.proxy(BX.throttle(this.onScroll, 350),this));
+			BX.bind(window, 'scroll', BX.throttle(this.onScroll.bind(this), 350));
 		}
 	};
 
@@ -382,7 +382,7 @@
 				this.dataViewNode = this.context.querySelector('[' + this.attributeDataView + ']');
 			}
 
-			if (this.pointNodes === null)
+			if (this.context && this.pointNodes === null)
 			{
 				this.pointNodes = this.context.querySelectorAll('[' + this.attributePoint + ']');
 				this.pointNodes = BX.convert.nodeListToArray(this.pointNodes);
@@ -529,6 +529,11 @@
 		name: 'ClickMap',
 		init: function (params)
 		{
+			if (!params.posting)
+			{
+				return;
+			}
+
 			this.linkParams = params.posting.linkParams || '';
 			this.clickList = params.clickList;
 
@@ -542,6 +547,11 @@
 		},
 		onScroll: function ()
 		{
+			if (!this.context)
+			{
+				return;
+			}
+
 			if (!BX.LazyLoad.isElementVisibleOnScreen(this.context))
 			{
 				return;
@@ -599,13 +609,14 @@
 			}
 
 			this.clickList.forEach(function (link) {
-				link.URL = BX.util.htmlspecialcharsback(decodeURIComponent(link.URL));
+				try
+				{
+					link.URL = BX.util.htmlspecialcharsback(decodeURIComponent(link.URL));
+				}
+				catch (e)
+				{}
 				var nodes = nodeList.filter(function (node) {
-					var href = node.href;
-					if (this.linkParams)
-					{
-						href += (href.indexOf('?') >=0 ? '&' : '?') + this.linkParams;
-					}
+					var href = this.prepareUrl(node.href);
 					return href === link.URL;
 				}, this);
 				if (nodes.length === 0)
@@ -620,6 +631,22 @@
 				});
 			}, this);
 			heatMap.draw();
+		},
+		prepareUrl: function(href)
+		{
+			try
+			{
+				href =  BX.util.htmlspecialcharsback(decodeURIComponent(href));
+			}
+			catch (e)
+			{}
+
+			href = href.replace(/\+/g, ' ');
+			if (this.linkParams)
+			{
+				href += (href.indexOf('?') >=0 ? '&' : '?') + this.linkParams;
+			}
+			return href;
 		}
 	});
 

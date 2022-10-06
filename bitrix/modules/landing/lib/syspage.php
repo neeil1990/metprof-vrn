@@ -16,7 +16,8 @@ class Syspage
 		'cart',
 		'order',
 		'payment',
-		'compare'
+		'compare',
+		'feedback',
 	);
 
 	/**
@@ -28,8 +29,20 @@ class Syspage
 	 */
 	public static function set($id, $type, $lid = false)
 	{
+		if (!is_string($type))
+		{
+			return;
+		}
+
+		$id = intval($id);
 		$type = trim($type);
+
 		if (!in_array($type, self::$allowedTypes))
+		{
+			return;
+		}
+
+		if (!Rights::hasAccessForSite($id, Rights::ACCESS_TYPES['sett']))
 		{
 			return;
 		}
@@ -52,32 +65,70 @@ class Syspage
 			else
 			{
 				SyspageTable::update($row['ID'], array(
-					'LANDING_ID' => $lid
+					'LANDING_ID' => (int)$lid
 				));
 			}
 		}
 		else if ($lid !== false)
 		{
-			SyspageTable::add(array(
-				'SITE_ID' => $id,
-				'TYPE' => $type,
-				'LANDING_ID' => $lid
-			));
+			$check = Site::getList([
+				'select' => [
+					'ID'
+				],
+				'filter' => [
+					'ID' => $id
+				]
+			])->fetch();
+			if ($check)
+			{
+				SyspageTable::add(array(
+					'SITE_ID' => $id,
+					'TYPE' => $type,
+					'LANDING_ID' => (int)$lid
+				));
+			}
 		}
 	}
 
 	/**
 	 * Get pages for site.
-	 * @param integer $id Site id.
+	 * @param int $id Site id.
+	 * @param bool $active Only active items.
+	 * @param bool $force If true - reload static cache
 	 * @return array
 	 */
-	public static function get($id)
+	public static function get(int $id, bool $active = false, bool $force = false): array
 	{
 		static $types = array();
+		$id = intval($id);
 
-		if (isset($types[$id]))
+		// check items for un active elements
+		$removeHidden = function(array $items) use($active)
 		{
-			return $types[$id];
+			if (!$active)
+			{
+				return $items;
+			}
+			foreach ($items as $k => $item)
+			{
+				if (
+					$item['DELETED'] == 'Y' ||
+					$item['ACTIVE'] == 'N'
+				)
+				{
+					unset($items[$k]);
+				}
+			}
+			return $items;
+		};
+
+		if (
+			!$force
+			&& isset($types[$id])
+			&& count($types[$id]) > 0
+		)
+		{
+			return $removeHidden($types[$id]);
 		}
 
 		$types[$id] = array();
@@ -86,7 +137,9 @@ class Syspage
 			'select' => array(
 				'TYPE',
 				'LANDING_ID',
-				'TITLE' => 'LANDING.TITLE'
+				'TITLE' => 'LANDING.TITLE',
+				'DELETED' => 'LANDING.DELETED',
+				'ACTIVE' => 'LANDING.ACTIVE'
 			),
 			'filter' => array(
 				'SITE_ID' => $id
@@ -104,16 +157,31 @@ class Syspage
 			$types[$id][$row['TYPE']] = $row;
 		}
 
-		return $types[$id];
+		// event for external changes
+		$event = new \Bitrix\Main\Event('landing', 'onLandingSyspageRetrieve', [
+			'types' => $types
+		]);
+		$event->send();
+		foreach ($event->getResults() as $result)
+		{
+			$params = $result->getParameters();
+			if (is_array($params))
+			{
+				$types = $params;
+			}
+		}
+
+		return $removeHidden($types[$id]);
 	}
 
 	/**
 	 * Delete all sys pages by site id.
-	 * @param integer $id Site id.
+	 * @param int $id Site id.
 	 * @return void
 	 */
 	public static function deleteForSite($id)
 	{
+		$id = intval($id);
 		$res = SyspageTable::getList(array(
 			'filter' => array(
 				'SITE_ID' => $id
@@ -127,11 +195,12 @@ class Syspage
 
 	/**
 	 * Delete all sys pages by id.
-	 * @param integer $id Landing id.
+	 * @param int $id Landing id.
 	 * @return void
 	 */
 	public static function deleteForLanding($id)
 	{
+		$id = intval($id);
 		$res = SyspageTable::getList(array(
 			'filter' => array(
 				'LANDING_ID' => $id
@@ -141,5 +210,49 @@ class Syspage
 		{
 			SyspageTable::delete($row['ID']);
 		}
+	}
+
+	/**
+	 * Get url of special page of site.
+	 * @param int $siteId Site id.
+	 * @param string $type Type of special page.
+	 * @param array $additional Additional params for uri.
+	 *
+	 * @return string
+	 */
+	public static function getSpecialPage($siteId, $type, array $additional = [])
+	{
+		$url = '';
+		$siteId = (int)$siteId;
+
+		if (!is_string($type))
+		{
+			return $url;
+		}
+
+		$res = SyspageTable::getList([
+			'select' => [
+				'LANDING_ID'
+			],
+			'filter' => [
+				'SITE_ID' => $siteId,
+				'=TYPE' => $type
+			]
+		]);
+		if ($row = $res->fetch())
+		{
+			$landing = Landing::createInstance(0);
+			$url = $landing->getPublicUrl($row['LANDING_ID']);
+			if ($additional)
+			{
+				$uri = new \Bitrix\Main\Web\Uri($url);
+				$uri->addParams($additional);
+				$url = $uri->getUri();
+				unset($uri);
+			}
+		}
+		unset($row, $res);
+
+		return $url;
 	}
 }

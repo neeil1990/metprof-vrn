@@ -10,4 +10,10 @@ $MESS["TP_BST_PREVIEW_TRUNCATE_LEN"] = "Максимальная длина ан
 $MESS["TP_BST_CONVERT_CURRENCY"] = "Показывать цены в одной валюте";
 $MESS["TP_BST_CURRENCY_ID"] = "Валюта, в которую будут сконвертированы цены";
 $MESS["TP_BST_PRICE_VAT_INCLUDE"] = "Включать НДС в цену";
+$MESS["TP_BST_THEME_SITE"] = "Брать тему из настроек сайта (для решения bitrix.eshop)";
+$MESS["TP_BST_THEME_BLUE"] = "синяя (тема по умолчанию)";
+$MESS["TP_BST_THEME_GREEN"] = "зеленая";
+$MESS["TP_BST_THEME_RED"] = "красная";
+$MESS["TP_BST_THEME_YELLOW"] = "желтая";
+$MESS["TP_BST_TEMPLATE_THEME"] = "Цветовая тема";
 ?>

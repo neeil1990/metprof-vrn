@@ -18,7 +18,10 @@ $map = [
 
 
 		//status bar
-		'statusBar/use_top_offset' => ParameterType::BOOLEAN,
+		'statusBar/use_top_offset' =>[
+			"type"=>ParameterType::BOOLEAN,
+			"default"=>"NO"
+		],
 		'statusBar/show_status_bar_without_nav_bar' => [
 			"type"=>ParameterType::BOOLEAN,
 			"default"=>"NO"
@@ -121,7 +124,11 @@ $map = [
 		'category_switcher/button_text_color' => ParameterType::COLOR,
 		'category_switcher/button_background_color_selected' => ParameterType::COLOR,
 		//additional
-		'additional/use_top_bar' => ParameterType::BOOLEAN,
+		'additional/use_top_bar' =>
+		[
+			"type"=>ParameterType::BOOLEAN,
+			"default"=>"YES"
+		],
 		'additional/use_slider' => ParameterType::BOOLEAN,
 		'additional/push/use_push' => [
 			"type"=>ParameterType::BOOLEAN,

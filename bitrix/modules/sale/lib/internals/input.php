@@ -2,17 +2,17 @@
 
 namespace Bitrix\Sale\Internals\Input;
 
+use Bitrix\Location\Service\FormatService;
 use Bitrix\Main\Event;
-use	Bitrix\Main\EventManager,
-	Bitrix\Main\SystemException,
+use	Bitrix\Main\SystemException,
 	Bitrix\Main\Localization\Loc;
 use Bitrix\Main\EventResult;
-use Bitrix\Sale\ResultError;
+use Bitrix\Main\Loader;
+use Bitrix\Main\Web\Json;
 
 Loc::loadMessages(__FILE__);
 
 // TODO integrate with input.js on adding multiple item
-
 class Manager
 {
 	static function initJs()
@@ -23,8 +23,15 @@ class Manager
 		{
 			$done = true;
 
+			if (Loader::includeModule('location'))
+			{
+				\Bitrix\Main\UI\Extension::load('sale.address');
+			}
+
 			\CJSCore::RegisterExt('input', array(
-				'js'   => '/bitrix/js/sale/input.js',
+				'js'   => [
+					'/bitrix/js/sale/input.js'
+				],
 				'lang' => '/bitrix/modules/sale/lang/'.LANGUAGE_ID.'/lib/internals/input.php',
 			));
 			\CJSCore::Init(array('input'));
@@ -211,14 +218,46 @@ class Manager
 		$typeOptions = array();
 
 		foreach (static::$types as $k => $v)
-			$typeOptions[$k] = $v['NAME']." [$k]";
+		{
+			if (in_array($k, ['PRODUCT_CATEGORIES', 'CONCRETE_PRODUCT']))
+			{
+				continue;
+			}
 
-		return array(
+			$typeOptions[$k] = $v['NAME']." [$k]";
+		}
+
+		$hasMultipleSupport = true;
+		if (isset(static::$types[$input['TYPE']]))
+		{
+			/** @var Base $typeClass */
+			$typeClass = static::$types[$input['TYPE']]['CLASS'];
+
+			if (!$typeClass::hasMultipleValuesSupport())
+			{
+				$hasMultipleSupport = false;
+			}
+		}
+
+		$multiple = array('TYPE' => 'Y/N' , 'LABEL' => Loc::getMessage('INPUT_MULTIPLE'));
+
+		if (!$hasMultipleSupport)
+		{
+			$multiple['DISABLED_YN'] = 'N';
+		}
+		else
+		{
+			$multiple['ONCLICK'] = $reload;
+		}
+
+		$result = [
 			'TYPE'     => array('TYPE' => 'ENUM', 'LABEL' => Loc::getMessage('INPUT_TYPE'), 'OPTIONS' => $typeOptions, 'REQUIRED' => 'Y', 'ONCHANGE' => $reload),
 			'REQUIRED' => array('TYPE' => 'Y/N' , 'LABEL' => Loc::getMessage('INPUT_REQUIRED')),
-			'MULTIPLE' => array('TYPE' => 'Y/N' , 'LABEL' => Loc::getMessage('INPUT_MULTIPLE'), 'ONCLICK' => $reload),
+			'MULTIPLE' => $multiple,
 			'VALUE'    => array('LABEL' => Loc::getMessage('INPUT_VALUE'), 'REQUIRED' => 'N') + $input,
-		);
+		];
+
+		return $result;
 	}
 
 	/** Get all registered types.
@@ -242,21 +281,27 @@ class Manager
 	 */
 	static function register($name, array $type)
 	{
-		if (static::$types[$name])
+		if (isset(static::$types[$name]))
+		{
 			throw new SystemException('duplicate type '.$name, 0, __FILE__, __LINE__);
+		}
 
 		if (! class_exists($type['CLASS']))
+		{
 			throw new SystemException('undefined CLASS in '.print_r($type, true), 0, __FILE__, __LINE__);
+		}
 
 		if (! is_subclass_of($type['CLASS'], __NAMESPACE__.'\Base'))
+		{
 			throw new SystemException($type['CLASS'].' does not implement Input\Base', 0, __FILE__, __LINE__);
+		}
 
 		static::$types[$name] = $type;
 	}
 
 	protected static $initialized;
 
-	protected function initialize()
+	protected static function initialize()
 	{
 		static::$initialized = true;
 
@@ -338,7 +383,7 @@ abstract class Base
 		if ($input['MULTIPLE'] == 'Y')
 		{
 			$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
-			list ($startTag, $endTag) = $tag ? array("<$tag>", "</$tag>") : array('', '');
+			[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
 
 			$html = '';
 
@@ -371,42 +416,53 @@ abstract class Base
 		if ($value === null)
 			$value = $input['VALUE'];
 
+		$html = '';
+
 		if ($input['HIDDEN'] == 'Y')
-			return static::getHiddenRecursive($name
+		{
+			$html .= static::getHiddenRecursive($name
 				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
 				, static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>''), false));
-
-		if ($input['MULTIPLE'] == 'Y')
-		{
-			$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
-			list ($startTag, $endTag) = $tag ? array("<$tag>", "</$tag>") : array('', '');
-
-			$html = '';
-
-			$index = -1;
-
-			foreach (static::asMultiple($value) as $value)
-			{
-				$namix = $name.'['.(++$index).']';
-				$html .= $startTag
-					.static::getEditHtmlSingle($namix, $input, $value)
-					.static::getEditHtmlSingleDelete($namix, $input)
-					.$endTag;
-			}
-
-			$replace = '##INPUT##NAME##';
-
-			if ($input['DISABLED'] !== 'Y') // TODO
-				$html .= static::getEditHtmlInsert($tag, $replace, $name
-					, static::getEditHtmlSingle($replace, $input, null).static::getEditHtmlSingleDelete($replace, $input)
-					, static::getEditHtmlSingleAfterInsert());
-
-			return $html;
 		}
 		else
 		{
-			return static::getEditHtmlSingle($name, $input, static::asSingle($value));
+			if ($input['MULTIPLE'] == 'Y')
+			{
+				$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
+				[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
+
+				$index = -1;
+
+				foreach (static::asMultiple($value) as $value)
+				{
+					$namix = $name.'['.(++$index).']';
+					$html .= $startTag
+						.static::getEditHtmlSingle($namix, $input, $value)
+						.static::getEditHtmlSingleDelete($namix, $input)
+						.$endTag;
+				}
+
+				$replace = '##INPUT##NAME##';
+
+				if ($input['DISABLED'] !== 'Y') // TODO
+					$html .= static::getEditHtmlInsert($tag, $replace, $name
+						, static::getEditHtmlSingle($replace, $input, null).static::getEditHtmlSingleDelete($replace, $input)
+						, static::getEditHtmlSingleAfterInsert());
+			}
+			else
+			{
+				$html .= static::getEditHtmlSingle($name, $input, static::asSingle($value));
+			}
 		}
+
+		if ($input['ADDITIONAL_HIDDEN'] === 'Y')
+		{
+			$html .= static::getHiddenRecursive($name
+				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
+				, static::extractAttributes($input, array(), array('FORM'=>''), false));
+		}
+
+		return $html;
 	}
 
 	/** @return string */
@@ -599,7 +655,7 @@ abstract class Base
 
 		foreach (array_intersect_key($input, $boolean) as $k => $v)
 			if ($v === 'Y' || $v === true)
-				$string .= ' '.strtolower($k).($boolean[$k] ? '="'.$boolean[$k].'"' : '');
+				$string .= ' '.mb_strtolower($k).($boolean[$k] ? '="'.$boolean[$k].'"' : '');
 
 		// add event attributes with values
 		if ($withGlobal)
@@ -621,7 +677,7 @@ abstract class Base
 
 			foreach ($events as $k => $v)
 				if ($v)
-					$string .= ' '.strtolower($k).'="'.$v.'"';
+					$string .= ' '.mb_strtolower($k).'="'.$v.'"';
 		}
 
 		// add other attributes with values
@@ -637,7 +693,7 @@ abstract class Base
 
 		foreach (array_intersect_key($input, $other) as $k => $v)
 			if ($v)
-				$string .= ' '.strtolower($k).'="'.htmlspecialcharsbx($v).'"';
+				$string .= ' '.mb_strtolower($k).'="'.htmlspecialcharsbx($v).'"';
 
 		// add data attributes
 		if ($withGlobal && is_array($input['DATA']))
@@ -647,6 +703,14 @@ abstract class Base
 		}
 
 		return $string;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public static function hasMultipleValuesSupport()
+	{
+		return true;
 	}
 }
 
@@ -659,6 +723,7 @@ class StringInput extends Base // String reserved in php 7
 
 	public static function getEditHtmlSingle($name, array $input, $value)
 	{
+		$input = self::prepareIntFields($input);
 		if ($input['MULTILINE'] == 'Y')
 		{
 			$attributes = static::extractAttributes($input,
@@ -675,6 +740,21 @@ class StringInput extends Base // String reserved in php 7
 
 			return '<input type="text" name="'.$name.'" value="'.htmlspecialcharsbx($value).'"'.$attributes.'>';
 		}
+	}
+
+	private static function prepareIntFields(array $input): array
+	{
+		$intFields = ['SIZE', 'ROWS', 'COLS'];
+		foreach ($intFields as $intField)
+		{
+			$input[$intField] = (int)($input['$intField'] ?? 0);
+			if ($input[$intField] <= 0)
+			{
+				unset($input[$intField]);
+			}
+		}
+
+		return $input;
 	}
 
 	/**
@@ -694,20 +774,24 @@ class StringInput extends Base // String reserved in php 7
 
 		$value = trim($value);
 
-		if ($input['MINLENGTH'] && strlen($value) < $input['MINLENGTH'])
-			$errors['MINLENGTH'] = Loc::getMessage('INPUT_STRING_MINLENGTH_ERROR', array("#NUM#" => $input['MINLENGTH']));
+		$minLength = isset($input['MINLENGTH']) && is_numeric($input['MINLENGTH']) ? (int)$input['MINLENGTH'] : 0;
+		if ($minLength > 0 && mb_strlen($value) < $minLength)
+		{
+			$errors['MINLENGTH'] = Loc::getMessage('INPUT_STRING_MINLENGTH_ERROR', ['#NUM#' => $minLength]);
+		}
 
-		if ($input['MAXLENGTH'] && strlen($value) > $input['MAXLENGTH'])
-			$errors['MAXLENGTH'] = Loc::getMessage('INPUT_STRING_MAXLENGTH_ERROR', array("#NUM#" => $input['MAXLENGTH']));
-
-
+		$maxLength = isset($input['MAXLENGTH']) && is_numeric($input['MAXLENGTH']) ? (int)$input['MAXLENGTH'] : 0;
+		if ($maxLength > 0 && mb_strlen($value) > $maxLength)
+		{
+			$errors['MAXLENGTH'] = Loc::getMessage('INPUT_STRING_MAXLENGTH_ERROR', ['#NUM#' => $maxLength]);
+		}
 
 		if (strval(trim($input['PATTERN'])) != "")
 		{
 			$issetDelimiter = false;
 			$pattern = trim($input['PATTERN']);
 
-			if (isset($pattern[0]) && in_array($pattern[0], static::$patternDelimiters) && strrpos($pattern, $pattern[0]) !== false)
+			if (isset($pattern[0]) && in_array($pattern[0], static::$patternDelimiters) && mb_strrpos($pattern, $pattern[0]) !== false)
 			{
 				$issetDelimiter = true;
 			}
@@ -718,11 +802,22 @@ class StringInput extends Base // String reserved in php 7
 				$matchPattern = "/".$pattern."/";
 			}
 
-			if (!preg_match($matchPattern, $value))
-				$errors['PATTERN'] = Loc::getMessage('INPUT_STRING_PATTERN_ERROR');
+			$pregMatchResult = null;
+			try
+			{
+				$pregMatchResult = preg_match($matchPattern, $value);
+			}
+			catch (\Exception $e)
+			{
+			}
+			finally
+			{
+				if (!$pregMatchResult)
+				{
+					$errors['PATTERN'] = Loc::getMessage('INPUT_STRING_PATTERN_ERROR');
+				}
+			}
 		}
-
-
 
 		return $errors;
 	}
@@ -777,13 +872,13 @@ class Number extends Base
 
 		$size = 5;
 
-		if (($s = strlen(strval($input['MIN']))) && $s > $size)
+		if (($s = mb_strlen(strval($input['MIN']))) && $s > $size)
 			$size = $s;
 
-		if (($s = strlen(strval($input['MAX']))) && $s > $size)
+		if (($s = mb_strlen(strval($input['MAX']))) && $s > $size)
 			$size = $s;
 
-		if (($s = strlen(strval($input['STEP']))) && $s > $size)
+		if (($s = mb_strlen(strval($input['STEP']))) && $s > $size)
 			$size = $s;
 
 		$input['SIZE'] = $size;
@@ -872,11 +967,19 @@ class EitherYN extends Base
 	public static function getEditHtmlSingle($name, array $input, $value)
 	{
 		$hiddenAttributes = static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false);
-
 		$checkboxAttributes = static::extractAttributes($input, array('DISABLED'=>'', 'AUTOFOCUS'=>'', 'REQUIRED'=>''), array('FORM'=>1));
 
-		return '<input type="hidden" name="'.$name.'" value="N"'.$hiddenAttributes.'>'
-			.'<input type="checkbox" name="'.$name.'" value="Y"'.($value == 'Y' ? ' checked' : '').$checkboxAttributes.'>';
+		if (isset($input['DISABLED_YN']))
+		{
+			return '<input type="hidden" name="'.$name.'" value="' . (($input['DISABLED_YN'] == 'Y') ? 'Y' : 'N') . '">'
+				.'<input type="checkbox" '.($input['DISABLED_YN'] == 'Y' ? ' checked' : '').'disabled'.'>';
+		}
+		else
+		{
+			return '<input type="hidden" name="'.$name.'" value="N"'.$hiddenAttributes.'>'
+				.'<input type="checkbox" name="'.$name.'" value="Y"'.($value == 'Y' ? ' checked' : '').$checkboxAttributes.'>';
+		}
+
 	}
 
 	/**
@@ -931,9 +1034,13 @@ class Enum extends Base
 		foreach ($array as $key => $value)
 		{
 			if (is_array($value))
-				$result = array_merge($result, $value);
+			{
+				$result = $result + $value;
+			}
 			else
+			{
 				$result[$key] = $value;
+			}
 		}
 
 		return $result;
@@ -979,50 +1086,62 @@ class Enum extends Base
 		if ($value === null && isset($input['VALUE']))
 			$value = $input['VALUE'];
 
-		if ($input['HIDDEN'] == 'Y')
-			return static::getHiddenRecursive($name
-				, $multiple ? static::asMultiple($value) : static::asSingle($value)
-				, static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false));
-
-		if ($value === null)
-			$value = array();
-		else
-			$value = $multiple ? array_flip(static::asMultiple($value)) : array(static::asSingle($value) => true);
-
+		$originalValue = $value;
 		$html = '';
 
-		if ($input['MULTIELEMENT'] == 'Y')
+		if ($input['HIDDEN'] == 'Y')
 		{
-			$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
-			list ($startTag, $endTag) = $tag ? array("<$tag>", "</$tag>") : array('', '');
-
-			$attributes = static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false);
-
-			$type = 'radio';
-
-			if ($multiple)
-			{
-				$type = 'checkbox';
-				$name .= '[]';
-			}
-
-			$html .= self::getEditOptionsHtml($options, $value, ' checked',
-				'<fieldset><legend>{GROUP}</legend>{OPTIONS}</fieldset>',
-				$startTag.'<label><input type="'.$type.'" name="'.$name.'" value="{VALUE}"{SELECTED}'.$attributes.'> {TEXT} </label>'.$endTag
-			);
+			$html .= static::getHiddenRecursive($name
+				, $multiple ? static::asMultiple($value) : static::asSingle($value)
+				, static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false));
 		}
-		else // select
+		else
 		{
-			$attributes = static::extractAttributes($input, array('DISABLED'=>'', 'AUTOFOCUS'=>'', 'REQUIRED'=>''), array('FORM'=>1, 'SIZE'=>1));
+			if ($value === null)
+				$value = array();
+			else
+				$value = $multiple ? array_flip(static::asMultiple($value)) : array(static::asSingle($value) => true);
 
-			$html .= '<select'.$attributes.' name="'.$name.($multiple ? '[]" multiple>' : '">');
+			if ($input['MULTIELEMENT'] == 'Y')
+			{
+				$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
+				[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
 
-			$html .= self::getEditOptionsHtml($options, $value, ' selected',
-				'<optgroup label="{GROUP}">{OPTIONS}</optgroup>',
-				'<option value="{VALUE}"{SELECTED}>{TEXT}</option>'
-			);
+				$attributes = static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false);
 
-			$html .= '</select>';
+				$type = 'radio';
+
+				if ($multiple)
+				{
+					$type = 'checkbox';
+					$name .= '[]';
+				}
+
+				$html .= self::getEditOptionsHtml($options, $value, ' checked',
+					'<fieldset><legend>{GROUP}</legend>{OPTIONS}</fieldset>',
+					$startTag.'<label><input type="'.$type.'" name="'.$name.'" value="{VALUE}"{SELECTED}'.$attributes.'> {TEXT} </label>'.$endTag
+				);
+			}
+			else // select
+			{
+				$attributes = static::extractAttributes($input, array('DISABLED'=>'', 'AUTOFOCUS'=>'', 'REQUIRED'=>''), array('FORM'=>1, 'SIZE'=>1));
+
+				$html .= '<select'.$attributes.' name="'.$name.($multiple ? '[]" multiple>' : '">');
+
+				$html .= self::getEditOptionsHtml($options, $value, ' selected',
+					'<optgroup label="{GROUP}">{OPTIONS}</optgroup>',
+					'<option value="{VALUE}"{SELECTED}>{TEXT}</option>'
+				);
+
+				$html .= '</select>';
+			}
+		}
+
+		if ($input['ADDITIONAL_HIDDEN'] === 'Y')
+		{
+			$html .= static::getHiddenRecursive($name
+				, $multiple ? static::asMultiple($originalValue) : static::asSingle($originalValue)
+				, static::extractAttributes($input, array(), array('FORM'=>1), false));
 		}
 
 		return $html;
@@ -1230,7 +1349,23 @@ class File extends Base
 
 	static function isMultiple($value)
 	{
-		return is_array($value) && ! isset($value['ID']);
+		$isMultiple = false;
+
+		if (isset($value['ID']))
+		{
+			return $isMultiple;
+		}
+
+		if (\is_array($value))
+		{
+			$file = current($value);
+			if (\is_array($file) || ((int)$file > 0))
+			{
+				$isMultiple = true;
+			}
+		}
+
+		return $isMultiple;
 	}
 
 	public static function getViewHtmlSingle(array $input, $value)
@@ -1309,14 +1444,14 @@ class File extends Base
 			.'<input type="file" name="'.$name.'" style="position:absolute; visibility:hidden"'.$fileAttributes.'>'
 			.'<input type="button" value="'.Loc::getMessage('INPUT_FILE_BROWSE').'" onclick="this.previousSibling.click()">'
 			.(
-				$input['NO_DELETE']
-					? ''
-					: '<label> '.Loc::getMessage('INPUT_DELETE').' <input type="checkbox" name="'.$name.'[DELETE]" onclick="'
+			$input['NO_DELETE']
+				? ''
+				: '<label> '.Loc::getMessage('INPUT_DELETE').' <input type="checkbox" name="'.$name.'[DELETE]" onclick="'
 
-						."var button = this.parentNode.previousSibling, file = button.previousSibling;"
-						."button.disabled = file.disabled = this.checked;"
+				."var button = this.parentNode.previousSibling, file = button.previousSibling;"
+				."button.disabled = file.disabled = this.checked;"
 
-						.'"'.$otherAttributes.'> </label>'
+				.'"'.$otherAttributes.'> </label>'
 			);
 	}
 
@@ -1448,12 +1583,12 @@ class Date extends Base
 	{
 		return '<label> '.Loc::getMessage('INPUT_DELETE').' <input type="checkbox" onclick="'
 
-		."var disabled = this.checked;"
-		."var button = this.parentNode.previousSibling;"
-		."button.disabled = disabled;"
-		."button.previousSibling.disabled = disabled;"
+			."var disabled = this.checked;"
+			."var button = this.parentNode.previousSibling;"
+			."button.disabled = disabled;"
+			."button.previousSibling.disabled = disabled;"
 
-		.'"> </label>';
+			.'"> </label>';
 	}
 
 	public static function getErrorSingle(array $input, $value)
@@ -1525,57 +1660,68 @@ class Location extends Base
 		if ($value === null)
 			$value = $input['VALUE'];
 
-		if ($input['HIDDEN'] == 'Y')
-			return static::getHiddenRecursive($name
-				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
-				, static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false));
-
 		$html = '';
 
-		$selector = md5("location input selector $name");
-		$input["LOCATION_SELECTOR"] = $selector;
-
-		if ($onChange = $input['ONCHANGE'])
+		if ($input['HIDDEN'] == 'Y')
 		{
-			$functionName = 'OnLocationChange'.$selector;
-			$html .= "<script>function $functionName (){ $onChange }; BX.proxy($functionName, this);</script>";
-			$input['JS_CALLBACK'] = $functionName;
+			$html .= static::getHiddenRecursive($name
+				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
+				, static::extractAttributes($input, array('DISABLED'=>''), array('FORM'=>1), false));
 		}
 		else
 		{
-			$input['JS_CALLBACK'] = null;
-		}
+			$selector = md5("location input selector $name");
+			$input["LOCATION_SELECTOR"] = $selector;
 
-		if ($input['MULTIPLE'] == 'Y')
-		{
-			$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
-			list ($startTag, $endTag) = $tag ? array("<$tag>", "</$tag>") : array('', '');
-
-			$index = -1;
-
-			$values = static::asMultiple($value);
-			if (empty($value))
+			if ($onChange = $input['ONCHANGE'])
 			{
-				$values = array(null);
+				$functionName = 'OnLocationChange'.$selector;
+				$html .= "<script>function $functionName (){ $onChange }; BX.proxy($functionName, this);</script>";
+				$input['JS_CALLBACK'] = $functionName;
 			}
-			foreach ($values as $value)
-				$html .= $startTag
-					.static::getEditHtmlSingle($name.'['.(++$index).']', $input, $value)
-					.$endTag;
+			else
+			{
+				$input['JS_CALLBACK'] = null;
+			}
 
-			$replace = '##INPUT##NAME##';
+			if ($input['MULTIPLE'] == 'Y')
+			{
+				$tag = isset($input['MULTITAG']) ? htmlspecialcharsbx($input['MULTITAG']) : static::MULTITAG;
+				[$startTag, $endTag] = $tag ? array("<$tag>", "</$tag>") : array('', '');
 
-			if ($input['DISABLED'] !== 'Y') // TODO
-				$html .= static::getEditHtmlInsert($tag, $replace, $name
-					, static::getEditHtmlSingle($replace, $input, null)
-					, "var location = BX.locationSelectors['$selector'].spawn(container, {selectedItem: false, useSpawn: false});"
-					."location.clearSelected();"
+				$index = -1;
+
+				$values = static::asMultiple($value);
+				if (empty($value))
+				{
+					$values = array(null);
+				}
+				foreach ($values as $value)
+					$html .= $startTag
+						.static::getEditHtmlSingle($name.'['.(++$index).']', $input, $value)
+						.$endTag;
+
+				$replace = '##INPUT##NAME##';
+
+				if ($input['DISABLED'] !== 'Y') // TODO
+					$html .= static::getEditHtmlInsert($tag, $replace, $name
+						, static::getEditHtmlSingle($replace, $input, null)
+						, "var location = BX.locationSelectors['$selector'].spawn(container, {selectedItem: false, useSpawn: false});"
+						."location.clearSelected();"
 					//."location.focus();" // TODO
-				);
+					);
+			}
+			else
+			{
+				$html .= static::getEditHtmlSingle($name, $input, static::asSingle($value));
+			}
 		}
-		else
+
+		if ($input['ADDITIONAL_HIDDEN'] === 'Y')
 		{
-			$html .= static::getEditHtmlSingle($name, $input, static::asSingle($value));
+			$html .= static::getHiddenRecursive($name
+				, $input['MULTIPLE'] == 'Y' ? static::asMultiple($value) : static::asSingle($value)
+				, static::extractAttributes($input, array(), array('FORM'=>1), false));
 		}
 
 		return $html;
@@ -1584,6 +1730,7 @@ class Location extends Base
 	public static function getEditHtmlSingle($name, array $input, $value)
 	{
 		$filterMode = isset($input['IS_FILTER_FIELD']) && $input['IS_FILTER_FIELD'] === true;
+		$isSearchLine = isset($input['IS_SEARCH_LINE']) && $input['IS_SEARCH_LINE'] === true;
 		$parameters = array(
 			'CODE' => $value,
 			'INPUT_NAME' => $name,
@@ -1606,7 +1753,7 @@ class Location extends Base
 		}
 
 		$GLOBALS['APPLICATION']->IncludeComponent(
-			'bitrix:sale.location.selector.'.($filterMode ? 'search' : \Bitrix\Sale\Location\Admin\Helper::getWidgetAppearance()),
+			'bitrix:sale.location.selector.'.($filterMode || $isSearchLine ? 'search' : \Bitrix\Sale\Location\Admin\Helper::getWidgetAppearance()),
 			'',
 			$parameters,
 			false
@@ -1635,3 +1782,445 @@ Manager::register('LOCATION', array(
 	'CLASS' => __NAMESPACE__.'\Location',
 	'NAME' => Loc::getMessage('INPUT_LOCATION'),
 ));
+
+/**
+ * Class Address
+ * @package Bitrix\Sale\Internals\Input
+ */
+class Address extends Base
+{
+	/**
+	 * @inheritdoc
+	 */
+	static function isMultiple($value)
+	{
+		return false;
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public static function hasMultipleValuesSupport()
+	{
+		return false;
+	}
+
+	/**
+	 * @param array $input
+	 * @param \Bitrix\Location\Entity\Address $value
+	 * @return string
+	 */
+	public static function getViewHtml(array $input, $value = null)
+	{
+		if (!is_array($value) || !Loader::includeModule('location'))
+		{
+			return '';
+		}
+
+		$address = \Bitrix\Location\Entity\Address::fromArray($value);
+
+		return $address->toString(
+			FormatService::getInstance()->findDefault(LANGUAGE_ID)
+		);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public static function getFilterEditHtml($name, array $input, $value)
+	{
+		//not implemented
+		return '';
+	}
+
+	/**
+	 * @param array $input
+	 * @param $value
+	 * @return array
+	 */
+	public static function getErrorSingle(array $input, $value)
+	{
+		if ($input['REQUIRED'] == 'Y')
+		{
+			if (!(is_array($value) && !empty($value)))
+			{
+				return ['REQUIRED' => Loc::getMessage('INPUT_REQUIRED_ERROR')];
+			}
+		}
+
+		return [];
+	}
+
+	/**
+	 * @param array $input
+	 * @param $value
+	 * @return array
+	 */
+	public static function getRequiredError(array $input, $value)
+	{
+		return static::getErrorSingle($input, $value);
+	}
+
+	/**
+	 * @inheritdoc
+	 */
+	public static function getEditHtmlSingle($name, array $input, $value)
+	{
+		if (!Loader::includeModule('location'))
+		{
+			return '';
+		}
+
+		\Bitrix\Main\UI\Extension::load('sale.address');
+
+		ob_start();
+		?>
+		<script>
+			if (BX.Sale.AddressControlConstructor)
+			{
+				new BX.Sale.AddressControlConstructor(
+					{
+						propsData: {
+							name: '<?=$name?>',
+							initValue: <?=(is_array($value)) ? ("'" . \Bitrix\Location\Entity\Address::fromArray($value)->toJson() . "'") : Json::encode(null)?>,
+							isLocked: <?=($input['DISABLED'] === 'Y') ? Json::encode(true) : Json::encode(false)?>,
+							onChangeCallback: function () {
+								<?if (isset($input['ONCHANGE'])):?>
+								<?=$input['ONCHANGE']?>
+								<?endif;?>
+							}
+						}
+					}
+				).$mount('#<?=$name?>');
+			}
+		</script>
+		<?
+		$script = ob_get_clean();
+
+		return '
+			<div id="' . $name . '"></div>
+			' . $script . '
+		';
+	}
+}
+
+if (Loader::includeModule('location'))
+{
+	Manager::register('ADDRESS', array(
+		'CLASS' => __NAMESPACE__.'\Address',
+		'NAME' => Loc::getMessage('INPUT_ADDRESS'),
+	));
+}
+
+class ProductCategories extends Base
+{
+
+    /**
+     * Returns an HTML block with list of selected categories to restrict
+     * @param array $input
+     * @param null $values
+     * @return string
+     */
+	public static function getViewHtml(array $input, $values = null) : string
+	{
+		if (!is_array($values))
+        {
+            return '';
+        }
+
+		$result = '<br><br>';
+		$catList = self::getCategoriesList($values);
+
+		foreach ($catList as $catName)
+        {
+			$result .= "<div> - {$catName}</div>";
+		}
+
+		return $result;
+	}
+
+    /**
+     * Returns an HTML block for editing the type
+     * @param $name
+     * @param array $input
+     * @param $values
+     * @return string
+     */
+	public static function getEditHtml($name, array $input, $values = null) : string
+	{
+		if (!is_array($values))
+        {
+            $values = [];
+        }
+
+		$addInputTranslate = Loc::getMessage('SALE_PRODUCT_CATEGORY_INP_ADD');
+		$deleteInputTranslate = Loc::getMessage('SALE_PRODUCT_CATEGORY_INP_DELETE');
+
+		$openFilterButtonId = $input['ID'];
+
+		$deprecatedSupport = isset($input['SCRIPT']) && isset($input['URL']);
+		if ($deprecatedSupport)
+        {
+            $url = $input['URL'];
+            $addCategoryScript = $input['SCRIPT'];
+            $input['ID'] = 'sale-admin-delivery-restriction-cat';
+        }
+		else
+        {
+			$addCategoryScript = "window.InS".md5('SECTIONS_IDS')."=function(id, name){{$input['JS_HANDLER']}.addRestrictionProductSection(id, name, '{$input['ID']}', this);};";
+			$url = 'cat_section_search.php?lang=ru&m=y&n=SECTIONS_IDS';
+		}
+
+		$editSection = "
+            <br>
+            <a 
+                class='adm-s-restriction-open-dialog-link' 
+                href='javascript:void(0);' 
+                id='{$openFilterButtonId}' 
+                onclick=\"window.open('{$url}','choose category', 'width=850, height=600');\"
+            >
+                {$addInputTranslate}
+            </a>
+            <br><br>
+            <script type='text/javascript'>
+                {$addCategoryScript}
+                BX.message({SALE_PRODUCT_CATEGORY_INP_DELETE: '{$deleteInputTranslate}'});
+            </script>
+        ";
+
+		$catList = self::getCategoriesList($values);
+		$existCatHtml = "<table id='{$input['ID']}-content' width='100%'>";
+
+		foreach ($catList as $catId => $catName)
+        {
+            if ($deprecatedSupport)
+            {
+                $deleteNodeScript = "BX.Sale.Delivery.deleteRestrictionProductSection('{$catId}');";
+            }
+            else
+            {
+                $deleteNodeScript = "{$input['JS_HANDLER']}.deleteRestrictionProductSection('{$catId}', '{$input['ID']}');";
+            }
+
+            $existCatHtml .= "
+                <tr class='adm-s-product-category-restriction-delcat' id='{$input['ID']}-{$catId}'>
+                    <td>
+                        <span> - {$catName}</span>
+                        <input type='hidden' name='RESTRICTION[CATEGORIES][]' value='{$catId}'>
+                    </td>
+                    <td align='right'>
+                        &nbsp;
+                        <a 
+                            class='adm-s-bus-morelinkqhsw' 
+                            href='javascript:void(0);' 
+                            onclick=\"{$deleteNodeScript}\"
+                        >
+                            {$deleteInputTranslate}                        
+                        </a>
+                    </td>
+                </tr>
+            ";
+        }
+
+		$existCatHtml .= '</table>';
+
+		return $existCatHtml.$editSection;
+	}
+
+    /**
+     * Retrieves a list of categories that already selected in restriction
+     * @param array $ids
+     * @return array
+     */
+	protected static function getCategoriesList($ids) : array
+	{
+		if(!\Bitrix\Main\Loader::includeModule('iblock'))
+			return [];
+
+		$result = [];
+
+		$res = \Bitrix\Iblock\SectionTable::getList([
+			'filter' => [
+				'ID' => $ids,
+			],
+			'select' => ['ID', 'NAME'],
+		]);
+
+		while($section = $res->fetch())
+			$result[$section['ID']]  = htmlspecialcharsbx($section['NAME']);
+
+		return $result;
+	}
+
+	public static function getValueSingle(array $input, $userValue)
+	{
+		return $userValue;
+	}
+
+	public static function getError(array $input, $values)
+	{
+		return self::getErrorSingle($input, $values);
+	}
+
+	public static function getErrorSingle(array $input, $values)
+	{
+		return [];
+	}
+
+	public static function getSettings(array $input, $reload)
+	{
+		return [];
+	}
+}
+
+    Manager::register('PRODUCT_CATEGORIES', [
+	'CLASS' => __NAMESPACE__.'\ProductCategories',
+	'NAME' => Loc::getMessage('SALE_PRODUCT_CATEGORY_INP'),
+]);
+
+class ConcreteProduct extends Base
+{
+    /**
+     * @param array $input
+     * @param null $values
+     * @return string
+     */
+    public static function getViewHtml(array $input, $values = null) : string
+    {
+        if (!is_array($values))
+        {
+            return '';
+        }
+
+        $result = '<br><br>';
+
+        $productList = self::getProductsList($values);
+
+        foreach ($productList as $productName)
+        {
+            $result .= "<div> - {$productName}</div>";
+        }
+
+        return $result;
+    }
+
+    /**
+     * Return HTML section for edit concreteProduct type
+     * @param $name
+     * @param array $input
+     * @param null $values
+     * @return string
+     */
+    public static function getEditHtml($name, array $input, $values = null) : string
+    {
+        if (!is_array($values))
+        {
+            $values = [];
+        }
+
+        $nodeId = &$input['ID'];
+
+        $input['FORM_NAME'] = md5($input['FORM_NAME']);
+        $url = "cat_product_search.php?func_name={$input['FORM_NAME']}&new_value=Y";
+        $addProductScript = "window.".$input['FORM_NAME']."=function(id, name, url){".$input["JS_HANDLER"].".addRestrictionByConcreteProduct('".$nodeId."', id, name, this);};";
+
+        $addInputTranslate = Loc::getMessage('SALE_CONCRETE_PRODUCT_INP_ADD');
+        $deleteInputTranslate = Loc::getMessage('SALE_CONCRETE_PRODUCT_INP_DELETE');
+
+        $editSection = "
+            <br>
+            <a 
+                class='adm-s-restriction-open-dialog-link' 
+                href='javascript:void(0);' 
+                id='{$input["ID"]}'
+                onclick=\"window.open('{$url}', 'choose product', 'width=850,height=600');\"
+            >
+                {$addInputTranslate}
+            </a>
+            <br><br>
+            <script type='text/javascript'>
+                {$addProductScript}
+                BX.message({SALE_CONCRETE_PRODUCT_INP_DELETE: '$deleteInputTranslate'});
+            </script>";
+
+        $productsList = self::getProductsList($values);
+        $existProductsHtml = "<table id='{$nodeId}-content' width='100%'>";
+
+        foreach ($productsList as $productId => $productName)
+        {
+            $existProductsHtml .= "
+            <tr class='adm-s-concrete-product-restriction-delprod' id='{$nodeId}-{$productId}'>
+                <td>
+                    <span> - {$productName}</span>
+                    <input type='hidden' name='RESTRICTION[PRODUCTS][]' value='{$productId}'>
+                </td>
+                <td align='right'>
+                    &nbsp;
+                    <a 
+                        class='adm-s-bus-morelinkqhsw' href='javascript:void(0);' 
+                        onclick=\"{$input["JS_HANDLER"]}.deleteRestrictionByConcreteProduct('{$nodeId}', '{$productId}');\"
+                    >
+                        {$deleteInputTranslate}
+                    </a>
+                </td>
+            </tr>
+            ";
+        }
+
+        $existProductsHtml .= "</table>";
+
+        return $existProductsHtml.$editSection;
+    }
+
+    protected static function getProductsList($elementIds)
+    {
+        if (!\Bitrix\Main\Loader::includeModule('iblock'))
+        {
+            return [];
+        }
+
+        $productsList = [];
+
+        $productsListSource = \Bitrix\Iblock\ElementTable::getList([
+                'filter' => [
+                        'ID' => $elementIds,
+                ],
+                'select' => ['ID', 'NAME'],
+        ]);
+
+        while ($productRow = $productsListSource->fetch())
+        {
+            $productsList[$productRow['ID']] = htmlspecialcharsbx($productRow['NAME']);
+        }
+
+        return $productsList;
+    }
+
+    public static function getValueSingle(array $input, $userValue)
+    {
+        return $userValue;
+    }
+
+    public static function getError(array $input, $value)
+    {
+        return self::getErrorSingle($input, $value);
+    }
+
+    public static function getErrorSingle(array $input, $value)
+    {
+        return [];
+    }
+
+    public static function getSettings(array $input, $reload)
+    {
+        return [];
+    }
+}
+
+Manager::register(
+    'CONCRETE_PRODUCT',
+    [
+        'CLASS' => __NAMESPACE__.'\\ConcreteProduct',
+        'NAME' => Loc::getMessage('SALE_CONCRETE_PRODUCT_INP')
+    ]
+);

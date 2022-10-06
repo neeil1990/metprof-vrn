@@ -9,11 +9,11 @@ namespace Bitrix\Sender;
 
 use Bitrix\Main\Entity;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\Type as MainType;
-
-use Bitrix\Sender\Posting\Builder as PostingBuilder;
 use Bitrix\Sender\Integration;
-
+use Bitrix\Sender\Internals\Model;
+use Bitrix\Sender\Posting\Builder as PostingBuilder;
 
 Loc::loadMessages(__FILE__);
 
@@ -24,6 +24,7 @@ class PostingTable extends Entity\DataManager
 	const STATUS_SENT = 'S';
 	const STATUS_SENT_WITH_ERRORS = 'E';
 	const STATUS_ABORT = 'A';
+	const STATUS_WAIT = 'W';
 
 	/**
 	 * @return string
@@ -110,6 +111,12 @@ class PostingTable extends Entity\DataManager
 				'data_type' => 'integer',
 				'default_value' => 0
 			),
+			'CONSENT_SUPPORT' => array(
+				'data_type' => 'boolean',
+				'values' => array('N', 'Y'),
+				'default_value' => 'N',
+				'required' => true,
+			),
 			'LETTER' => array(
 				'data_type' => 'Bitrix\Sender\Internals\Model\LetterTable',
 				'reference' => array('=this.MAILING_CHAIN_ID' => 'ref.ID'),
@@ -177,10 +184,10 @@ class PostingTable extends Entity\DataManager
 		foreach($listId as $primaryId)
 		{
 			$primary = array('POSTING_ID' => $primaryId);
-			PostingReadTable::delete($primary);
-			PostingClickTable::delete($primary);
-			PostingUnsubTable::delete($primary);
-			PostingRecipientTable::delete($primary);
+			PostingReadTable::deleteList($primary);
+			PostingClickTable::deleteList($primary);
+			PostingUnsubTable::deleteList($primary);
+			PostingRecipientTable::deleteList($primary);
 		}
 
 
@@ -222,36 +229,37 @@ class PostingTable extends Entity\DataManager
 		}
 	}
 
-
 	/**
 	 * @param $postingId
 	 * @param bool $checkDuplicate
+	 * @param bool $prepareFields
+	 *
 	 * @return bool
-	 * @throws \Bitrix\Main\ArgumentException
 	 */
 	public static function initGroupRecipients($postingId, $checkDuplicate = true)
 	{
-		PostingBuilder::create()->run($postingId, $checkDuplicate);
-
-		return true;
+		return PostingBuilder::create()->run($postingId, $checkDuplicate);
 	}
 
 	/**
 	 * @param $id
+	 * @param array|null $customFilter
+	 *
 	 * @return array
 	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\ObjectPropertyException
+	 * @throws \Bitrix\Main\SystemException
 	 */
-	public static function getRecipientCountByStatus($id)
+	public static function getRecipientCountByStatus($id, ?array $customFilter = null)
 	{
-		$statusList = array();
-
-		$select = array('CNT', 'STATUS');
-		$filter = array('POSTING_ID' => $id);
-		$postingContactDb = PostingRecipientTable::getList(array(
+		$statusList = [];
+		$select = ['CNT', 'STATUS'];
+		$filter = !$customFilter?['POSTING_ID' => $id] : ['LOGIC' => 'AND',['POSTING_ID' => $id],$customFilter];
+		$postingContactDb = PostingRecipientTable::getList([
 			'select' => $select,
 			'filter' => $filter,
-			'runtime' => array(new Entity\ExpressionField('CNT', 'COUNT(*)')),
-		));
+			'runtime' => [new Entity\ExpressionField('CNT', 'COUNT(*)')],
+		]);
 		while($postingContact = $postingContactDb->fetch())
 			$statusList[$postingContact['STATUS']] = intval($postingContact['CNT']);
 
@@ -319,6 +327,30 @@ class PostingTable extends Entity\DataManager
 			PostingRecipientTable::SEND_RESULT_DENY => 'COUNT_SEND_DENY',
 		);
 	}
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
+	}
 }
 
 
@@ -372,18 +404,42 @@ class PostingReadTable extends Entity\DataManager
 		$data = $data['fields'];
 
 		// update read flag of recipient
-		PostingRecipientTable::update(array('ID' => $data['RECIPIENT_ID']), array('IS_READ' => 'Y'));
+		Model\Posting\RecipientTable::update($data['RECIPIENT_ID'], ['IS_READ' => 'Y']);
 
 		// update read counter of posting
 		$resultDb = static::getList(array('filter' => array('RECIPIENT_ID' => $data['RECIPIENT_ID'])));
 		if($resultDb->getSelectedRowsCount() == 1)
 		{
-			PostingTable::update(array('ID' => $data['POSTING_ID']), array(
+			Model\PostingTable::update($data['POSTING_ID'], array(
 				'COUNT_READ' => new \Bitrix\Main\DB\SqlExpression('?# + 1', 'COUNT_READ')
 			));
 		}
 
 		return $result;
+	}
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
 	}
 }
 
@@ -444,18 +500,43 @@ class PostingClickTable extends Entity\DataManager
 		$data = $data['fields'];
 
 		// update click flag of recipient
-		PostingRecipientTable::update(array('ID' => $data['RECIPIENT_ID']), array('IS_CLICK' => 'Y'));
+		Model\Posting\RecipientTable::update($data['RECIPIENT_ID'], ['IS_CLICK' => 'Y']);
 
 		// update click counter of posting
 		$resultDb = static::getList(array('filter' => array('RECIPIENT_ID' => $data['RECIPIENT_ID'])));
 		if($resultDb->getSelectedRowsCount() == 1)
 		{
-			PostingTable::update(array('ID' => $data['POSTING_ID']), array(
+			Model\PostingTable::update($data['POSTING_ID'], array(
 				'COUNT_CLICK' => new \Bitrix\Main\DB\SqlExpression('?# + 1', 'COUNT_CLICK')
 			));
 		}
 
 		return $result;
+	}
+
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
 	}
 }
 
@@ -516,21 +597,62 @@ class PostingUnsubTable extends Entity\DataManager
 		$data = $data['fields'];
 
 		// update unsub flag of recipient
-		PostingRecipientTable::update(array('ID' => $data['RECIPIENT_ID']), array('IS_UNSUB' => 'Y'));
+		Model\Posting\RecipientTable::update($data['RECIPIENT_ID'], ['IS_UNSUB' => 'Y']);
 
 		// update unsub counter of posting
 		$resultDb = static::getList(array('filter' => array('RECIPIENT_ID' => $data['RECIPIENT_ID'])));
 		if($resultDb->getSelectedRowsCount() == 1)
 		{
-			PostingTable::update(array('ID' => $data['POSTING_ID']), array(
+			Model\PostingTable::update($data['POSTING_ID'], array(
 				'COUNT_UNSUB' => new \Bitrix\Main\DB\SqlExpression('?# + 1', 'COUNT_UNSUB')
 			));
 		}
 
 		return $result;
 	}
+
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
+	}
 }
 
+/**
+ * Class PostingRecipientTable
+ *
+ * DO NOT WRITE ANYTHING BELOW THIS
+ *
+ * <<< ORMENTITYANNOTATION
+ * @method static EO_PostingRecipient_Query query()
+ * @method static EO_PostingRecipient_Result getByPrimary($primary, array $parameters = array())
+ * @method static EO_PostingRecipient_Result getById($id)
+ * @method static EO_PostingRecipient_Result getList(array $parameters = array())
+ * @method static EO_PostingRecipient_Entity getEntity()
+ * @method static \Bitrix\Sender\EO_PostingRecipient createObject($setDefaultValues = true)
+ * @method static \Bitrix\Sender\EO_PostingRecipient_Collection createCollection()
+ * @method static \Bitrix\Sender\EO_PostingRecipient wakeUpObject($row)
+ * @method static \Bitrix\Sender\EO_PostingRecipient_Collection wakeUpCollection($rows)
+ */
 class PostingRecipientTable extends Entity\DataManager
 {
 	const SEND_RESULT_NONE = 'Y';
@@ -538,6 +660,7 @@ class PostingRecipientTable extends Entity\DataManager
 	const SEND_RESULT_ERROR = 'E';
 	const SEND_RESULT_WAIT = 'W';
 	const SEND_RESULT_DENY = 'D';
+	const SEND_RESULT_WAIT_ACCEPT = 'A';
 
 	protected static $personalizeList = null;
 	/**
@@ -618,6 +741,7 @@ class PostingRecipientTable extends Entity\DataManager
 				'data_type' => 'Bitrix\Sender\PostingUnsubTable',
 				'reference' => array('=this.ID' => 'ref.RECIPIENT_ID'),
 			),
+
 		);
 	}
 
@@ -676,7 +800,39 @@ class PostingRecipientTable extends Entity\DataManager
 		return array(
 			self::SEND_RESULT_NONE => Loc::getMessage('SENDER_POSTING_RECIPIENT_STATUS_N'),
 			self::SEND_RESULT_SUCCESS => Loc::getMessage('SENDER_POSTING_RECIPIENT_STATUS_S'),
-			self::SEND_RESULT_ERROR => Loc::getMessage('SENDER_POSTING_RECIPIENT_STATUS_E')
+			self::SEND_RESULT_ERROR => Loc::getMessage('SENDER_POSTING_RECIPIENT_STATUS_E'),
+			self::SEND_RESULT_DENY => Loc::getMessage('SENDER_POSTING_RECIPIENT_STATUS_D'),
+			self::SEND_RESULT_WAIT_ACCEPT => Loc::getMessage('SENDER_POSTING_RECIPIENT_STATUS_A')
 		);
+	}
+
+	public static function hasUnprocessed($postingId, $threadId = null)
+	{
+		return (static::getCount(['=POSTING_ID' => $postingId, '=STATUS' => self::SEND_RESULT_NONE]) > 0);
+	}
+
+
+	/**
+	 * @param array $filter
+	 * @return \Bitrix\Main\DB\Result
+	 * @throws \Bitrix\Main\ArgumentException
+	 * @throws \Bitrix\Main\DB\SqlQueryException
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public static function deleteList(array $filter)
+	{
+		$entity = static::getEntity();
+		$connection = $entity->getConnection();
+
+		\CTimeZone::disable();
+		$sql = sprintf(
+			'DELETE FROM %s WHERE %s',
+			$connection->getSqlHelper()->quote($entity->getDbTableName()),
+			Query::buildFilterSql($entity, $filter)
+		);
+		$res = $connection->query($sql);
+		\CTimeZone::enable();
+
+		return $res;
 	}
 }

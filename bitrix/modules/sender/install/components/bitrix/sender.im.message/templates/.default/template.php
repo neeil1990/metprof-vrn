@@ -15,6 +15,8 @@ use Bitrix\Main\Web\Json;
 use Bitrix\Main\Localization\Loc;
 
 $containerId = 'sender-im-message-editor';
+
+\Bitrix\Main\UI\Extension::load(['ui.design-tokens', 'ui.fonts.opensans']);
 ?>
 <script type="text/javascript">
 	BX.ready(function () {
@@ -35,7 +37,7 @@ $containerId = 'sender-im-message-editor';
 		<div class="sender-im-message-count">
 			<div class="sender-im-message-count-inner">
 				<span class="sender-im-message-count-name"><?=Loc::getMessage('SENDER_IM_MESSAGE_TEXT_COUNT')?></span>
-				<span data-role="counter" class="sender-im-message-count-number"><?=$arResult['COUNT']?></span>
+				<span data-role="counter" class="sender-im-message-count-number"></span>
 			</div>
 		</div>
 	</div>

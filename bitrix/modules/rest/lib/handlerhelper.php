@@ -28,13 +28,13 @@ class HandlerHelper
 	 *
 	 * @throws RestException
 	 */
-	public static function checkCallback($handlerUrl, $appInfo, $checkInstallUrl = true)
+	public static function checkCallback($handlerUrl, $appInfo = array(), $checkInstallUrl = true)
 	{
 		$callbackData = parse_url($handlerUrl);
 
 		if(is_array($callbackData)
-			&& strlen($callbackData['host']) > 0
-			&& strpos($callbackData['host'], '.') > 0
+			&& $callbackData['host'] <> ''
+			&& mb_strpos($callbackData['host'], '.') > 0
 		)
 		{
 			if($callbackData['scheme'] !== 'http' && $callbackData['scheme'] !== 'https')

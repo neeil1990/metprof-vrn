@@ -7,7 +7,6 @@ use Bitrix\Sale\Result;
 use Bitrix\Sale\Delivery;
 use Bitrix\Sale\Shipment;
 use Bitrix\Main\EventResult;
-use Bitrix\Sale\Internals\Input;
 use Bitrix\Main\SystemException;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Sale\Delivery\Requests;
@@ -15,7 +14,7 @@ use Bitrix\Sale\Delivery\Requests;
 Loc::loadMessages(__FILE__);
 
 /* Inputs for deliveries */
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/delivery/inputs.php");
+require_once __DIR__.'/../inputs.php';
 
 /**
  * Class Base (abstract)
@@ -24,6 +23,8 @@ require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/delivery/inputs
  */
 abstract class Base
 {
+	protected $handlerCode = 'UNDEFINED';
+
 	protected $id = 0;
 	protected $name = "";
 	protected $code = "";
@@ -39,6 +40,7 @@ abstract class Base
 	protected $trackingClass = "";
 	/** @var Requests\HandlerBase  */
 	protected $deliveryRequestHandler = null;
+
 	protected $extraServices = array();
 	protected $trackingParams = array();
 	protected $allowEditShipment = array();
@@ -50,13 +52,14 @@ abstract class Base
 
 	const EVENT_ON_CALCULATE = "onSaleDeliveryServiceCalculate";
 
+	public const TAG_PROFITABLE = 'profitable';
+
 	/** @var bool  */
 	protected $isClone = false;
 
 	/**
 	 * Constructor
 	 * @param array $initParams Delivery service params
-	 * @throws \Bitrix\Main\ArgumentNullException
 	 * @throws \Bitrix\Main\ArgumentTypeException
 	 * @throws \Bitrix\Main\SystemException
 	 */
@@ -120,6 +123,32 @@ abstract class Base
 			$this->extraServices = new \Bitrix\Sale\Delivery\ExtraServices\Manager($this->id, $this->currency);
 		else
 			$this->extraServices = new \Bitrix\Sale\Delivery\ExtraServices\Manager(array(), $this->currency);
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getHandlerCode(): string
+	{
+		return (string)$this->handlerCode;
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getServiceCode(): string
+	{
+		if (
+			static::isProfile()
+			&& ($parentService = $this->getParentService())
+			&& ($parentServiceHandlerCode = $parentService->getHandlerCode())
+			&& ($profileType = $this->getProfileType())
+		)
+		{
+			return $parentServiceHandlerCode . '_' . $profileType;
+		}
+
+		return $this->getHandlerCode();
 	}
 
 	/**
@@ -239,13 +268,25 @@ abstract class Base
 	}
 
 	/**
+	 * @return float|null
+	 */
+	public static function getDefaultVatRate(): ?float
+	{
+		return null;
+	}
+
+	/**
 	 * @param \Bitrix\Sale\Shipment $shipment.
-	 * @return \Bitrix\Sale\Delivery\CalculationResult
-	 * @throws SystemException
+	 * @return Delivery\CalculationResult
 	 */
 	protected function calculateConcrete(\Bitrix\Sale\Shipment $shipment)
 	{
-		throw new SystemException('Not implemented');
+		return (new Delivery\CalculationResult())
+			->addError(
+				new Error(
+					Loc::getMessage('SALE_DLVR_BASE_DELIVERY_PRICE_CALC_ERROR'),
+					'DELIVERY_CALCULATION'
+			));
 	}
 
 	/**
@@ -265,7 +306,12 @@ abstract class Base
 				if($iParams["TYPE"] == "DELIVERY_SECTION")
 					continue;
 
-				$errors = \Bitrix\Sale\Internals\Input\Manager::getError($iParams, $fields["CONFIG"][$key1][$key2]);
+				$errors = \Bitrix\Sale\Internals\Input\Manager::getRequiredError($iParams, $fields["CONFIG"][$key1][$key2]);
+
+				if(empty($errors))
+				{
+					$errors = \Bitrix\Sale\Internals\Input\Manager::getError($iParams, $fields["CONFIG"][$key1][$key2]);
+				}
 
 				if(!empty($errors))
 				{
@@ -277,7 +323,7 @@ abstract class Base
 		if($strError != "")
 			throw new SystemException($strError);
 
-		if(strpos($fields['CLASS_NAME'], '\\') !== 0)
+		if(mb_strpos($fields['CLASS_NAME'], '\\') !== 0)
 		{
 			$fields['CLASS_NAME'] = '\\'.$fields['CLASS_NAME'];
 		}
@@ -528,11 +574,30 @@ abstract class Base
 	}
 
 	/**
+	 * @param array $fields
+	 * @return \Bitrix\Main\Result
+	 */
+	public static function onBeforeAdd(array &$fields = array()): \Bitrix\Main\Result
+	{
+		return new \Bitrix\Main\Result();
+	}
+
+	/**
 	 * @param int $serviceId
 	 * @param array $fields
 	 * @return bool
 	 */
 	public static function onAfterAdd($serviceId, array $fields = array())
+	{
+		return true;
+	}
+
+	/**
+	 * @param int $serviceId
+	 * @param array $fields
+	 * @return bool
+	 */
+	public static function onBeforeUpdate($serviceId, array &$fields = array())
 	{
 		return true;
 	}
@@ -566,6 +631,18 @@ abstract class Base
 	}
 
 	/**
+	 * Returns array of extra service ids available for the specified shipment
+	 * OR null in case all extra services are available
+	 *
+	 * @param Shipment $shipment
+	 * @return array|null
+	 */
+	public function getCompatibleExtraServiceIds(Shipment $shipment): ?array
+	{
+		return null;
+	}
+
+	/**
 	 * @return array Profiles list
 	 */
 	public function getProfilesList()
@@ -579,6 +656,14 @@ abstract class Base
 	public static function isProfile()
 	{
 		return self::$isProfile;
+	}
+
+	/**
+	 * @return string
+	 */
+	protected function getProfileType(): string
+	{
+		return '';
 	}
 
 	/**
@@ -664,7 +749,7 @@ abstract class Base
 	}
 
 	/**
-	 * @return array
+	 * @return bool
 	 */
 	public function isAllowEditShipment()
 	{
@@ -818,5 +903,28 @@ abstract class Base
 	public function createProfileObject($fields)
 	{
 		return Manager::createObject($fields);
+	}
+
+	/**
+	 * Checks if handler is compatible
+	 *
+	 * @return bool
+	 */
+	public static function isHandlerCompatible()
+	{
+		// Actually only configurable are fully compatible with all languages
+		return in_array(
+			\Bitrix\Sale\Delivery\Helper::getPortalZone(),
+			['', 'ru', 'kz', 'by', 'ua'],
+			true
+		);
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getTags(): array
+	{
+		return [];
 	}
 }

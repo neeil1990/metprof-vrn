@@ -1,6 +1,7 @@
 <?
 use Bitrix\Main,
-	Bitrix\Currency;
+	Bitrix\Currency,
+	Bitrix\Catalog;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/prolog.php");
@@ -12,7 +13,7 @@ if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_di
 CModule::IncludeModule("catalog");
 $bReadOnly = !$USER->CanDoOperation('catalog_discount');
 
-if (!CBXFeatures::IsFeatureEnabled('CatDiscountSave'))
+if (!Catalog\Config\Feature::isCumulativeDiscountsEnabled())
 {
 	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
 	ShowError(GetMessage("CAT_FEATURE_NOT_ALLOW"));
@@ -56,7 +57,7 @@ if (!empty($find_id_from))
 	$arFilter['>=ID'] = $find_id_from;
 if (!empty($find_id_to))
 	$arFilter['<=ID'] = $find_id_to;
-if (strlen($find_name) > 0)
+if ($find_name <> '')
 	$arFilter['%NAME'] = $find_name;
 if (!empty($find_active))
 	$arFilter['ACTIVE'] = $find_active;
@@ -533,11 +534,9 @@ if ($arSelectFieldsMap['CREATED_BY'] || $arSelectFieldsMap['MODIFIED_BY'])
 {
 	if (!empty($arUserID))
 	{
-		$byUser = 'ID';
-		$byOrder = 'ASC';
 		$rsUsers = CUser::GetList(
-			$byUser,
-			$byOrder,
+			'ID',
+			'ASC',
 			array('ID' => implode(' | ', array_keys($arUserID))),
 			array('FIELDS' => array('ID', 'LOGIN', 'NAME', 'LAST_NAME', 'SECOND_NAME', 'EMAIL'))
 		);

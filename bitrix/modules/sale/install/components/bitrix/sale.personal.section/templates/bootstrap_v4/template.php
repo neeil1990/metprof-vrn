@@ -3,11 +3,12 @@
 use Bitrix\Main\Localization\Loc;
 
 
-if (strlen($arParams["MAIN_CHAIN_NAME"]) > 0)
+if ($arParams["MAIN_CHAIN_NAME"] <> '')
 {
 	$APPLICATION->AddChainItem(htmlspecialcharsbx($arParams["MAIN_CHAIN_NAME"]), $arResult['SEF_FOLDER']);
 }
 
+$this->addExternalCss("/bitrix/css/main/font-awesome.css");
 $theme = Bitrix\Main\Config\Option::get("main", "wizard_eshop_bootstrap_theme_id", "blue", SITE_ID);
 
 $availablePages = array();
@@ -94,7 +95,7 @@ if ($customPagesList)
 		$availablePages[] = array(
 			"path" => $page[0],
 			"name" => $page[1],
-			"icon" => (strlen($page[2])) ? '<i class="fa '.htmlspecialcharsbx($page[2]).'"></i>' : ""
+			"icon" => (mb_strlen($page[2])) ? '<i class="fa '.htmlspecialcharsbx($page[2]).'"></i>' : ""
 		);
 	}
 }
@@ -107,29 +108,24 @@ else
 {
 	?>
 	<div class="row">
-		<div class="col sale-personal-section-index">
-			<div class="row sale-personal-section-row-flex">
-				<?
-				foreach ($availablePages as $blockElement)
-				{
-					?>
-					<div class="col-lg-3 col-md-4 col-sm-6 col-xs-12">
-						<div class="sale-personal-section-index-block bx-theme-<?=$theme?>">
-							<a class="sale-personal-section-index-block-link" href="<?=htmlspecialcharsbx($blockElement['path'])?>">
-								<span class="sale-personal-section-index-block-ico">
-									<?=$blockElement['icon']?>
-								</span>
-								<h2 class="sale-personal-section-index-block-name">
-									<?=htmlspecialcharsbx($blockElement['name'])?>
-								</h2>
-							</a>
-						</div>
-					</div>
-					<?
-				}
-				?>
+		<? foreach ($availablePages as $blockElement)
+		{
+			?>
+			<div class="col-lg-3 col-md-4 col-6">
+				<div class="sale-personal-section-index-block bx-<?=$theme?>">
+					<a class="sale-personal-section-index-block-link" href="<?=htmlspecialcharsbx($blockElement['path'])?>">
+						<span class="sale-personal-section-index-block-ico">
+							<?=$blockElement['icon']?>
+						</span>
+						<h2 class="sale-personal-section-index-block-name">
+							<?=htmlspecialcharsbx($blockElement['name'])?>
+						</h2>
+					</a>
+				</div>
 			</div>
-		</div>
+			<?
+		}
+		?>
 	</div>
 	<?
 }

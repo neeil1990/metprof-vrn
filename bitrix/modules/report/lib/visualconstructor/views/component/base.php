@@ -15,8 +15,8 @@ use Bitrix\Report\VisualConstructor\View;
 abstract class Base extends View
 {
 	private $componentName;
+	private $componentTemplateName = '';
 	private $componentParameters;
-
 
 	/**
 	 * Base component type view constructor.
@@ -45,7 +45,6 @@ abstract class Base extends View
 		$this->componentName = $componentName;
 	}
 
-
 	/**
 	 * @return string
 	 */
@@ -66,6 +65,15 @@ abstract class Base extends View
 	}
 
 	/**
+	 * @param $key
+	 * @param $value
+	 */
+	public function addComponentParameters($key, $value)
+	{
+		$this->componentParameters[$key] = $value;
+	}
+
+	/**
 	 * Handle all data prepared for this view.
 	 *
 	 * @param array $calculatedPerformedData Performed data from report handler.
@@ -77,7 +85,6 @@ abstract class Base extends View
 		return $result;
 	}
 
-
 	/**
 	 * Method to modify Content which pass to widget view, in absolute end.
 	 *
@@ -88,20 +95,42 @@ abstract class Base extends View
 	public function prepareWidgetContent(Widget $widget, $withCalculatedData = false)
 	{
 		$resultWidget = parent::prepareWidgetContent($widget, $withCalculatedData);
-
+		if (!$withCalculatedData)
+		{
+			return $resultWidget;
+		}
 		if ($withCalculatedData)
 		{
 			$resultWidget['content']['params']['color'] = $widget->getWidgetHandler()->getFormElement('color')->getValue();
 		}
 
-		$result = $this->getCalculatedPerformedData($widget, $withCalculatedData);
+		try
+		{
+			$result = $this->getCalculatedPerformedData($widget, $withCalculatedData);
+		}
+		catch (\Throwable $exception)
+		{
+			$result = [];
+			$error = $exception->getMessage();
+		}
 
 		if (!empty($result['data']) && static::MAX_RENDER_REPORT_COUNT > 1)
 		{
 			foreach ($result['data'] as $num => &$reportResult)
 			{
-				$reportResult['config']['color'] = $widget->getWidgetHandler()->getReportHandlers()[$num]->getFormElement('color')->getValue();
-				$reportResult['title'] = $widget->getWidgetHandler()->getReportHandlers()[$num]->getFormElement('label')->getValue();
+				if (!isset($reportResult['config']['color']))
+				{
+					$reportResult['config']['color'] = $widget->getWidgetHandler()->getReportHandlers()[$num]->getFormElement('color')->getValue();
+				}
+
+				if (!isset($reportResult['config']['title']))
+				{
+					$reportResult['title'] = $widget->getWidgetHandler()->getReportHandlers()[$num]->getFormElement('label')->getValue();
+				}
+				else
+				{
+					$reportResult['title'] = $reportResult['config']['title'];
+				}
 			}
 		}
 		elseif (!empty($result['data']))
@@ -110,15 +139,47 @@ abstract class Base extends View
 			$reportResult['title'] = $widget->getWidgetHandler()->getReportHandlers()[0]->getFormElement('label')->getValue();
 		}
 
-		$componentResult = $this->includeComponent($this->getComponentName(), array(
-			'WIDGET' => $widget,
-			'RESULT' => $result,
-		));
+		$this->addComponentParameters('WIDGET', $widget);
+		$this->addComponentParameters('RESULT', $result);
 
-		$resultWidget['content']['params']['html'] = $componentResult['html'];
-		$resultWidget['content']['params']['css'] = $componentResult['css'];
-		$resultWidget['content']['params']['js'] = $componentResult['js'];
+		if (!isset($error))
+		{
+			$componentResult = $this->includeComponent();
+
+			$resultWidget['content']['params']['html'] = $componentResult['html'];
+			$resultWidget['content']['params']['css'] = $componentResult['css'];
+			$resultWidget['content']['params']['js'] = $componentResult['js'];
+		}
+		else
+		{
+			$errorResult = static::GetErrorHTML($error);
+
+			$resultWidget['content']['params']['html'] = $errorResult['html'];
+			$resultWidget['content']['params']['css'] = $errorResult['css'];
+			$resultWidget['content']['params']['js'] = $errorResult['js'];
+		}
+
 		return $resultWidget;
+	}
+
+	protected static function GetErrorHTML($errorText)
+	{
+		global $APPLICATION;
+		ob_start();
+		ShowError($errorText);
+		$result['html'] = ob_get_clean();;
+		$result['js'] = $APPLICATION->arHeadScripts;
+		$result['css'] = $APPLICATION->sPath2css;
+
+		foreach ($result['js'] as $key => $value)
+		{
+			$result['js'][$key] = \CUtil::GetAdditionalFileURL($value);
+		}
+		foreach ($result['css'] as $key => $value)
+		{
+			$result['css'][$key] = \CUtil::GetAdditionalFileURL($value);
+		}
+		return $result;
 	}
 
 	/**
@@ -144,21 +205,44 @@ abstract class Base extends View
 	 * @param array $params
 	 * @return mixed
 	 */
-	private function includeComponent($componentName, $params = array())
+	private function includeComponent()
 	{
 		global $APPLICATION;
 		ob_start();
 		$APPLICATION->IncludeComponent(
-			$componentName,
-			'',
-			$params
+			$this->getComponentName(),
+			$this->getComponentTemplateName(),
+			$this->getComponentParameters()
 		);
 		$componentContent = ob_get_clean();
 		$result['html'] = $componentContent;
 		$result['js'] = $APPLICATION->arHeadScripts;
 		$result['css'] = $APPLICATION->sPath2css;
-		return $result;
 
+		foreach ($result['js'] as $key => $value)
+		{
+			$result['js'][$key] = \CUtil::GetAdditionalFileURL($value);
+		}
+		foreach ($result['css'] as $key => $value)
+		{
+			$result['css'][$key] = \CUtil::GetAdditionalFileURL($value);
+		}
+		return $result;
 	}
 
+	/**
+	 * @return string
+	 */
+	public function getComponentTemplateName()
+	{
+		return $this->componentTemplateName;
+	}
+
+	/**
+	 * @param string $componentTemplateName
+	 */
+	public function setComponentTemplateName($componentTemplateName)
+	{
+		$this->componentTemplateName = $componentTemplateName;
+	}
 }

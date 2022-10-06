@@ -8,6 +8,8 @@
 	var isString = BX.Landing.Utils.isString;
 	var textToPlaceholders = BX.Landing.Utils.textToPlaceholders;
 	var create = BX.Landing.Utils.create;
+	var escapeText = BX.Landing.Utils.escapeText;
+	var decodeDataValue = BX.Landing.Utils.decodeDataValue;
 
 	/**
 	 * Implements interface for works with link or button
@@ -19,6 +21,7 @@
 	BX.Landing.Block.Node.Link = function(options)
 	{
 		BX.Landing.Block.Node.apply(this, arguments);
+		this.type = "link";
 
 		if (!this.isGrouped())
 		{
@@ -27,7 +30,7 @@
 
 		if (this.isAllowInlineEdit())
 		{
-			this.node.setAttribute("title", BX.message("LANDING_TITLE_OF_LINK_NODE"));
+			this.node.setAttribute("title", BX.Landing.Loc.getMessage("LANDING_TITLE_OF_LINK_NODE"));
 		}
 	};
 
@@ -38,11 +41,13 @@
 
 		onContentUpdate: function()
 		{
+			var blockId = this.getBlock().id;
+
 			clearTimeout(this.contentEditTimeout);
 			this.contentEditTimeout = setTimeout(function() {
 				BX.Landing.History.getInstance().push(
 					new BX.Landing.History.Entry({
-						block: top.BX.Landing.Block.storage.getByChildNode(this.node).id,
+						block: blockId,
 						selector: this.selector,
 						command: "editLink",
 						undo: this.startValue,
@@ -56,6 +61,11 @@
 			this.getField().setValue(this.getValue());
 		},
 
+		isMenuMode: function()
+		{
+			return this.manifest.menuMode === true;
+		},
+
 		/**
 		 * Handles click event
 		 * @param {MouseEvent} event
@@ -63,14 +73,21 @@
 		onClick: function(event)
 		{
 			event.preventDefault();
-			event.stopPropagation();
 
-			BX.Landing.UI.Button.FontAction.hideAll();
-			BX.Landing.UI.Button.ColorAction.hideAll();
-
-			if (!BX.Landing.UI.Panel.StylePanel.getInstance().isShown())
+			if (!this.isMenuMode())
 			{
-				BX.Landing.UI.Panel.Link.getInstance().show(this);
+				event.stopPropagation();
+			}
+
+			if (this.isAllowInlineEdit())
+			{
+				BX.Landing.UI.Button.FontAction.hideAll();
+				BX.Landing.UI.Button.ColorAction.hideAll();
+
+				if (!BX.Landing.UI.Panel.StylePanel.getInstance().isShown())
+				{
+					BX.Landing.UI.Panel.Link.getInstance().show(this);
+				}
 			}
 		},
 
@@ -97,7 +114,7 @@
 
 			this.preventSave(preventSave);
 
-			if (!this.containsImage())
+			if (!this.containsImage() && this.isAllowInlineEdit())
 			{
 				var field = this.getField(true).hrefInput;
 
@@ -113,15 +130,15 @@
 				}
 				else
 				{
-					if (!this.getField().containsHtml())
+					if (!this.getField().containsHtml() && !this.manifest.skipContent)
 					{
-						this.node.innerHTML = data.text;
+						this.node.innerHTML = escapeText(data.text);
 					}
 				}
 			}
 
-			this.node.setAttribute("href", data.href);
-			this.node.setAttribute("target", data.target);
+			this.node.setAttribute("href", decodeDataValue(data.href));
+			this.node.setAttribute("target", escapeText(data.target));
 
 			if ("attrs" in data)
 			{
@@ -135,7 +152,8 @@
 			}
 			else
 			{
-				this.node.removeAttribute("data-url")
+				this.node.removeAttribute("data-url");
+				this.node.removeAttribute("data-embed");
 			}
 
 			this.onChange();
@@ -164,7 +182,7 @@
 		getValue: function()
 		{
 			var value = {
-				text: textToPlaceholders(trim(BX.util.htmlspecialcharsback(this.node.innerHTML))),
+				text: textToPlaceholders(trim(this.node.innerHTML)),
 				href: trim(this.node.getAttribute("href")),
 				target: trim(this.node.getAttribute("target") || "_self")
 			};
@@ -186,6 +204,12 @@
 				value.attrs["data-dynamic"] = this.node.getAttribute("data-dynamic");
 			}
 
+			if (this.manifest.skipContent)
+			{
+				value['skipContent'] = true;
+				delete value.text;
+			}
+
 			return value;
 		},
 
@@ -204,7 +228,9 @@
 			{
 				var allowedTypes = [
 					BX.Landing.UI.Field.LinkURL.TYPE_BLOCK,
-					BX.Landing.UI.Field.LinkURL.TYPE_PAGE
+					BX.Landing.UI.Field.LinkURL.TYPE_PAGE,
+					BX.Landing.UI.Field.LinkURL.TYPE_CRM_FORM,
+					BX.Landing.UI.Field.LinkURL.TYPE_CRM_PHONE
 				];
 
 				if (BX.Landing.Main.getInstance().options.params.type === BX.Landing.Main.TYPE_STORE)
@@ -212,16 +238,19 @@
 					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_CATALOG);
 				}
 
+				if (BX.Landing.Main.getInstance().options.features.includes('diskFile'))
+				{
+					allowedTypes.push(BX.Landing.UI.Field.LinkURL.TYPE_DISK_FILE);
+				}
+
 				this.field = new BX.Landing.UI.Field.Link({
 					title: this.manifest.name,
 					selector: this.selector,
+					skipContent: this.manifest.skipContent,
 					content: value,
 					options: {
 						siteId: BX.Landing.Main.getInstance().options.site_id,
-						landingId: BX.Landing.Main.getInstance().id,
-						filter: {
-							'=TYPE': BX.Landing.Main.getInstance().options.params.type
-						}
+						landingId: BX.Landing.Main.getInstance().id
 					},
 					allowedTypes: allowedTypes
 				});
@@ -234,6 +263,9 @@
 					this.field.content = value;
 					this.field.hrefInput.content = value.href;
 					this.field.hrefInput.makeDisplayedHrefValue();
+					this.field.hrefInput.setHrefTypeSwitcherValue(
+						this.field.hrefInput.getHrefStringType()
+					);
 					this.field.hrefInput.removeHrefTypeFromHrefString();
 				}
 			}

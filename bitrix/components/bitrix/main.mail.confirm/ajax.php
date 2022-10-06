@@ -1,5 +1,6 @@
 <?php
 
+use Bitrix\Main;
 use Bitrix\Main\Localization\Loc;
 
 define('PUBLIC_AJAX_MODE', true);
@@ -30,8 +31,21 @@ class MainMailConfirmAjax
 
 			switch ($act)
 			{
+				case 'info':
+					$result = (array) self::getInfo($error);
+					break;
 				case 'add':
 					$result = (array) self::executeAdd($error);
+					break;
+				case 'edit':
+					$result = (array) self::executeAdd($error, true);
+					break;
+				case 'delete':
+				case 'deleteSender':
+					$result = (array) self::executeDelete($error);
+					break;
+				case 'sendersListCanDel':
+					$result = (array) self::executeSenderListCanDel($error);
 					break;
 				default:
 					$error = getMessage('MAIN_MAIL_CONFIRM_AJAX_ERROR');
@@ -44,17 +58,54 @@ class MainMailConfirmAjax
 		), $result));
 	}
 
-	private static function executeAdd(&$error)
+	private static function getInfo(&$error): array
+	{
+		global $USER;
+
+		$error = false;
+		$sender = Main\Mail\Internal\SenderTable::getById((int) $_REQUEST['senderId'])->fetch();
+
+		$response = [];
+		if (!$sender)
+		{
+			return $response;
+		}
+
+		if ($smtp = $sender['OPTIONS']['smtp'])
+		{
+			$response['smtp'] = [
+				'server' => $smtp['server'],
+				'port' => $smtp['port'],
+				'protocol' => $smtp['protocol'],
+				'login' => $smtp['login'],
+				'limit' => $smtp['limit'],
+			];
+		}
+
+		$response = array_merge($response['smtp']??[],
+			[
+				'email' => $sender['EMAIL'],
+				'name' => $sender['NAME'],
+				'isPublic' => $sender['IS_PUBLIC'],
+			])
+		;
+
+		return $response;
+	}
+
+	private static function executeAdd(&$error, $update = false)
 	{
 		global $USER;
 
 		$error = false;
 
+		$isAdmin = Main\Loader::includeModule('bitrix24') ? \CBitrix24::isPortalAdmin($USER->getId()) : $USER->isAdmin();
+
 		$name   = trim($_REQUEST['name']);
-		$email  = strtolower(trim($_REQUEST['email']));
+		$email = mb_strtolower(trim($_REQUEST['email']));
 		$smtp   = $_REQUEST['smtp'];
-		$code   = strtolower(trim($_REQUEST['code']));
-		$public = $_REQUEST['public'] == 'Y';
+		$code = mb_strtolower(trim($_REQUEST['code']));
+		$public = $isAdmin && $_REQUEST['public'] == 'Y';
 
 		if (!check_email($email, true))
 		{
@@ -71,11 +122,19 @@ class MainMailConfirmAjax
 			}
 
 			$smtp = array(
-				'server'   => strtolower(trim($smtp['server'])),
-				'port'     => strtolower(trim($smtp['port'])),
+				'server'   => mb_strtolower(trim($smtp['server'])),
+				'port'     => mb_strtolower(trim($smtp['port'])),
+				'protocol' => 'Y' == $smtp['ssl'] ? 'smtps' : 'smtp',
 				'login'    => $smtp['login'],
 				'password' => $smtp['password'],
 			);
+			$limit = $_REQUEST['smtp']['limit']??null;
+
+			if ($limit !== null)
+			{
+				$limit = (int)$limit;
+				$smtp['limit'] = $limit < 0 ? 0 : $limit;
+			}
 
 			if (!preg_match('/^([a-z0-9-]+\.)+[a-z0-9-]{2,20}$/i', $smtp['server']))
 			{
@@ -103,26 +162,51 @@ class MainMailConfirmAjax
 				return;
 			}
 
-			if (empty($smtp['password']))
+			if (empty($smtp['password']) && !$update)
 			{
 				$error = getMessage('MAIN_MAIL_CONFIRM_EMPTY_SMTP_PASSWORD');
+				return;
+			}
+			else if (preg_match('/^\^/', $smtp['password']) && !$update)
+			{
+				$error = getMessage('MAIN_MAIL_CONFIRM_INVALID_SMTP_PASSWORD_CARET');
+				return;
+			}
+			else if (preg_match('/\x00/', $smtp['password']) && !$update)
+			{
+				$error = getMessage('MAIN_MAIL_CONFIRM_INVALID_SMTP_PASSWORD_NULL');
 				return;
 			}
 		}
 
 		$pending = array();
 		$expires = array();
+		$toDelete = array();
 
-		$res = \Bitrix\Main\Mail\Internal\SenderTable::getList(array(
+		$queryParams = array(
 			'filter' => array(
 				'=USER_ID' => $USER->getId(),
 				array(
 					'LOGIC' => 'OR',
-					'IS_CONFIRMED' => false,
-					'EMAIL'        => $email,
+					'=IS_CONFIRMED' => false,
+					'=EMAIL'        => $email,
 				),
-			),
-		));
+			)
+		);
+
+		$senderId = $_REQUEST['id'];
+		if ($senderId && is_numeric($senderId))
+		{
+			$queryParams = [
+				'filter' => [
+					'=ID' => (int)$senderId,
+				]
+			];
+		}
+
+
+		$res = Main\Mail\Internal\SenderTable::getList($queryParams);
+
 		while ($item = $res->fetch())
 		{
 			if ($item['IS_CONFIRMED'])
@@ -134,7 +218,24 @@ class MainMailConfirmAjax
 			}
 			else
 			{
-				if (time() - $item['OPTIONS']['confirm_time'] > 60*60*24*7)
+				if (
+					($senderId === $item['ID'] && $item['EMAIL'] != $email) ||
+					(
+						empty($code)
+						&& $item['EMAIL'] == $email
+						&& $item['USER_ID'] == $USER->getId()
+					)
+				)
+				{
+					if ($senderId === $item['ID'])
+					{
+						$senderId = null;
+					}
+
+					$toDelete[] = $item['ID'];
+				}
+
+				if (time() - $item['OPTIONS']['confirm_time'] > 60*60*24)
 				{
 					$expires[] = $item['ID'];
 				}
@@ -145,51 +246,66 @@ class MainMailConfirmAjax
 						$pending[$item['EMAIL']] = array();
 					}
 
-					$pending[$item['EMAIL']][$item['ID']] = strtolower($item['OPTIONS']['confirm_code']);
+					$pending[$item['EMAIL']][$item['ID']] = mb_strtolower($item['OPTIONS']['confirm_code']);
 				}
 			}
 		}
 
-		\Bitrix\Main\Mail\Sender::delete($expires);
+		Main\Mail\Sender::delete(array_merge($toDelete, $expires));
+
+		if ($smtp && $smtp['limit'] !== null)
+		{
+			Main\Mail\Sender::setEmailLimit($email, $smtp['limit']);
+		}
+		elseif ($smtp && !isset($smtp['limit']))
+		{
+			Main\Mail\Sender::removeEmailLimit($email);
+		}
+
+		$fields = array(
+			'NAME' => $name,
+			'EMAIL' => $email,
+			'USER_ID' => $USER->getId(),
+			'IS_CONFIRMED' => false,
+			'IS_PUBLIC' => $public,
+			'OPTIONS' => array(
+				'source' => 'main.mail.confirm',
+			),
+		);
 
 		if (!empty($smtp))
 		{
-			$fields = array(
-				'NAME'         => $name,
-				'EMAIL'        => $email,
-				'USER_ID'      => $USER->getId(),
-				'IS_CONFIRMED' => true,
-				'IS_PUBLIC'    => $public,
-				'OPTIONS'      => array(
-					'smtp' => $smtp,
-				),
-			);
-			\Bitrix\Main\Mail\Internal\SenderTable::add($fields);
+			$fields['OPTIONS']['smtp'] = $smtp;
 		}
-		else if (empty($code))
-		{
-			$fields = array(
-				'NAME'         => $name,
-				'EMAIL'        => $email,
-				'USER_ID'      => $USER->getId(),
-				'IS_CONFIRMED' => false,
-				'IS_PUBLIC'    => $public,
-				'OPTIONS'      => array(
-					'confirm_code' => \Bitrix\Main\Security\Random::getStringByCharsets(5, '0123456789abcdefghjklmnpqrstuvwxyz'),
-					'confirm_time' => time(),
-				),
-			);
-			\Bitrix\Main\Mail\Internal\SenderTable::add($fields);
 
-			$sendResult = \CEvent::sendImmediate(
-				'MAIN_MAIL_CONFIRM_CODE',
-				SITE_ID,
-				array(
-					'EMAIL_TO'        => $email,
-					'MESSAGE_SUBJECT' => getMessage('MAIN_MAIL_CONFIRM_MESSAGE_SUBJECT'),
-					'CONFIRM_CODE'    => strtoupper($fields['OPTIONS']['confirm_code']),
-				)
-			);
+		if ($senderId && $smtp && !empty($smtp['password']))
+		{
+			Main\Mail\Sender::checkEmail($fields, $checkError);
+
+			if ($checkError)
+			{
+				$error = $checkError;
+				return;
+			}
+
+			if (!$checkError)
+			{
+				$fields['IS_CONFIRMED'] = true;
+			}
+
+			Main\Mail\Internal\SenderTable::update($senderId, $fields);
+			return ['senderId' => $senderId, 'confirmed' => $fields['IS_CONFIRMED']];
+		}
+		elseif (empty($code))
+		{
+			$result = Main\Mail\Sender::add($fields);
+			if (!empty($result['error']))
+			{
+				$error = $result['error'];
+				return;
+			}
+
+			return $result;
 		}
 		else
 		{
@@ -199,10 +315,66 @@ class MainMailConfirmAjax
 				return;
 			}
 
-			\Bitrix\Main\Mail\Sender::confirm(array_keys($pending[$email]));
+			Main\Mail\Sender::confirm(array_keys($pending[$email], $code));
 
 			return array();
 		}
+	}
+
+	private static function executeDelete(&$error)
+	{
+		global $USER;
+
+		$error = false;
+
+		$isAdmin = Main\Loader::includeModule('bitrix24') ? \CBitrix24::isPortalAdmin($USER->getId()) : $USER->isAdmin();
+
+		$senderId = Main\Application::getInstance()->getContext()->getRequest()->getPost('senderId');
+
+		$item = Main\Mail\Internal\SenderTable::getList(array(
+			'filter' => array(
+				'=ID' => $senderId,
+			),
+		))->fetch();
+
+		if (empty($item))
+		{
+			$error = getMessage('MAIN_MAIL_CONFIRM_AJAX_ERROR');
+			return;
+		}
+
+		if ($USER->getId() != $item['USER_ID'] && !($item['IS_PUBLIC'] && $isAdmin))
+		{
+			$error = getMessage('MAIN_MAIL_CONFIRM_AJAX_ERROR');
+			return;
+		}
+
+		Main\Mail\Sender::delete([$senderId]);
+
+		return [];
+	}
+
+	private static function executeSenderListCanDel(&$error)
+	{
+		global $USER;
+
+		$error = false;
+		if(is_object($USER) && ($userId = $USER->getId()) !== null)
+		{
+			$mailboxes = Main\Mail\Sender::prepareUserMailboxes($userId);
+			foreach ($mailboxes as $key => $box)
+			{
+				if(!(isset($box['can_delete']) && $box['can_delete']))
+				{
+					unset($mailboxes[$key]);
+				}
+			}
+			return [
+				'mailboxes'=> $mailboxes,
+			];
+		}
+		$error = getMessage('MAIN_MAIL_CONFIRM_AUTH');
+		return null;
 	}
 
 	private static function returnJson($data)
@@ -212,7 +384,7 @@ class MainMailConfirmAjax
 		$APPLICATION->restartBuffer();
 
 		header('Content-Type: application/x-javascript; charset=UTF-8');
-		echo \Bitrix\Main\Web\Json::encode($data);
+		echo Main\Web\Json::encode($data);
 	}
 
 }

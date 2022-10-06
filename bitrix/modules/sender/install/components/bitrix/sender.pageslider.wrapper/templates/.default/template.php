@@ -7,6 +7,8 @@ if(!defined('B_PROLOG_INCLUDED') || B_PROLOG_INCLUDED !== true) die();
 
 global $APPLICATION;
 
+\Bitrix\Main\UI\Extension::load('ui.fonts.opensans');
+
 ?><!DOCTYPE html>
 <html xmlns="http://www.w3.org/1999/xhtml" xml:lang="<?=LANGUAGE_ID ?>" lang="<?=LANGUAGE_ID ?>">
 <head>
@@ -18,6 +20,7 @@ global $APPLICATION;
 		}
 	</script>
 	<?$APPLICATION->ShowHead();?>
+	<title><?$APPLICATION->ShowTitle()?></title>
 	<script type="text/javascript">
 		BX.ready(function () {
 			if (!BX.message.SITE_ID)

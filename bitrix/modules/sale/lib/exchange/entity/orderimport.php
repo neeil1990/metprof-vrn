@@ -8,7 +8,6 @@ use Bitrix\Sale\Exchange;
 use Bitrix\Sale\Exchange\EntityType;
 use Bitrix\Sale\Exchange\EntityCollisionType;
 use Bitrix\Main;
-use Bitrix\Sale\EntityMarker;
 
 /**
  * Class OrderImport
@@ -37,6 +36,14 @@ class OrderImport extends EntityImport
         return EntityType::ORDER;
     }
 
+    protected function createEntity(array $fileds)
+	{
+		$registry = Sale\Registry::getInstance(Sale\Registry::REGISTRY_TYPE_ORDER);
+		/** @var Sale\Order $orderClass */
+		$orderClass = $registry->getOrderClassName();
+
+		return $orderClass::create($this->settings->getSiteId(), $fileds['USER_ID'], $this->settings->getCurrency());
+	}
     /**
      * @param Internals\Entity $entity
      * @throws Main\ArgumentException
@@ -70,9 +77,9 @@ class OrderImport extends EntityImport
 
     public static function getFieldsInfo()
     {
-        if(!self::$FIELD_INFOS)
+        if(!static::$FIELD_INFOS)
         {
-            self::$FIELD_INFOS = array(
+			static::$FIELD_INFOS = array(
                 "LID",
                 "PERSON_TYPE_ID",
                 "PAYED",
@@ -83,7 +90,7 @@ class OrderImport extends EntityImport
                 "COMMENTS"
             );
         }
-        return self::$FIELD_INFOS;
+        return static::$FIELD_INFOS;
     }
 
     /**
@@ -123,37 +130,40 @@ class OrderImport extends EntityImport
             return $result;
         }
 
-        /** @var Sale\Order $order */
-        $order = Sale\Order::create($this->settings->getSiteId(), $userId, $this->settings->getCurrency());
-        $order->setPersonTypeId($personalTypeId);
+        /** @var Sale\Order $entity */
+		$entity = $this->createEntity(['USER_ID'=>$userId]);
+		$entity->setPersonTypeId($personalTypeId);
 
-        $result = $this->fillProperty($order, $propertyFields);
+        $result = $this->fillProperty($entity, $propertyFields);
         if(!$result->isSuccess())
         {
             return $result;
         }
 
-        $basket = Sale\Basket::create($order->getSiteId());
+		$registry = Sale\Registry::getInstance($entity::getRegistryType());
+		$basketClassName = $registry->getBasketClassName();
+
+        $basket = $basketClassName::create($entity->getSiteId());
 
         $result = $this->fillBasket($basket, $basketItems);
         if($result->isSuccess())
         {
-            $order->setBasket($basket);
+			$entity->setBasket($basket);
             $items = $result->getData();
-            $this->fillTax($order, $taxes, $items['modifyTaxList']);
+            $this->fillTax($entity, $taxes, $items['modifyTaxList']);
         }
         else
         {
             return $result;
         }
 
-        $order->setFields($fields);
+		$entity->setFields($fields);
 
         /** @var Sale\Result $r */
-        $result = $order->doFinalAction(true);
+        $result = $entity->doFinalAction(true);
         if ($result->isSuccess())
         {
-            $this->setEntity($order);
+            $this->setEntity($entity);
         }
 
         return $result;
@@ -213,7 +223,7 @@ class OrderImport extends EntityImport
 
 			foreach ($fields as $k =>$field)
 			{
-				if(!in_array($k, $order::getSettableFields()))
+				if(!in_array($k, $order::getAvailableFields()))
 					unset($fields[$k]);
             }
 
@@ -252,7 +262,7 @@ class OrderImport extends EntityImport
 		{
 			if(!empty($fields['ID']))
 			{
-				$order = Order::load($fields['ID']);
+				$order = $this->loadParentEntity($fields);
 			}
 
 			/** @var Order $order*/
@@ -285,7 +295,7 @@ class OrderImport extends EntityImport
             $result = new Sale\Result();
             $result->addWarning(new Sale\ResultError(EntityCollisionType::getDescription($collision->getTypeId()).($collision->getMessage() != null ? " ".$collision->getMessage():'' ), $collision->getTypeName()));
 
-            EntityMarker::addMarker($entity, $entity, $result);
+            $this->addMarker($entity, $entity, $result);
         }
     }
 
@@ -313,10 +323,10 @@ class OrderImport extends EntityImport
     	$settings = $this->getSettings();
 
     	$code = $this->getCodeAfterDelimiter($productXML_ID);
-		$product = $code<>'' ? self::getProduct($code):array();
+		$product = $code<>'' ? static::getProduct($code):array();
 
 		if(empty($product))
-			$product = self::getProduct($productXML_ID);
+			$product = static::getProduct($productXML_ID);
 
 		if(!empty($product))
         {
@@ -324,7 +334,7 @@ class OrderImport extends EntityImport
                 "PRODUCT_ID" => $product["ID"],
                 "NAME" => $product["NAME"],
                 "MODULE" => "catalog",
-                "PRODUCT_PROVIDER_CLASS" => "CCatalogProductProvider",
+                "PRODUCT_PROVIDER_CLASS" => '\Bitrix\Catalog\Product\CatalogProvider',
                 "CATALOG_XML_ID" => $product["IBLOCK_XML_ID"],
                 "DETAIL_PAGE_URL" => $product["DETAIL_PAGE_URL"],
                 "WEIGHT" => $product["WEIGHT"],
@@ -353,6 +363,7 @@ class OrderImport extends EntityImport
         $result["CAN_BUY"] = "Y";
         $result["IGNORE_CALLBACK_FUNC"] = "Y";
         $result["PRODUCT_XML_ID"] = $productXML_ID;
+        $result["MARKING_CODE_GROUP"] = $item['MARKING_GROUP'];
 
         return $result;
     }
@@ -381,7 +392,7 @@ class OrderImport extends EntityImport
 	{
 		$result = '';
 
-		if(strpos($code, '#') !== false)
+		if(mb_strpos($code, '#') !== false)
 		{
 			$code = explode('#', $code);
 			$result = $code[1];
@@ -415,18 +426,18 @@ class OrderImport extends EntityImport
 	}
 
 	/**
-	 * @param Sale\Basket $basket
+	 * @param Sale\BasketBase $basket
 	 * @param array $item
 	 * @return Sale\BasketItem|bool
 	 */
-	static public function getBasketItemByItem(Sale\Basket $basket, array $item)
+	static public function getBasketItemByItem(Sale\BasketBase $basket, array $item)
     {
         foreach($basket as $basketItem)
         {
             /** @var  Sale\BasketItem $basketItem*/
             if($item['ID'] == $basketItem->getField('PRODUCT_XML_ID'))
             {
-                $fieldsBasketProperty = self::prepareFieldsBasketProperty($item);
+                $fieldsBasketProperty = static::prepareFieldsBasketProperty($item);
 
                 $propertyBasketItem = array();
                 /** @var Sale\BasketPropertiesCollection $basketPropertyCollection */
@@ -465,6 +476,9 @@ class OrderImport extends EntityImport
 			{
 				foreach($items as $productXML_ID => $item)
 				{
+					if($productXML_ID == Exchange\ImportOneCBase::DELIVERY_SERVICE_XMLID)
+						continue;
+
 					if($item['TYPE'] == Exchange\ImportBase::ITEM_ITEM)
 					{
 						$result[$k][$productXML_ID] = $item;
@@ -476,7 +490,12 @@ class OrderImport extends EntityImport
 		return $result;
 	}
 
-    private function fillBasket(Sale\Basket $basket, array $basketItems)
+	/**
+	 * @param Sale\BasketBase $basket
+	 * @param array $basketItems
+	 * @return Sale\Result
+	 */
+	private function fillBasket(Sale\BasketBase $basket, array $basketItems)
     {
         $result = new Sale\Result();
 
@@ -489,7 +508,7 @@ class OrderImport extends EntityImport
             $basketItemsIndexList[$basketItem->getId()] = $basketItem->getQuantity();
         }
 
-        $basketItems = self::getGroupItemsBasketFields($basketItems);
+        $basketItems = static::getGroupItemsBasketFields($basketItems);
 
         if(!empty($basketItems))
 		{
@@ -499,18 +518,23 @@ class OrderImport extends EntityImport
 				foreach($items as $productXML_ID => $item)
 				{
 					$fieldsBasket = array();
-					if($basketItem = self::getBasketItemByItem($basket, $item))
+					if($basketItem = static::getBasketItemByItem($basket, $item))
 					{
+						/** @var Exchange\ICriterionOrder $criterionBasketItems */
 						$criterionBasketItems = $this->getCurrentCriterion($basket->getOrder());
 
 						if($criterionBasketItems->equalsBasketItem($basketItem, $item))
 						{
+							if($item['MARKING_GROUP'] != $basketItem->getMarkingCodeGroup())
+								$fieldsBasket['MARKING_CODE_GROUP'] = $item['MARKING_GROUP'];
+
 							if($item['PRICE'] != $basketItem->getPrice())
 								$basketItem->setPrice($item['PRICE'], true);
 
 							if($item['QUANTITY'] != $basketItem->getQuantity())
 								$fieldsBasket['QUANTITY'] = $item['QUANTITY'];
 
+							/** @var Exchange\ICriterionOrder $criterionBasketItemsTax */
 							$criterionBasketItemsTax = $this->getCurrentCriterion($basket->getOrder());
 
 							if($criterionBasketItemsTax->equalsBasketItemTax($basketItem, $item))
@@ -518,6 +542,7 @@ class OrderImport extends EntityImport
 								$taxListModify[$basketItem->getBasketCode()] = $item['TAX'];
 							}
 
+							/** @var Exchange\ICriterionOrder $criterionBasketItemsDiscount */
 							$criterionBasketItemsDiscount = $this->getCurrentCriterion($basket->getOrder());
 
 							if($criterionBasketItemsDiscount->equalsBasketItemDiscount($basketItem, $item))
@@ -539,10 +564,7 @@ class OrderImport extends EntityImport
 						$fieldsBasket['SORT'] = $sort;
 						$sort += 100;
 
-						/** @var Sale\BasketItem $basketItem */
-						$basketItem = Sale\BasketItem::create($basket, $fieldsBasket['MODULE'], $fieldsBasket['PRODUCT_ID']);
-
-						$basket->addItem($basketItem);
+						$basketItem = $basket->createItem($fieldsBasket['MODULE'], $fieldsBasket['PRODUCT_ID']);
 
 						$basketItem->setPrice($fieldsCurrency['PRICE'], true);
 
@@ -556,7 +578,7 @@ class OrderImport extends EntityImport
 						$r = $basketItem->setFields($fieldsBasket);
 						if ($r->isSuccess())
 						{
-							$fieldsBasketProperty = self::prepareFieldsBasketProperty($item);
+							$fieldsBasketProperty = static::prepareFieldsBasketProperty($item);
 							if(!empty($fieldsBasketProperty))
 							{
 								/** @var Sale\BasketPropertiesCollection $propertyCollection */
@@ -584,14 +606,18 @@ class OrderImport extends EntityImport
             {
                 if(!empty($basketItemsIndexList) && is_array($basketItemsIndexList))
                 {
-                    foreach ($basketItemsIndexList as $basketIndexId => $basketIndexValue)
-                    {
-                        /** @var Sale\BasketItem $foundedBasketItem */
-                        if ($foundedBasketItem = $basket->getItemById($basketIndexId))
-                        {
-                            $result = $foundedBasketItem->delete();
-                        }
-                    }
+					foreach ($basketItemsIndexList as $basketIndexId => $basketIndexValue)
+					{
+						/** @var Sale\BasketItem $foundedBasketItem */
+						if ($foundedBasketItem = $basket->getItemById($basketIndexId))
+						{
+							$resultDelete = $foundedBasketItem->delete();
+							if($resultDelete->isSuccess() == false)
+							{
+								$result->addErrors($resultDelete->getErrors());
+							}
+						}
+					}
                 }
             }
             else
@@ -676,8 +702,9 @@ class OrderImport extends EntityImport
             $tax = $order->getTax();
             $tax->resetTaxList();
 
+            /** @var Sale\Basket $basket */
             $basket = $order->getBasket();
-            $productVatData = self::getProductsVatRate($basket);
+            $productVatData = static::getProductsVatRate($basket);
 
             /** @var Sale\BasketItem $basketItem */
             foreach($basket as $basketItem)
@@ -685,12 +712,12 @@ class OrderImport extends EntityImport
                 $code = $basketItem->getBasketCode();
                 if(isset($modifyTaxList[$code]))
                 {
-                    if($basketItem->getId()>0)
+                    /*if($basketItem->getId()>0)
                     {
                         $this->setCollisions(EntityCollisionType::OrderBasketItemTaxValueError, $this->getEntity(), $basketItem->getField('NAME'));
                     }
                     else
-                    {
+                    {*/
                         $productVatFields = $productVatData[$basketItem->getBasketCode()];
                         if(!empty($productVatFields))
                         {
@@ -699,7 +726,7 @@ class OrderImport extends EntityImport
                                 $this->setCollisions(EntityCollisionType::OrderBasketItemTaxValueError, $order, $basketItem->getField('NAME'));
                             }
                         }
-                    }
+                    //}
 
                     $basketItem->setField('VAT_RATE', $modifyTaxList[$code]['VAT_RATE']);
                     $basketItem->setField('VAT_INCLUDED', $modifyTaxList[$code]['VAT_INCLUDED']);
@@ -769,7 +796,7 @@ class OrderImport extends EntityImport
      * @param array $basketItems
      * @return array
      */
-    public static function calculateDeltaQuantity(Sale\Basket $basket, array $basketItems)
+    public function calculateDeltaQuantity(Sale\Basket $basket, array $basketItems)
     {
         $basketItemsIndexQuantityList = array();
 
@@ -785,7 +812,7 @@ class OrderImport extends EntityImport
             {
                 foreach($items as $productXML_ID => $item)
                 {
-                    if($basketItem = Exchange\Entity\OrderImport::getBasketItemByItem($basket, $item))
+                    if($basketItem = static::getBasketItemByItem($basket, $item))
                     {
                         if(isset($basketItemsIndexQuantityList[$basketItem->getId()]))
                         {
@@ -842,7 +869,8 @@ class OrderImport extends EntityImport
                         $needQuantity = $basketIndexQuantity-$systemBasketQuantity;
 
                         /** @var ShipmentImport $shipmentImport */
-                        $shipmentImport = Exchange\ManagerImport::create(EntityType::SHIPMENT);
+						$shipmentImport = $this->entityCreateByFactory($this->getShipmentTypeId());
+						Exchange\ManagerImport::configure($shipmentImport);
                         $shipmentImport->setParentEntity($order);
 
                         $r = $shipmentImport->synchronizeQuantityShipmentItems($foundedBasketItem, $needQuantity);
@@ -861,6 +889,24 @@ class OrderImport extends EntityImport
         }
         return $result;
     }
+
+	/**
+	 * @return int
+	 * @internal
+	 */
+	protected function getShipmentTypeId()
+	{
+		return EntityType::SHIPMENT;
+	}
+
+	/**
+	 * @return Exchange\ImportBase
+	 * @internal
+	 */
+	protected function entityCreateByFactory($typeId)
+	{
+		return EntityImportFactory::create($typeId);
+	}
 
     public function initFields()
 	{
@@ -957,15 +1003,6 @@ class OrderImport extends EntityImport
 			}
 		}
 		return $result;
-	}
-
-	/**
-	 * @return array
-	 * @internal
-	 */
-	protected function getFieldsProperty()
-	{
-		//ORDER_PROPS
 	}
 
 	/**

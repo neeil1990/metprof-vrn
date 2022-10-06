@@ -1,9 +1,7 @@
 <?php
 namespace Bitrix\Sale\Exchange\OneC;
 
-
 use Bitrix\Main;
-use Bitrix\Sale\Exchange\EntityType;
 
 class UserProfileDocument extends DocumentBase
 {
@@ -14,15 +12,15 @@ class UserProfileDocument extends DocumentBase
 	 */
 	protected static function getMessage()
 	{
-		return Main\Localization\Loc::loadLanguageFile($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/sale/general/export.php');
+		return Main\Localization\Loc::loadLanguageFile($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/sale/general/export.php',self::CML_LANG_ID);
 	}
 
 	/**
 	 * @return int
 	 */
-	public function getOwnerEntityTypeId()
+	public function getTypeId()
 	{
-		return EntityType::USER_PROFILE;
+		return DocumentType::USER_PROFILE;
 	}
 
 	/**

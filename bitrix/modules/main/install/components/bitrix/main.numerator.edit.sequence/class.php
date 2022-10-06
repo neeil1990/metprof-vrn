@@ -49,14 +49,14 @@ class MainNumeratorEditSequence extends CBitrixComponent implements \Bitrix\Main
 
 		$this->arResult['HEADERS'] = [
 			[
-				'id'      => 'TEXT_KEY',
-				'name'    => Loc::getMessage('NUMERATOR_EDIT_SEQUENCE_COLUMN_HEADER_TEXT_KEY'),
+				'id' => 'TEXT_KEY',
+				'name' => Loc::getMessage('NUMERATOR_EDIT_SEQUENCE_COLUMN_HEADER_TEXT_KEY'),
 				'default' => true,
 			],
 			[
-				'id'       => 'NEXT_NUMBER',
-				'name'     => Loc::getMessage('NUMERATOR_EDIT_SEQUENCE_COLUMN_HEADER_NEXT_NUMBER'),
-				'default'  => true,
+				'id' => 'NEXT_NUMBER',
+				'name' => Loc::getMessage('NUMERATOR_EDIT_SEQUENCE_COLUMN_HEADER_NEXT_NUMBER'),
+				'default' => true,
 				'editable' => [
 					'TYPE' => \Bitrix\Main\Grid\Editor\Types::TEXT,
 				],
@@ -114,20 +114,20 @@ class MainNumeratorEditSequence extends CBitrixComponent implements \Bitrix\Main
 	 */
 	private function addError($errorMessage)
 	{
-		$this->arResult["MESSAGES"][] = [
-			"TYPE"  => \Bitrix\Main\Grid\MessageType::ERROR,
-			"TITLE" => Loc::getMessage('MAIN_NUMERATOR_EDIT_SEQUENCE_ERROR_TITLE'),
-			"TEXT"  => $errorMessage,
+		$this->arResult['MESSAGES'][] = [
+			'TYPE' => \Bitrix\Main\Grid\MessageType::ERROR,
+			'TITLE' => Loc::getMessage('MAIN_NUMERATOR_EDIT_SEQUENCE_ERROR_TITLE'),
+			'TEXT' => $errorMessage,
 		];
 	}
 
 	private function processEdit()
 	{
-		if (empty($_POST['FIELDS']))
+		if (empty($this->request->getPost('FIELDS')))
 		{
 			return;
 		}
-		foreach ($_POST['FIELDS'] as $compoundKeyString => $sourceFields)
+		foreach ($this->request->getPost('FIELDS') as $compoundKeyString => $sourceFields)
 		{
 			if (!(isset($sourceFields['NEXT_NUMBER'])
 				  && $sourceFields['NEXT_NUMBER'] !== '' && is_numeric($sourceFields['NEXT_NUMBER']))
@@ -136,7 +136,7 @@ class MainNumeratorEditSequence extends CBitrixComponent implements \Bitrix\Main
 				$this->addError(Loc::getMessage('MAIN_NUMERATOR_EDIT_SEQUENCE_ERROR_NUMBER_NOT_NUMERIC'));
 				continue;
 			}
-			if (stristr($compoundKeyString, self::DELIMITER) === false)
+			if (mb_stristr($compoundKeyString, self::DELIMITER) === false)
 			{
 				continue;
 			}
@@ -160,19 +160,12 @@ class MainNumeratorEditSequence extends CBitrixComponent implements \Bitrix\Main
 			$dbNextNumber = $compoundKey[2];
 			if ($dbNextNumber && is_numeric($dbNextNumber))
 			{
-				if ((int)$sourceFields['NEXT_NUMBER'] <= (int)$dbNextNumber)
+				$res = $numerator->setNextSequentialNumber($sourceFields['NEXT_NUMBER'], $dbNextNumber, $hash);
+				if (!$res->isSuccess())
 				{
-					$this->addError(Loc::getMessage('MAIN_NUMERATOR_EDIT_SEQUENCE_ERROR_NUMBER_LESS'));
-				}
-				else
-				{
-					$res = $numerator->setNextSequentialNumber($sourceFields['NEXT_NUMBER'], $dbNextNumber, $hash);
-					if (!$res->isSuccess())
-					{
-						$errors = $res->getErrors();
-						$error = $errors[0];
-						$this->addError($error->getMessage());
-					}
+					$errors = $res->getErrors();
+					$error = $errors[0];
+					$this->addError($error->getMessage());
 				}
 			}
 		}
@@ -183,9 +176,9 @@ class MainNumeratorEditSequence extends CBitrixComponent implements \Bitrix\Main
 	private function processGridActions()
 	{
 		$postAction = 'action_button_' . $this->gridId;
-		if ($_SERVER['REQUEST_METHOD'] == 'POST' && isset($_POST[$postAction]) && check_bitrix_sessid())
+		if ($this->request->getPost($postAction) !== null && check_bitrix_sessid())
 		{
-			if ($_POST[$postAction] == 'edit')
+			if ($this->request->getPost($postAction) == 'edit')
 			{
 				$this->processEdit();
 			}

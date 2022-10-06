@@ -1,145 +1,149 @@
 <?
-if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true) die();
 
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Extension;
 use Bitrix\Main\Web\Json;
 
-/** @var CMain $APPLICATION */
+/** @var \CAllMain $APPLICATION */
 /** @var array $arParams */
 /** @var array $arResult */
 
+$bodyClass = $APPLICATION->GetPageProperty("BodyClass");
+$APPLICATION->SetPageProperty("BodyClass", ($bodyClass ? $bodyClass . " " : "") . "no-all-paddings no-background sender-start--modifier");
+Extension::load(
+	[
+		"ui.icons",
+		"ui.info-helper",
+		'ui.feedback.form',
+		'crm.ads.conversion'
+	]
+);
+
 $containerId = 'sender-start-container';
 ?>
-<script type="text/javascript">
-	BX.ready(function () {
-		BX.Sender.Start.init(<?=Json::encode(array(
-			'containerId' => $containerId,
-			'pathToLetterAdd' => $arResult['PATH_TO_LETTER_ADD'],
-		))?>);
-	});
-</script>
-<div id="<?=htmlspecialcharsbx($containerId)?>" class="sender-start-wrap">
+<div id="<?= htmlspecialcharsbx($containerId) ?>" class="sender-start-wrap">
 
-	<?if (!empty($arResult['MESSAGES']['MAILING']['LIST'])):?>
-	<div class="sender-start-block">
-		<div class="sender-start-title"><?=Loc::getMessage('SENDER_START_CREATE_LETTER')?></div>
-		<div  class="sender-start-tile">
-			<?foreach ($arResult['MESSAGES']['MAILING']['FEATURED_LIST'] as $message):
-				$name = htmlspecialcharsbx($message['NAME']);
-				$code = htmlspecialcharsbx($message['CODE']);
-				$url = htmlspecialcharsbx($message['URL']);
-				?>
-				<div
-					data-role="letter-add"
-					data-available="<?=($message['IS_AVAILABLE'] ? 'y' : 'n')?>"
-					data-bx-code="<?=$code?>"
-					data-bx-url="<?=$url?>"
-					class="sender-start-tile-item"
-				>
-					<a href="<?=$url?>">
-						<div class="sender-start-tile-icon sender-start-tile-icon-<?=$code?>"></div>
-						<div class="sender-start-tile-name">
-							<?if (!$message['IS_AVAILABLE']):?>
-								<div class="tariff-lock"></div>
-							<?endif;?>
-							<?=$name?>
-						</div>
-					</a>
-				</div>
-			<?endforeach;?>
+	<? if (!empty($arResult['MESSAGES']['MAILING']['TILES'])): ?>
+		<div class="sender-start-block">
+			<div class="sender-start-title">
+				<?= Loc::getMessage('SENDER_START_CREATE_LETTER') ?>
+			</div>
+			<? $APPLICATION->IncludeComponent("bitrix:ui.tile.list", "", [
+				'ID' => 'sender-start-mailings',
+				'LIST' => $arResult['MESSAGES']['MAILING']['TILES'],
+			]); ?>
 		</div>
+	<? endif; ?>
 
-		<div class="sender-start-block-inner" style="<?=(count($arResult['MESSAGES']['OTHER_LIST']) === 0 ? 'display: none;' : '')?>">
-			<a data-role="letter-other" class="sender-start-link sender-start-link-small-grey-bold">
-				<?=Loc::getMessage('SENDER_START_ADDITIONAL')?>
-			</a>
-			<div data-role="letter-other-cont" class="sender-start-tile" style="display: none;">
-				<?foreach ($arResult['MESSAGES']['MAILING']['OTHER_LIST'] as $message):
-					$name = htmlspecialcharsbx($message['NAME']);
-					$code = htmlspecialcharsbx($message['CODE']);
-					$url = htmlspecialcharsbx($message['URL']);
-					?>
-					<div
-						data-role="letter-add"
-						data-available="<?=($message['IS_AVAILABLE'] ? 'y' : 'n')?>"
-						data-bx-code="<?=$code?>"
-						data-bx-url="<?=$url?>"
-						class="sender-start-tile-item"
-					>
-						<div class="sender-start-tile-icon sender-start-tile-icon-<?=$code?>"></div>
-						<div class="sender-start-tile-name">
-							<?if (!$message['IS_AVAILABLE']):?>
-								<div class="tariff-lock"></div>
-							<?endif;?>
-							<?=$name?>
-						</div>
-					</div>
-				<?endforeach;?>
+	<? if (!empty($arResult['MESSAGES']['ADS']['TILES'])): ?>
+		<div class="sender-start-block">
+			<div class="sender-start-title">
+				<?= Loc::getMessage('SENDER_START_CREATE_AUDIENCE') ?>
+			</div>
+			<? $APPLICATION->IncludeComponent("bitrix:ui.tile.list", "", [
+				'ID' => 'sender-start-ads',
+				'LIST' => $arResult['MESSAGES']['ADS']['TILES'],
+			]); ?>
+		</div>
+	<? endif; ?>
+
+	<? if (!empty($arResult['MESSAGES']['MARKETING']['TILES'])): ?>
+		<div class="sender-start-block">
+			<div class="sender-start-title">
+				<?= Loc::getMessage('SENDER_START_CREATE_AD') ?>
+			</div>
+			<? $APPLICATION->IncludeComponent("bitrix:ui.tile.list", "", [
+				'ID' => 'sender-start-marketing',
+				'LIST' => $arResult['MESSAGES']['MARKETING']['TILES'],
+			]); ?>
+		</div>
+	<? endif; ?>
+
+	<? if (!empty($arResult['MESSAGES']['RC']['TILES'])): ?>
+		<div class="sender-start-block">
+			<div class="sender-start-title">
+				<?= Loc::getMessage('SENDER_START_CREATE_RC') ?>
+			</div>
+			<? $APPLICATION->IncludeComponent("bitrix:ui.tile.list", "", [
+				'ID' => 'sender-start-rc',
+				'LIST' => $arResult['MESSAGES']['RC']['TILES'],
+			]); ?>
+		</div>
+	<? endif; ?>
+
+
+	<? if (!empty($arResult['MESSAGES']['TOLOKA']['TILES'])): ?>
+	<?endif;?>
+
+	<?if (!empty($arResult['MESSAGES']['CONVERSION']['TILES'])):?>
+		<div class="sender-start-block">
+			<div class="sender-start-title">
+				<?=Loc::getMessage('SENDER_START_CREATE_FACEBOOK_CONVERSION')?>
+			</div>
+			<?$APPLICATION->IncludeComponent("bitrix:ui.tile.list", "", [
+				'ID' => 'sender-start-conversion',
+				'LIST' => $arResult['MESSAGES']['CONVERSION']['TILES'],
+			]);?>
+		</div>
+	<?endif;?>
+
+	<?if (!empty($arResult['MESSAGES']['TOLOKA']['TILES'])):?>
+		<div class="sender-start-block">
+			<div class="sender-start-title">
+				<?= Loc::getMessage('SENDER_START_CREATE_TOLOKA') ?>
+			</div>
+			<? $APPLICATION->IncludeComponent("bitrix:ui.tile.list", "", [
+				'ID' => 'sender-start-toloka',
+				'LIST' => $arResult['MESSAGES']['TOLOKA']['TILES'],
+			]); ?>
+		</div>
+	<? endif; ?>
+
+	<div class="sender-start-block">
+		<div class="sender-start-title">
+			<?= Loc::getMessage('SENDER_START_CONFIGURATION_HELP') ?>
+		</div>
+		<div class="ui-tile-list-wrap">
+			<div data-role="tile/items" class="ui-tile-list-list">
+				<div
+					class="ui-tile-list-item sender-ui-tile-custom-list-item"
+					style=""
+					onclick="BX.UI.Feedback.Form.open(
+						{
+						title:'<?= CUtil::addslashes(Loc::getMessage('SENDER_START_CONFIGURATION_NEED_HELP')) ?>',
+						forms: [
+						{zones: ['en', 'eu', 'in', 'uk'], id: 986, lang: 'en', sec: 'bb83fq'},
+						{zones: ['de'], id: 988, lang: 'de', sec: 'c59qtl'},
+						{zones: ['la', 'co', 'mx'], id: 990, lang: 'es', sec: 'kqcqnn'},
+						{zones: ['com.br'], id: 992, lang: 'br', sec: '74yrxg'},
+						{zones: ['pl'], id: 994, lang: 'pl', sec: 'qtxmku'},
+						{zones: ['ua'], id: 977, lang: 'ua', sec: '23hkre'},
+						{zones: ['by'], id: 980, lang: 'by', sec: 'yfkacy'},
+						{zones: ['kz'], id: 975, lang: 'kz', sec: 'z1ocbi'},
+						{zones: ['ru'], id: 974, lang: 'ru', sec: 'flmbhs'},
+						],
+						id:'sender-configuration-help',
+						portalUri: 'https://bitrix24.team'
+						}
+						);"
+				>
+			<span class="sender-ui-tile-custom-list-item-subtitle">
+				<?= Loc::getMessage('SENDER_START_CONFIGURATION_HELP_ORDER') ?>
+			</span>
+					<button
+						class="ui-btn ui-btn-primary"><?= Loc::getMessage('SENDER_START_CONFIGURATION_ORDER') ?></button>
+				</div>
 			</div>
 		</div>
 	</div>
-	<?endif;?>
 
-	<?if (!empty($arResult['MESSAGES']['ADS']['LIST'])):?>
-	<div class="sender-start-block">
-		<div class="sender-start-title"><?=Loc::getMessage('SENDER_START_CREATE_AD')?></div>
-		<div class="sender-start-tile sender-start-tile-campaign">
-			<?foreach ($arResult['MESSAGES']['ADS']['FEATURED_LIST'] as $message):
-				$name = htmlspecialcharsbx($message['NAME']);
-				$code = htmlspecialcharsbx($message['CODE']);
-				$url = htmlspecialcharsbx($message['URL']);
-				?>
-				<div
-					data-role="letter-add"
-					data-available="<?=($message['IS_AVAILABLE'] ? 'y' : 'n')?>"
-					data-bx-code="<?=$code?>"
-					data-bx-url="<?=$url?>"
-					class="sender-start-tile-item"
-				>
-					<a href="<?=$url?>">
-						<div class="sender-start-tile-icon sender-start-tile-icon-<?=$code?>"></div>
-						<div class="sender-start-tile-name">
-							<?if (!$message['IS_AVAILABLE']):?>
-								<div class="tariff-lock"></div>
-							<?endif;?>
-							<?=$name?>
-						</div>
-					</a>
-				</div>
-			<?endforeach;?>
-		</div>
-	</div>
-	<?endif;?>
-
-	<?if (!empty($arResult['MESSAGES']['RC']['LIST'])):?>
-	<div class="sender-start-block">
-		<div class="sender-start-title"><?=Loc::getMessage('SENDER_START_CREATE_RC')?></div>
-		<div class="sender-start-tile sender-start-tile-campaign">
-			<?foreach ($arResult['MESSAGES']['RC']['FEATURED_LIST'] as $message):
-				$name = htmlspecialcharsbx($message['NAME']);
-				$code = htmlspecialcharsbx($message['CODE']);
-				$url = htmlspecialcharsbx($message['URL']);
-				?>
-				<div
-					data-role="letter-add"
-					data-available="<?=($message['IS_AVAILABLE'] ? 'y' : 'n')?>"
-					data-bx-code="<?=$code?>"
-					data-bx-url="<?=$url?>"
-					class="sender-start-tile-item"
-				>
-					<a href="<?=$url?>">
-						<div class="sender-start-tile-icon sender-start-tile-icon-<?=$code?>"></div>
-						<div class="sender-start-tile-name">
-							<?if (!$message['IS_AVAILABLE']):?>
-								<div class="tariff-lock"></div>
-							<?endif;?>
-							<?=$name?>
-						</div>
-					</a>
-				</div>
-			<?endforeach;?>
-		</div>
-	</div>
-	<?endif;?>
+	<script type="text/javascript">
+		BX.ready(function () {
+			BX.Sender.Start.init(<?=Json::encode(array(
+				'containerId' => $containerId
+			))?>);
+		});
+	</script>
 
 </div>

@@ -8,8 +8,11 @@
 
 namespace Bitrix\Main\ORM\Fields;
 
+use Bitrix\Main\DB\SqlExpression;
+
 /**
  * Entity field class for boolean data type
+ *
  * @package bitrix
  * @subpackage main
  */
@@ -55,6 +58,19 @@ class BooleanField extends ScalarField
 	{
 		$this->values = [$falseValue, $trueValue];
 		return $this;
+	}
+
+	/**
+	 * Short alias for configureStorageValues
+	 *
+	 * @param $falseValue
+	 * @param $trueValue
+	 *
+	 * @return BooleanField
+	 */
+	public function configureValues($falseValue, $trueValue)
+	{
+		return $this->configureStorageValues($falseValue, $trueValue);
 	}
 
 	/**
@@ -141,6 +157,16 @@ class BooleanField extends ScalarField
 	 */
 	public function cast($value)
 	{
+		if ($this->is_nullable && $value === null)
+		{
+			return $value;
+		}
+
+		if ($value instanceof SqlExpression)
+		{
+			return $value;
+		}
+
 		return $this->booleanizeValue($value);
 	}
 
@@ -162,8 +188,31 @@ class BooleanField extends ScalarField
 	 */
 	public function convertValueToDb($value)
 	{
-		return $this->getConnection()->getSqlHelper()->convertToDbString(
-			$this->normalizeValue($value)
-		);
+		if ($value instanceof SqlExpression)
+		{
+			return $value;
+		}
+
+		return $value === null && $this->is_nullable
+			? $value
+			: $this->getConnection()->getSqlHelper()->convertToDbString(
+				$this->normalizeValue($value)
+			);
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getGetterTypeHint()
+	{
+		return '\\boolean';
+	}
+
+	/**
+	 * @return string
+	 */
+	public function getSetterTypeHint()
+	{
+		return '\\boolean';
 	}
 }

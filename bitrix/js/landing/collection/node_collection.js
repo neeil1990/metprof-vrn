@@ -111,6 +111,23 @@
 			});
 
 			return result;
+		},
+
+		/**
+		 * Gets visible elements
+		 * @return {BX.Landing.Collection.NodeCollection}
+		 */
+		getVisible: function()
+		{
+			var result = new BX.Landing.Collection.NodeCollection();
+			this.forEach(function(item) {
+				if (!item.hidden)
+				{
+					result.push(item);
+				}
+			});
+
+			return result;
 		}
 	};
 })();

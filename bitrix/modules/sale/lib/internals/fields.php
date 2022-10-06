@@ -13,6 +13,9 @@ class Fields
 	/** @var  array */
 	private $originalValues = array();
 
+	/** @var  array */
+	private $customFields = array();
+
 	/** @var bool  */
 	protected $isClone = false;
 
@@ -21,6 +24,15 @@ class Fields
 	{
 		if ($values !== null)
 			$this->values = $values;
+	}
+
+	/**
+	 * @param $name
+	 * @return bool
+	 */
+	public function isChanged($name)
+	{
+		return isset($this->changedValues[$name]);
 	}
 
 	/**
@@ -37,6 +49,36 @@ class Fields
 		}
 
 		return null;
+	}
+
+	/**
+	 * @param string $field
+	 */
+	public function markCustom(string $field)
+	{
+		$this->customFields[$field] = true;
+	}
+
+	/**
+	 * @param string $field
+	 * @return bool
+	 */
+	public function isMarkedCustom(string $field) : bool
+	{
+		if (!isset($this->customFields[$field]))
+		{
+			return false;
+		}
+
+		return $this->customFields[$field];
+	}
+
+	/**
+	 * @param string $field
+	 */
+	public function unmarkCustom(string $field)
+	{
+		$this->customFields[$field] = false;
 	}
 
 	/**

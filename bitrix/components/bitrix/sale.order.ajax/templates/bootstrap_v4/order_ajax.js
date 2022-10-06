@@ -43,38 +43,43 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 	}
 
 	BX.Sale.OrderAjaxComponent = {
-		BXFormPosting: false,
-		regionBlockNotEmpty: false,
-		locationsInitialized: false,
-		locations: {},
-		cleanLocations: {},
-		locationsTemplate: '',
-		pickUpMapFocused: false,
-		basketColumns: [],
-		options: {},
-		activeSectionId: '',
-		firstLoad: true,
-		initialized: {},
-		mapsReady: false,
-		lastSelectedDelivery: 0,
-		deliveryLocationInfo: {},
-		deliveryPagination: {},
-		deliveryCachedInfo: [],
-		paySystemPagination: {},
-		validation: {},
-		hasErrorSection: {},
-		pickUpPagination: {},
-		timeOut: {},
-		isMobile: BX.browser.IsMobile(),
-		isHttps: window.location.protocol === "https:",
-		orderSaveAllowed: false,
-		socServiceHiddenNode: false,
+
+		initializePrimaryFields: function()
+		{
+			this.BXFormPosting = false;
+			this.regionBlockNotEmpty = false;
+			this.locationsInitialized = false;
+			this.locations = {};
+			this.cleanLocations = {};
+			this.locationsTemplate = '';
+			this.pickUpMapFocused = false;
+			this.options = {};
+			this.activeSectionId = '';
+			this.firstLoad = true;
+			this.initialized = {};
+			this.mapsReady = false;
+			this.lastSelectedDelivery = 0;
+			this.deliveryLocationInfo = {};
+			this.deliveryPagination = {};
+			this.deliveryCachedInfo = [];
+			this.paySystemPagination = {};
+			this.validation = {};
+			this.hasErrorSection = {};
+			this.pickUpPagination = {};
+			this.timeOut = {};
+			this.isMobile = BX.browser.IsMobile();
+			this.isHttps = window.location.protocol === "https:";
+			this.orderSaveAllowed = false;
+			this.socServiceHiddenNode = false;
+		},
 
 		/**
 		 * Initialization of sale.order.ajax component js
 		 */
 		init: function(parameters)
 		{
+			this.initializePrimaryFields();
+
 			this.result = parameters.result || {};
 			this.prepareLocations(parameters.locations);
 			this.params = parameters.params || {};
@@ -113,7 +118,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			{
 				this.authBlockNode.style.display = '';
 				BX.addClass(this.authBlockNode, 'bx-active');
-				this.authGenerateUser = this.result.AUTH.new_user_registration_email_confirmation != 'Y';
+				this.authGenerateUser = this.result.AUTH.new_user_registration_email_confirmation !== 'Y' && this.result.AUTH.new_user_phone_required !== 'Y';
 			}
 
 			if (this.totalBlockNode)
@@ -170,6 +175,18 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 
 			action = BX.type.isNotEmptyString(action) ? action : 'refreshOrderAjax';
 
+			var eventArgs = {
+				action: action,
+				actionData: actionData,
+				cancel: false
+			};
+			BX.Event.EventEmitter.emit('BX.Sale.OrderAjaxComponent:onBeforeSendRequest', eventArgs);
+			if (eventArgs.cancel)
+			{
+				this.endLoader();
+				return;
+			}
+
 			if (action === 'saveOrderAjax')
 			{
 				form = BX('bx-soa-order-form');
@@ -178,7 +195,23 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 					form.querySelector('input[type=hidden][name=sessid]').value = BX.bitrix_sessid();
 				}
 
-				BX.ajax.submit(BX('bx-soa-order-form'), BX.proxy(this.saveOrder, this));
+				BX.ajax.submitAjax(
+					BX('bx-soa-order-form'),
+					{
+						url: this.ajaxUrl,
+						method: 'POST',
+						dataType: 'json',
+						data: {
+							via_ajax: 'Y',
+							action: 'saveOrderAjax',
+							sessid: BX.bitrix_sessid(),
+							SITE_ID: this.siteId,
+							signedParamsString: this.signedParamsString
+						},
+						onsuccess: BX.proxy(this.saveOrderWithJson, this),
+						onfailure: BX.proxy(this.handleNotRedirected, this)
+					}
+				);
 			}
 			else
 			{
@@ -186,17 +219,18 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 					method: 'POST',
 					dataType: 'json',
 					url: this.ajaxUrl,
-					data: this.getData(action, actionData),
+					data: this.getData(eventArgs.action, eventArgs.actionData),
 					onsuccess: BX.delegate(function(result) {
 						if (result.redirect && result.redirect.length)
 							document.location.href = result.redirect;
 
 						this.saveFiles();
-						switch (action)
+						switch (eventArgs.action)
 						{
 							case 'refreshOrderAjax':
 								this.refreshOrder(result);
 								break;
+							case 'confirmSmsCode':
 							case 'showAuthForm':
 								this.firstLoad = true;
 								this.refreshOrder(result);
@@ -283,7 +317,20 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			}
 			else if (result.order.SHOW_AUTH)
 			{
-				var animation = this.result.OK_MESSAGE && this.result.OK_MESSAGE.length ? 'bx-step-good' : 'bx-step-bad';
+				var animation;
+
+				if (
+					(result.order.OK_MESSAGE && result.order.OK_MESSAGE.length)
+					|| (result.order.SMS_AUTH && result.order.SMS_AUTH.TYPE === 'OK')
+				)
+				{
+					animation = 'bx-step-good';
+				}
+				else
+				{
+					animation = 'bx-step-bad';
+				}
+
 				this.addAnimationEffect(this.authBlockNode, animation);
 				BX.merge(this.result, result.order);
 				this.editAuthBlock();
@@ -304,7 +351,9 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 				this.maxWaitTimeExpired = false;
 				this.pickUpMapFocused = false;
 				this.deliveryLocationInfo = {};
+
 				this.initialized = {};
+				this.clearHiddenBlocks();
 
 				this.initOptions();
 				this.editOrder();
@@ -315,46 +364,52 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			return true;
 		},
 
-		saveOrder: function(result)
+		saveOrderWithJson: function(result)
 		{
-			// safari mobile fix
-			result = result.replace(/<a href="\S*">(\S*)<\/a>/g, '$1');
-			
-			var res = BX.parseJSON(result), redirected = false;
-			if (res && res.order)
-			{
-				result = res.order;
-				this.result.SHOW_AUTH = result.SHOW_AUTH;
-				this.result.AUTH = result.AUTH;
+			var redirected = false;
 
-				if (this.result.SHOW_AUTH)
+			if (result && result.order)
+			{
+				result = result.order;
+
+				if (result.REDIRECT_URL)
 				{
+					if (this.params.USE_ENHANCED_ECOMMERCE === 'Y')
+					{
+						this.setAnalyticsDataLayer('purchase', result.ID);
+					}
+
+					(window.b24order=window.b24order||[]).push({id: result.ID, sum: this.result.TOTAL.ORDER_PRICE});
+
+					redirected = true;
+					location.href = result.REDIRECT_URL;
+				}
+				else if (result.SHOW_AUTH)
+				{
+					this.result.SHOW_AUTH = result.SHOW_AUTH;
+					this.result.AUTH = result.AUTH;
+					this.result.SMS_AUTH = result.SMS_AUTH;
+
 					this.editAuthBlock();
 					this.showAuthBlock();
 					this.animateScrollTo(this.authBlockNode);
 				}
 				else
 				{
-					if (result.REDIRECT_URL && result.REDIRECT_URL.length)
-					{
-						if (this.params.USE_ENHANCED_ECOMMERCE === 'Y')
-						{
-							this.setAnalyticsDataLayer('purchase', result.ID);
-						}
-
-						redirected = true;
-						document.location.href = result.REDIRECT_URL;
-					}
-
 					this.showErrors(result.ERROR, true, true);
 				}
 			}
 
 			if (!redirected)
 			{
-				this.endLoader();
-				this.disallowOrderSave();
+				this.handleNotRedirected();
 			}
+		},
+
+		handleNotRedirected: function()
+		{
+			this.endLoader();
+			this.disallowOrderSave();
 		},
 
 		/**
@@ -736,19 +791,18 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 					text = (success ? this.params.MESS_SUCCESS_PRELOAD_TEXT : this.params.MESS_FAIL_PRELOAD_TEXT).split('#ORDER_BUTTON#').join(this.params.MESS_ORDER);
 
 					informer.appendChild(
+
 						BX.create('DIV', {
-							props: {className: 'row'},
+							style: { paddingLeft: '48px' },
 							children: [
-								BX.create('DIV', {
-									props: {className: 'col-xs-12'},
-									style: {position: 'relative', paddingLeft: '48px'},
-									children: [
-										BX.create('DIV', {props: {className: 'icon-' + className}}),
-										BX.create('DIV', {html: text})
-									]
+								BX.create('DIV', {props: {className: 'icon-' + className}}),
+								BX.create('p', {
+									props: {className: 'pb-0 mb-0'},
+									html: text
 								})
 							]
 						})
+
 					);
 					BX.addClass(informer, 'alert alert-' + className);
 					informer.style.display = '';
@@ -1128,11 +1182,15 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (BX.type.isDomNode(hidden))
 				BX.prepend(hidden, BX.findParent(deliveryItemsContainer));
 
+			var deliveryItemsContainerRow = BX.create('div', {props: {className: 'row'}});
+
 			for (k = 0; k < this.deliveryPagination.currentPage.length; k++)
 			{
 				deliveryItemNode = this.createDeliveryItem(this.deliveryPagination.currentPage[k]);
-				deliveryItemsContainer.appendChild(deliveryItemNode);
+				deliveryItemsContainerRow.appendChild(deliveryItemNode);
 			}
+
+			deliveryItemsContainer.appendChild(deliveryItemsContainerRow);
 
 			this.showPagination('delivery', deliveryItemsContainer);
 		},
@@ -1165,11 +1223,15 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (BX.type.isDomNode(hidden))
 				BX.prepend(hidden, BX.findParent(paySystemItemsContainer));
 
+			var paySystemItemsContainerRow = BX.create('div', {props: {className: 'row'}});
+
 			for (k = 0; k < this.paySystemPagination.currentPage.length; k++)
 			{
 				paySystemItemNode = this.createPaySystemItem(this.paySystemPagination.currentPage[k]);
-				paySystemItemsContainer.appendChild(paySystemItemNode);
+				paySystemItemsContainerRow.appendChild(paySystemItemNode);
 			}
+
+			paySystemItemsContainer.appendChild(paySystemItemsContainerRow);
 
 			this.showPagination('paySystem', paySystemItemsContainer);
 		},
@@ -2170,7 +2232,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 					BX.create('button', {
 						props: {
 							href: 'javascript:void(0)',
-							className: 'pull-left btn btn-primary btn-md'
+							className: 'btn btn-outline-secondary pl-3 pr-3'
 						},
 						html: this.params.MESS_BACK,
 						events: {
@@ -2187,7 +2249,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			{
 				buttons.push(
 					BX.create('button', {
-						props: {href: 'javascript:void(0)', className: 'pull-right btn btn-primary btn-md'},
+						props: {href: 'javascript:void(0)', className: 'pull-right btn btn-primary pl-3 pr-3'},
 						html: this.params.MESS_FURTHER,
 						events: {click: BX.proxy(this.clickNextAction, this)}
 					})
@@ -2369,6 +2431,17 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			titleNode = section.querySelector('.bx-soa-section-title-container');
 			if (titleNode && !state)
 				BX.unbindAll(titleNode);
+		},
+
+		clearHiddenBlocks: function()
+		{
+			BX.remove(BX.lastChild(this.authHiddenBlockNode));
+			BX.remove(BX.lastChild(this.basketHiddenBlockNode));
+			BX.remove(BX.lastChild(this.regionHiddenBlockNode));
+			BX.remove(BX.lastChild(this.paySystemHiddenBlockNode));
+			BX.remove(BX.lastChild(this.deliveryHiddenBlockNode));
+			BX.remove(BX.lastChild(this.pickUpHiddenBlockNode));
+			BX.remove(BX.lastChild(this.propsHiddenBlockNode));
 		},
 
 		/**
@@ -2647,252 +2720,363 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			});
 		},
 
+		activatePhoneAuth: function()
+		{
+			if (!this.result.SMS_AUTH)
+				return;
+
+			new BX.PhoneAuth({
+				containerId: 'bx_register_resend',
+				errorContainerId: 'bx_register_error',
+				interval: 60,
+				data: {
+					signedData: this.result.SMS_AUTH.SIGNED_DATA
+				},
+				onError: function(response)
+				{
+					var errorDiv = BX('bx_register_error');
+					var errorNode = BX.findChildByClassName(errorDiv, 'errortext');
+					errorNode.innerHTML = '';
+
+					for (var i = 0; i < response.errors.length; i++)
+					{
+						errorNode.innerHTML = errorNode.innerHTML + BX.util.htmlspecialchars(response.errors[i].message) + '<br>';
+					}
+
+					errorDiv.style.display = '';
+				}
+			});
+		},
+
 		editRegistrationForm: function(authContent)
 		{
 			if (!this.result.AUTH)
 				return;
 
 			var authFormNodes = [];
+			var showSmsConfirm = this.result.SMS_AUTH && this.result.SMS_AUTH.TYPE === 'OK';
 
-			authFormNodes.push(BX.create('H3', {
-				props: {className: 'bx-title'},
-				text: BX.message('STOF_REG_REQUEST')
-			}));
-			authFormNodes.push(this.createAuthFormInputContainer(
-				BX.message('STOF_NAME'),
-				BX.create('INPUT', {
-					attrs: {'data-next': 'NEW_LAST_NAME'},
-					props: {
-						name: 'NEW_NAME',
-						type: 'text',
-						size: 40,
-						value: this.result.AUTH.NEW_NAME || ''
-					},
-					events: {keypress: BX.proxy(this.checkKeyPress, this)}
-				}),
-				true
-			));
-			authFormNodes.push(this.createAuthFormInputContainer(
-				BX.message('STOF_LASTNAME'),
-				BX.create('INPUT', {
-					attrs: {'data-next': 'NEW_EMAIL'},
-					props: {
-						name: 'NEW_LAST_NAME',
-						type: 'text',
-						size: 40,
-						value: this.result.AUTH.NEW_LAST_NAME || ''
-					},
-					events: {keypress: BX.proxy(this.checkKeyPress, this)}
-				}),
-				true
-			));
-			authFormNodes.push(this.createAuthFormInputContainer(
-				BX.message('STOF_EMAIL'),
-				BX.create('INPUT', {
-					attrs: {'data-next': 'captcha_word'},
-					props: {
-						name: 'NEW_EMAIL',
-						type: 'text',
-						size: 40,
-						value: this.result.AUTH.NEW_EMAIL || ''
-					},
-					events: {keypress: BX.proxy(this.checkKeyPress, this)}
-				}),
-				this.result.AUTH.new_user_email_required == 'Y'
-			));
-
-			if (this.result.AUTH.new_user_registration_email_confirmation != 'Y')
+			if (showSmsConfirm)
 			{
-				authFormNodes.push(
-					BX.create('LABEL', {
-						props: {for: 'NEW_GENERATE_N'},
-						children: [
-							BX.create('INPUT', {
-								attrs: {checked: !this.authGenerateUser},
-								props: {
-									id: 'NEW_GENERATE_N',
-									type: 'radio',
-									name: 'NEW_GENERATE',
-									value: 'N'
-								}
-							}),
-							BX.message('STOF_MY_PASSWORD')
-						],
-						events: {
-							change: BX.delegate(function(){
-								var generated = this.authBlockNode.querySelector('.generated');
-								generated.style.display = '';
-								this.authGenerateUser = false;
-							}, this)
-						}
-					})
-				);
-				authFormNodes.push(BX.create('BR'));
-				authFormNodes.push(
-					BX.create('LABEL', {
-						props: {for: 'NEW_GENERATE_Y'},
-						children: [
-							BX.create('INPUT', {
-								attrs: {checked: this.authGenerateUser},
-								props: {
-									id: 'NEW_GENERATE_Y',
-									type: 'radio',
-									name: 'NEW_GENERATE',
-									value: 'Y'
-								}
-							}),
-							BX.message('STOF_SYS_PASSWORD')
-						],
-						events: {
-							change: BX.delegate(function(){
-								var generated = this.authBlockNode.querySelector('.generated');
-								generated.style.display = 'none';
-								this.authGenerateUser = true;
-							}, this)
-						}
-					})
-				);
-			}
-
-			authFormNodes.push(
-				BX.create('DIV', {
-					props: {className: 'generated'},
-					style: {display: this.authGenerateUser ? 'none' : ''},
+				authFormNodes.push(BX.create('DIV', {
+					props: {className: 'alert alert-success'},
+					text: BX.message('STOF_REG_SMS_REQUEST')
+				}));
+				authFormNodes.push(BX.create('INPUT', {
+					props: {
+						type: 'hidden',
+						name: 'SIGNED_DATA',
+						value: this.result.SMS_AUTH.SIGNED_DATA || ''
+					}
+				}));
+				authFormNodes.push(this.createAuthFormInputContainer(
+					BX.message('STOF_SMS_CODE'),
+					BX.create('INPUT', {
+						attrs: {'data-send': true},
+						props: {
+							name: 'SMS_CODE',
+							type: 'text',
+							size: 40,
+							value: ''
+						},
+						events: {keypress: BX.proxy(this.checkKeyPress, this)}
+					}),
+					true
+				));
+				authFormNodes.push(BX.create('DIV', {
+					props: {className: 'bx-authform-formgroup-container'},
 					children: [
-						this.createAuthFormInputContainer(
-							BX.message('STOF_LOGIN'),
-							BX.create('INPUT', {
-								props: {
-									name: 'NEW_LOGIN',
-									type: 'text',
-									size: 30,
-									value: this.result.AUTH.NEW_LOGIN || ''
-								},
-								events: {
-									keypress: BX.proxy(this.checkKeyPress, this)
-								}
-							}),
-							true
-						),
-						this.createAuthFormInputContainer(
-							BX.message('STOF_PASSWORD'),
-							BX.create('INPUT', {
-								props: {
-									name: 'NEW_PASSWORD',
-									type: 'password',
-									size: 30
-								},
-								events: {
-									keypress: BX.proxy(this.checkKeyPress, this)
-								}
-							}),
-							true
-						),
-						this.createAuthFormInputContainer(
-							BX.message('STOF_RE_PASSWORD'),
-							BX.create('INPUT', {
-								props: {
-									name: 'NEW_PASSWORD_CONFIRM',
-									type: 'password',
-									size: 30
-								},
-								events: {
-									keypress: BX.proxy(this.checkKeyPress, this)
-								}
-							}),
-							true
-						)
+						BX.create('INPUT', {
+							props: {
+								name: 'code_submit_button',
+								type: 'submit',
+								className: 'btn btn-lg btn-default',
+								value: BX.message('STOF_SEND')
+							},
+							events: {
+								click: BX.delegate(function(e)
+								{
+									this.sendRequest('confirmSmsCode');
+									return BX.PreventDefault(e);
+								}, this)
+							}
+						})
 					]
-				})
-			);
-			if (this.result.AUTH.captcha_registration == 'Y')
-			{
+				}));
 				authFormNodes.push(BX.create('DIV', {
 					props: {className: 'bx-authform-formgroup-container'},
 					children: [
 						BX.create('DIV', {
-							props: {className: 'bx-authform-label-container'},
-							children: [
-								BX.create('SPAN', {props: {className: 'bx-authform-starrequired'}, text: '*'}),
-								BX.message('CAPTCHA_REGF_PROMT'),
-								BX.create('DIV', {
-									props: {className: 'bx-captcha'},
-									children: [
-										BX.create('INPUT', {
-											props: {
-												name: 'captcha_sid',
-												type: 'hidden',
-												value: this.result.AUTH.capCode || ''
-											}
-										}),
-										BX.create('IMG', {
-											props: {
-												src: '/bitrix/tools/captcha.php?captcha_sid=' + this.result.AUTH.capCode,
-												alt: ''
-											}
-										})
-									]
-								})
-							]
+							props: {id: 'bx_register_error'},
+							style: {display: 'none'}
 						}),
 						BX.create('DIV', {
-							props: {className: 'bx-authform-input-container'},
-							children: [
-								BX.create('INPUT', {
-									attrs: {'data-send': true},
-									props: {
-										name: 'captcha_word',
-										type: 'text',
-										size: '30',
-										maxlength: '50',
-										value: ''
-									},
-									events: {keypress: BX.proxy(this.checkKeyPress, this)}
-								})
-							]
+							props: {id: 'bx_register_resend'}
 						})
 					]
 				}));
 			}
-			authFormNodes.push(
-				BX.create('DIV', {
-					props: {className: 'bx-authform-formgroup-container'},
-					children: [
+			else
+			{
+				authFormNodes.push(BX.create('H3', {
+					props: {className: 'bx-title'},
+					text: BX.message('STOF_REG_REQUEST')
+				}));
+				authFormNodes.push(this.createAuthFormInputContainer(
+					BX.message('STOF_NAME'),
+					BX.create('INPUT', {
+						attrs: {'data-next': 'NEW_LAST_NAME'},
+						props: {
+							name: 'NEW_NAME',
+							type: 'text',
+							size: 40,
+							value: this.result.AUTH.NEW_NAME || ''
+						},
+						events: {keypress: BX.proxy(this.checkKeyPress, this)}
+					}),
+					true
+				));
+				authFormNodes.push(this.createAuthFormInputContainer(
+					BX.message('STOF_LASTNAME'),
+					BX.create('INPUT', {
+						attrs: {'data-next': 'NEW_EMAIL'},
+						props: {
+							name: 'NEW_LAST_NAME',
+							type: 'text',
+							size: 40,
+							value: this.result.AUTH.NEW_LAST_NAME || ''
+						},
+						events: {keypress: BX.proxy(this.checkKeyPress, this)}
+					}),
+					true
+				));
+				authFormNodes.push(this.createAuthFormInputContainer(
+					BX.message('STOF_EMAIL'),
+					BX.create('INPUT', {
+						attrs: {'data-next': 'PHONE_NUMBER'},
+						props: {
+							name: 'NEW_EMAIL',
+							type: 'text',
+							size: 40,
+							value: this.result.AUTH.NEW_EMAIL || ''
+						},
+						events: {keypress: BX.proxy(this.checkKeyPress, this)}
+					}),
+					this.result.AUTH.new_user_email_required == 'Y'
+				));
+
+				if (this.result.AUTH.new_user_phone_auth === 'Y')
+				{
+					authFormNodes.push(this.createAuthFormInputContainer(
+						BX.message('STOF_PHONE'),
 						BX.create('INPUT', {
+							attrs: {'data-next': 'captcha_word'},
 							props: {
-								id: 'do_register',
-								name: 'do_register',
-								type: 'hidden',
-								value: 'N'
-							}
-						}),
-						BX.create('INPUT', {
-							props: {
-								type: 'submit',
-								className: 'btn btn-lg btn-primary',
-								value: BX.message('STOF_REGISTER')
+								name: 'PHONE_NUMBER',
+								type: 'text',
+								size: 40,
+								value: this.result.AUTH.PHONE_NUMBER || ''
 							},
-							events: {
-								click: BX.delegate(function(e){
-									BX('do_register').value = 'Y';
-									this.sendRequest('showAuthForm');
-									return BX.PreventDefault(e);
-								}, this)
-							}
+							events: {keypress: BX.proxy(this.checkKeyPress, this)}
 						}),
-						BX.create('A', {
-							props: {className: 'btn btn-link', href: ''},
-							text: BX.message('STOF_DO_AUTHORIZE'),
+						this.result.AUTH.new_user_phone_required === 'Y'
+					));
+				}
+
+				if (this.authGenerateUser)
+				{
+					authFormNodes.push(
+						BX.create('LABEL', {
+							props: {for: 'NEW_GENERATE_N'},
+							children: [
+								BX.create('INPUT', {
+									attrs: {checked: !this.authGenerateUser},
+									props: {
+										id: 'NEW_GENERATE_N',
+										type: 'radio',
+										name: 'NEW_GENERATE',
+										value: 'N'
+									}
+								}),
+								BX.message('STOF_MY_PASSWORD')
+							],
 							events: {
-								click: BX.delegate(function(e){
-									this.toggleAuthForm(e);
-									return BX.PreventDefault(e);
+								change: BX.delegate(function(){
+									var generated = this.authBlockNode.querySelector('.generated');
+									generated.style.display = '';
+									this.authGenerateUser = false;
 								}, this)
 							}
 						})
-					]
-				})
-			);
+					);
+					authFormNodes.push(BX.create('BR'));
+					authFormNodes.push(
+						BX.create('LABEL', {
+							props: {for: 'NEW_GENERATE_Y'},
+							children: [
+								BX.create('INPUT', {
+									attrs: {checked: this.authGenerateUser},
+									props: {
+										id: 'NEW_GENERATE_Y',
+										type: 'radio',
+										name: 'NEW_GENERATE',
+										value: 'Y'
+									}
+								}),
+								BX.message('STOF_SYS_PASSWORD')
+							],
+							events: {
+								change: BX.delegate(function(){
+									var generated = this.authBlockNode.querySelector('.generated');
+									generated.style.display = 'none';
+									this.authGenerateUser = true;
+								}, this)
+							}
+						})
+					);
+				}
+
+				authFormNodes.push(
+					BX.create('DIV', {
+						props: {className: 'generated'},
+						style: {display: this.authGenerateUser ? 'none' : ''},
+						children: [
+							this.createAuthFormInputContainer(
+								BX.message('STOF_LOGIN'),
+								BX.create('INPUT', {
+									props: {
+										name: 'NEW_LOGIN',
+										type: 'text',
+										size: 30,
+										value: this.result.AUTH.NEW_LOGIN || ''
+									},
+									events: {
+										keypress: BX.proxy(this.checkKeyPress, this)
+									}
+								}),
+								true
+							),
+							this.createAuthFormInputContainer(
+								BX.message('STOF_PASSWORD'),
+								BX.create('INPUT', {
+									props: {
+										name: 'NEW_PASSWORD',
+										type: 'password',
+										size: 30
+									},
+									events: {
+										keypress: BX.proxy(this.checkKeyPress, this)
+									}
+								}),
+								true
+							),
+							this.createAuthFormInputContainer(
+								BX.message('STOF_RE_PASSWORD'),
+								BX.create('INPUT', {
+									props: {
+										name: 'NEW_PASSWORD_CONFIRM',
+										type: 'password',
+										size: 30
+									},
+									events: {
+										keypress: BX.proxy(this.checkKeyPress, this)
+									}
+								}),
+								true
+							)
+						]
+					})
+				);
+
+				if (this.result.AUTH.captcha_registration == 'Y')
+				{
+					authFormNodes.push(BX.create('DIV', {
+						props: {className: 'bx-authform-formgroup-container'},
+						children: [
+							BX.create('DIV', {
+								props: {className: 'bx-authform-label-container'},
+								children: [
+									BX.create('SPAN', {props: {className: 'bx-authform-starrequired'}, text: '*'}),
+									BX.message('CAPTCHA_REGF_PROMT'),
+									BX.create('DIV', {
+										props: {className: 'bx-captcha'},
+										children: [
+											BX.create('INPUT', {
+												props: {
+													name: 'captcha_sid',
+													type: 'hidden',
+													value: this.result.AUTH.capCode || ''
+												}
+											}),
+											BX.create('IMG', {
+												props: {
+													src: '/bitrix/tools/captcha.php?captcha_sid=' + this.result.AUTH.capCode,
+													alt: ''
+												}
+											})
+										]
+									})
+								]
+							}),
+							BX.create('DIV', {
+								props: {className: 'bx-authform-input-container'},
+								children: [
+									BX.create('INPUT', {
+										attrs: {'data-send': true},
+										props: {
+											name: 'captcha_word',
+											type: 'text',
+											size: '30',
+											maxlength: '50',
+											value: ''
+										},
+										events: {keypress: BX.proxy(this.checkKeyPress, this)}
+									})
+								]
+							})
+						]
+					}));
+				}
+				authFormNodes.push(
+					BX.create('DIV', {
+						props: {className: 'bx-authform-formgroup-container'},
+						children: [
+							BX.create('INPUT', {
+								props: {
+									id: 'do_register',
+									name: 'do_register',
+									type: 'hidden',
+									value: 'N'
+								}
+							}),
+							BX.create('INPUT', {
+								props: {
+									type: 'submit',
+									className: 'btn btn-lg btn-default',
+									value: BX.message('STOF_REGISTER')
+								},
+								events: {
+									click: BX.delegate(function(e){
+										BX('do_register').value = 'Y';
+										this.sendRequest('showAuthForm');
+										return BX.PreventDefault(e);
+									}, this)
+								}
+							}),
+							BX.create('A', {
+								props: {className: 'btn btn-link', href: ''},
+								text: BX.message('STOF_DO_AUTHORIZE'),
+								events: {
+									click: BX.delegate(function(e){
+										this.toggleAuthForm(e);
+										return BX.PreventDefault(e);
+									}, this)
+								}
+							})
+						]
+					})
+				);
+			}
 
 			authContent.appendChild(
 				BX.create('DIV', {
@@ -2900,6 +3084,11 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 					children: [BX.create('DIV', {props: {className: 'bx-authform'}, children: authFormNodes})]
 				})
 			);
+
+			if (showSmsConfirm)
+			{
+				this.activatePhoneAuth();
+			}
 		},
 
 		editSocialContent: function(authContent)
@@ -2907,20 +3096,24 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (!BX('bx-soa-soc-auth-services'))
 				return;
 
-			var nodes = [],
-				socServiceHiddenNode = BX('bx-soa-soc-auth-services').querySelector('.bx-authform-social');
+			var nodes = [];
 
-			if (socServiceHiddenNode)
+			if (this.socServiceHiddenNode === false)
 			{
-				if (this.socServiceHiddenNode === false)
+				var socServiceHiddenNode = BX('bx-soa-soc-auth-services').querySelector('.bx-authform-social');
+
+				if (BX.type.isDomNode(socServiceHiddenNode))
 				{
 					this.socServiceHiddenNode = socServiceHiddenNode.innerHTML;
 					BX.remove(socServiceHiddenNode);
 				}
+			}
 
+			if (this.socServiceHiddenNode)
+			{
 				nodes.push(BX.create('DIV', {
 					props: {className: 'bx-authform-social'},
-					html: '<h3 class="bx-title">' + BX.message('SOA_DO_SOC_SERV') + '</h3>' + this.socServiceHiddenNode,
+					html: '<h3 class="bx-title">' + BX.message('SOA_DO_SOC_SERV') + '</h3>' + this.socServiceHiddenNode
 				}));
 				nodes.push(BX.create('hr', {props: {className: 'bxe-light'}}));
 			}
@@ -2995,8 +3188,9 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 				BX.create('DIV', {
 					props: {className: 'bx-soa-section-title-container'},
 					children: [
-						BX.create('h2', {
-							props: {className: 'bx-soa-section-title col-xs-7 col-sm-9'},
+						BX.create('div', {
+							attrs: {'data-entity': 'section-title'},
+							props: {className: 'bx-soa-section-title'},
 							html: BX.hasClass(insertContainer, 'reg') ? this.params.MESS_REG_BLOCK_NAME : this.params.MESS_AUTH_BLOCK_NAME
 						})
 					]
@@ -3267,7 +3461,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 
 			basketItemsNode.appendChild(
 				BX.create('DIV', {
-					props: {className: 'bx-soa-item-tr hidden-sm hidden-xs'},
+					props: {className: 'bx-soa-item-tr d-none d-md-table-row'},
 					children: headers
 				})
 			);
@@ -3321,7 +3515,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			cols = [
 				BX.create('DIV', {
 					props: {className: 'bx-soa-item-td'},
-					style: {minWidth: '300px'},
+					style: {minWidth: '255px'},
 					children: [
 						BX.create('DIV', {
 							props: {className: 'bx-soa-item-block'},
@@ -3442,21 +3636,23 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultBasketItemLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 
-			if (data.DETAIL_PAGE_URL && data.DETAIL_PAGE_URL.length)
+			if (this.params.HIDE_DETAIL_PAGE_URL !== 'Y' && data.DETAIL_PAGE_URL && data.DETAIL_PAGE_URL.length)
+			{
 				logoNode = BX.create('A', {
 					props: {href: data.DETAIL_PAGE_URL},
 					children: [logoNode]
 				});
+			}
 
 			return BX.create('DIV', {
 				props: {className: 'bx-soa-item-img-block'},
@@ -3471,8 +3667,10 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 				props = data.PROPS || [],
 				propsNodes = [];
 
-			if (data.DETAIL_PAGE_URL && data.DETAIL_PAGE_URL.length)
+			if (this.params.HIDE_DETAIL_PAGE_URL !== 'Y' && data.DETAIL_PAGE_URL && data.DETAIL_PAGE_URL.length)
+			{
 				titleHtml = '<a href="' + data.DETAIL_PAGE_URL + '">' + titleHtml + '</a>';
+			}
 
 			if (this.options.showPropsInBasket && props.length)
 			{
@@ -3855,7 +4053,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 						children: [
 							BX.create('DIV', {
 								props: {className: 'bx-img-itemColor'},
-								style: {backgroundImage: 'url(' + link + ')'}
+								style: {backgroundImage: 'url("' + link + '")'}
 							})
 						],
 						events: {
@@ -4287,7 +4485,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			{
 				this.regionBlockNotEmpty = true;
 
-				labelHtml = '<label class="bx-soa-custom-label" for="soa-property-' + locationId + '">'
+				labelHtml = '<label class="bx-soa-custom-label" for="soa-property-' + parseInt(locationId) + '">'
 					+ (currentProperty.REQUIRED == 'Y' ? '<span class="bx-authform-starrequired">*</span> ' : '')
 					+ BX.util.htmlspecialchars(currentProperty.NAME)
 					+ (currentProperty.DESCRIPTION.length ? ' <small>(' + BX.util.htmlspecialchars(currentProperty.DESCRIPTION) + ')</small>' : '')
@@ -4766,14 +4964,16 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (!this.result.PAY_SYSTEM || this.result.PAY_SYSTEM.length <= 0)
 				return;
 
-			var paySystemItemsContainer = BX.create('DIV', {props: {className: 'col-sm-7 row bx-soa-pp-item-container'}}),
+			var paySystemItemsContainer = BX.create('DIV', {props: {className: 'order-md-1 order-2 col-md-7 bx-soa-pp-item-container'}}),
+				paySystemItemsContainerRow = BX.create('DIV', {props: {className: 'row'}}),
 				paySystemItemNode, i;
 
 			for (i = 0; i < this.paySystemPagination.currentPage.length; i++)
 			{
 				paySystemItemNode = this.createPaySystemItem(this.paySystemPagination.currentPage[i]);
-				paySystemItemsContainer.appendChild(paySystemItemNode);
+				paySystemItemsContainerRow.appendChild(paySystemItemNode);
 			}
+			paySystemItemsContainer.appendChild(paySystemItemsContainerRow);
 
 			if (this.paySystemPagination.show)
 				this.showPagination('paySystem', paySystemItemsContainer);
@@ -4793,14 +4993,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultPaySystemLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 			label = BX.create('DIV', {
 				props: {className: 'bx-soa-pp-company-graf-container'},
@@ -4825,7 +5025,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			}
 
 			itemNode = BX.create('DIV', {
-				props: {className: 'bx-soa-pp-company col-lg-4 col-6'},
+				props: {className: 'bx-soa-pp-company col-6'},
 				children: [label, title],
 				events: {
 					click: BX.proxy(this.selectPaySystem, this)
@@ -4845,7 +5045,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 
 			var paySystemInfoContainer = BX.create('DIV', {
 					props: {
-						className: (this.result.PAY_SYSTEM.length == 0 ? 'col-sm-12' : 'col-sm-5') + ' bx-soa-pp-desc-container'
+						className: (this.result.PAY_SYSTEM.length == 0 ? 'col-12 mb-3' : 'col-md-5 mb-lg-0') + ' col-12 mb-3 order-md-2 order-1 bx-soa-pp-desc-container'
 					}
 				}),
 				innerPs, extPs, delimiter, currentPaySystem,
@@ -4864,14 +5064,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 				if (logotype && logotype.src_2x)
 				{
 					logoNode.setAttribute('style',
-						'background-image: url(' + logotype.src_1x + ');' +
-						'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+						'background-image: url("' + logotype.src_1x + '");' +
+						'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 					);
 				}
 				else
 				{
 					logotype = logotype && logotype.src_1x || this.defaultPaySystemLogo;
-					logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+					logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 				}
 
 				if (this.params.SHOW_PAY_SYSTEM_INFO_NAME == 'Y')
@@ -4950,14 +5150,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultPaySystemLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 
 			label = BX.create('DIV', {
@@ -5018,7 +5218,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 				addedHtml = '', logotype, imgSrc;
 
 			if (errorNode)
-				node.appendChild(errorNode.cloneNode(true));
+				node.appendChild(
+					BX.create("div", {
+						props: { className: "col-12" },
+						children: [
+							errorNode.cloneNode(true)
+						]
+					})
+				);
 			else
 				this.getErrorContainer(node);
 
@@ -5211,14 +5418,16 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (!this.result.DELIVERY || this.result.DELIVERY.length <= 0)
 				return;
 
-			var deliveryItemsContainer = BX.create('DIV', {props: {className: 'col-sm-7 bx-soa-pp-item-container'}}),
+			var deliveryItemsContainer = BX.create('DIV', {props: {className: 'order-md-1 order-2 col-md-7 bx-soa-pp-item-container'}}),
+				deliveryItemsContainerRow = BX.create('DIV', {props: {className: 'row'}}),
 				deliveryItemNode, k;
 
 			for (k = 0; k < this.deliveryPagination.currentPage.length; k++)
 			{
 				deliveryItemNode = this.createDeliveryItem(this.deliveryPagination.currentPage[k]);
-				deliveryItemsContainer.appendChild(deliveryItemNode);
+				deliveryItemsContainerRow.appendChild(deliveryItemNode);
 			}
+			deliveryItemsContainer.appendChild(deliveryItemsContainerRow);
 
 			if (this.deliveryPagination.show)
 				this.showPagination('delivery', deliveryItemsContainer);
@@ -5231,7 +5440,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (!this.result.DELIVERY)
 				return;
 
-			var deliveryInfoContainer = BX.create('DIV', {props: {className: 'col-sm-5 bx-soa-pp-desc-container'}}),
+			var deliveryInfoContainer = BX.create('DIV', {props: {className: 'col-md-5 mb-lg-0 col-12 mb-3 order-md-2 order-1 bx-soa-pp-desc-container'}}),
 				currentDelivery, logotype, name, logoNode,
 				subTitle, label, title, price, period,
 				clear, infoList, extraServices, extraServicesNode;
@@ -5244,14 +5453,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultDeliveryLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 
 			name = this.params.SHOW_DELIVERY_PARENT_NAMES != 'N' ? currentDelivery.NAME : currentDelivery.OWN_NAME;
@@ -5464,14 +5673,14 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			if (logotype && logotype.src_2x)
 			{
 				logoNode.setAttribute('style',
-					'background-image: url(' + logotype.src_1x + ');' +
-					'background-image: -webkit-image-set(url(' + logotype.src_1x + ') 1x, url(' + logotype.src_2x + ') 2x)'
+					'background-image: url("' + logotype.src_1x + '");' +
+					'background-image: -webkit-image-set(url("' + logotype.src_1x + '") 1x, url("' + logotype.src_2x + '") 2x)'
 				);
 			}
 			else
 			{
 				logotype = logotype && logotype.src_1x || this.defaultDeliveryLogo;
-				logoNode.setAttribute('style', 'background-image: url(' + logotype + ');');
+				logoNode.setAttribute('style', 'background-image: url("' + logotype + '");');
 			}
 			labelNodes.push(logoNode);
 
@@ -5512,7 +5721,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			}
 
 			itemNode = BX.create('DIV', {
-				props: {className: 'bx-soa-pp-company col-lg-4 col-sm-4 col-xs-6'},
+				props: {className: 'bx-soa-pp-company col-6'},
 				children: [label, title],
 				events: {click: BX.proxy(this.selectDelivery, this)}
 			});
@@ -5570,14 +5779,17 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 
 				node.appendChild(
 					BX.create('DIV', {
-						props: {className: 'col-sm-9 bx-soa-pp-company-selected'},
-						children: arNodes
-					})
-				);
-				node.appendChild(
-					BX.create('DIV', {
-						props: {className: 'col-sm-3 bx-soa-pp-price'},
-						children: this.getDeliveryPriceNodes(selectedDelivery)
+						props: {className: "row"},
+						children: [
+							BX.create('DIV', {
+								props: {className: 'col-sm-9 bx-soa-pp-company-selected'},
+								children: arNodes
+							}),
+							BX.create('DIV', {
+								props: {className: 'col-sm bx-soa-pp-price'},
+								children: this.getDeliveryPriceNodes(selectedDelivery)
+							})
+						]
 					})
 				);
 			}
@@ -5653,7 +5865,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 				return;
 
 			this.pickUpBlockNode.style.display = '';
-			this.pickUpBlockNode.querySelector('h2.bx-soa-section-title').innerHTML =
+			this.pickUpBlockNode.querySelector('[data-entity="section-title"]').innerHTML =
 				'<span class="bx-soa-section-title-count"></span>' + BX.util.htmlspecialchars(deliveryName);
 
 			if (BX.hasClass(this.pickUpBlockNode, 'bx-active'))
@@ -6430,7 +6642,12 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 
 				this.editPropsItems(propsNode);
 				showPropMap && this.editPropsMap(propsNode);
-				this.editPropsComment(propsNode);
+
+				if (this.params.HIDE_ORDER_DESCRIPTION !== 'Y')
+				{
+					this.editPropsComment(propsNode);
+				}
+
 				propsContent.appendChild(propsNode);
 				this.getBlockFooter(propsContent);
 
@@ -6620,7 +6837,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 						for (i = 0; i < propNodes.length; i++)
 						{
 							locationString = this.getLocationString(propNodes[i]);
-							values.push(locationString.length ? locationString : BX.message('SOA_NOT_SELECTED'));
+							values.push(locationString.length ? BX.util.htmlspecialchars(locationString) : BX.message('SOA_NOT_SELECTED'));
 						}
 					}
 					propsItemNode.innerHTML += values.join('<br>');
@@ -6934,7 +7151,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 		{
 			var str = values.join(', ');
 
-			return str.length ? str : BX.message('SOA_NOT_SELECTED');
+			return str.length ? BX.util.htmlspecialchars(str) : BX.message('SOA_NOT_SELECTED');
 		},
 
 		alterProperty: function(settings, propContainer)
@@ -6947,6 +7164,9 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 			{
 				for (i = 0; i < divs.length; i++)
 				{
+					if (BX.hasClass(divs[i], 'bx-no-alter-margin'))
+						continue;
+
 					divs[i].style.margin = '5px 0';
 				}
 			}
@@ -7108,24 +7328,25 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 		alterDateProperty: function(settings, inputText)
 		{
 			var parentNode = BX.findParent(inputText, {tagName: 'DIV'}),
-				addon;
+				appendNode;
 
 			BX.addClass(parentNode, 'input-group');
-			addon = BX.create('DIV', {
-				props: {className: 'input-group-addon'},
-				children: [BX.create('I', {props: {className: 'bx-calendar'}})]
+			appendNode = BX.create('DIV', {
+				props: {className: 'input-group-append bx-no-alter-margin'},
+				html: '<span class="input-group-text"><i class="fa fa-calendar"></i></span>'
 			});
-			BX.insertAfter(addon, inputText);
+			BX.insertAfter(appendNode, inputText);
 			BX.remove(parentNode.querySelector('input[type=button]'));
-			BX.bind(addon, 'click', BX.delegate(function(e){
+
+			BX.bind(appendNode, 'click', BX.delegate(function(e){
 				var target = e.target || e.srcElement,
 					parentNode = BX.findParent(target, {tagName: 'DIV', className: 'input-group'});
 
 				BX.calendar({
-					node: parentNode.querySelector('.input-group-addon'),
+					node: parentNode.querySelector('.input-group-append'),
 					field: parentNode.querySelector('input[type=text]').name,
 					form: '',
-					bTime: settings.TIME == 'Y',
+					bTime: settings.TIME === 'Y',
 					bHideTime: false
 				});
 			}, this));
@@ -7521,14 +7742,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 
 				if (value.length > 0 && arProperty.PATTERN && arProperty.PATTERN.length)
 				{
-					var pattern = arProperty.PATTERN;
-					var clearPattern = pattern.substr(1, pattern.lastIndexOf(pattern[0]) - 1);
-					if (clearPattern && clearPattern.length)
-					{
-						pattern = clearPattern;
-					}
-
-					re = new RegExp(pattern);
+					re = new RegExp(arProperty.PATTERN);
 					if (!re.test(value))
 						errors.push(field + ' ' + BX.message('SOA_INVALID_PATTERN'));
 				}
@@ -8108,7 +8322,7 @@ BX.namespace('BX.Sale.OrderAjaxComponent');
 					}
 
 					products.push({
-						'id': item.data.ID,
+						'id': item.data.PRODUCT_ID,
 						'name': item.data.NAME,
 						'price': item.data.PRICE,
 						'brand': (item.data[this.params.BRAND_PROPERTY + '_VALUE'] || '').split(', ').join('/'),

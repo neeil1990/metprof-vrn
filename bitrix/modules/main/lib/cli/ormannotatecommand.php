@@ -10,25 +10,16 @@ namespace Bitrix\Main\Cli;
 
 use Bitrix\Main\Application;
 use Bitrix\Main\Loader;
-use Bitrix\Main\ORM\Data\AddResult;
-use Bitrix\Main\ORM\Data\UpdateResult;
+use Bitrix\Main\ORM\Annotations\AnnotationInterface;
+use Bitrix\Main\ORM\Annotations\AnnotationTrait;
+use Bitrix\Main\ORM\Fields\ArrayField;
 use Bitrix\Main\ORM\Fields\BooleanField;
 use Bitrix\Main\ORM\Data\DataManager;
 use Bitrix\Main\ORM\Entity;
-use Bitrix\Main\ORM\Fields\FieldTypeMask;
-use Bitrix\Main\ORM\Fields\UserTypeField;
-use Bitrix\Main\ORM\Objectify\EntityObject;
 use Bitrix\Main\ORM\Fields\DateField;
 use Bitrix\Main\ORM\Fields\DatetimeField;
-use Bitrix\Main\ORM\Fields\ExpressionField;
-use Bitrix\Main\ORM\Fields\Relations\ManyToMany;
-use Bitrix\Main\ORM\Fields\Relations\OneToMany;
 use Bitrix\Main\ORM\Fields\FloatField;
 use Bitrix\Main\ORM\Fields\IntegerField;
-use Bitrix\Main\ORM\Objectify\Collection;
-use Bitrix\Main\ORM\Fields\Relations\Reference;
-use Bitrix\Main\ORM\Fields\ScalarField;
-use Bitrix\Main\ORM\Query\Query;
 use Bitrix\Main\Type\Date;
 use Bitrix\Main\Type\DateTime;
 use Symfony\Component\Console\Command\Command;
@@ -37,27 +28,30 @@ use Symfony\Component\Console\Input\InputDefinition;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
+use Symfony\Component\Console\Style\SymfonyStyle;
 
 /**
  * @package    bitrix
  * @subpackage main
  */
-class OrmAnnotateCommand extends Command
+class OrmAnnotateCommand extends Command implements AnnotationInterface
 {
+	use AnnotationTrait;
+
 	protected $debug = 0;
 
 	protected $modulesScanned = [];
 
 	protected $filesIncluded = 0;
 
+	/** @var array Filled by handleClasses() */
 	protected $entitiesFound = [];
 
 	protected $excludedFiles = [
 		'main/lib/text/string.php',
 		'main/lib/composite/compatibility/aliases.php',
+		'sale/lib/delivery/extra_services/string.php',
 	];
-
-	const ANNOTATION_MARKER = 'ORMENTITYANNOTATION';
 
 	protected function configure()
 	{
@@ -93,6 +87,9 @@ class OrmAnnotateCommand extends Command
 				))
 			)
 		;
+
+		// disable Loader::requireModule exception
+		Loader::setRequireThrowException(false);
 	}
 
 	protected function execute(InputInterface $input, OutputInterface $output)
@@ -106,9 +103,15 @@ class OrmAnnotateCommand extends Command
 		$time = getmicrotime();
 		$memoryBefore = memory_get_usage();
 
+		/** @var \Exception[] $exceptions deferred errors */
+		$exceptions = [];
+
 		// handle already known classes (but we don't know their modules)
 		// as long as there are no any Table by default, we can ignore it
-		$this->handleClasses(get_declared_classes(), $input, $output);
+		//$this->handleClasses($this->getDeclaredClassesDiff(), $input, $output);
+
+		// skip already defined classes
+		$this->getDeclaredClassesDiff();
 
 		// scan dirs
 		$inputModules = [];
@@ -126,9 +129,22 @@ class OrmAnnotateCommand extends Command
 			$this->scanDir($dir, $input, $output);
 		}
 
+		// scan for bitrix entities
+		$this->scanBitrixEntities($inputModules, $input, $output);
+
+		// get classes from outside regular filesystem (e.g. iblock, hlblock)
+		try
+		{
+			$this->handleVirtualClasses($inputModules, $input, $output);
+		}
+		catch (\Exception $e)
+		{
+			$exceptions[] = $e;
+		}
+
 		// output file path
 		$filePath = $input->getArgument('output');
-		$filePath = ($filePath{0} == '/')
+		$filePath = ($filePath[0] == '/')
 			? $filePath // absolute
 			: getcwd().'/'.$filePath; // relative
 
@@ -142,10 +158,10 @@ class OrmAnnotateCommand extends Command
 
 			foreach ($rawAnnotations as $rawAnnotation)
 			{
-				if ($rawAnnotation{0} === ':')
+				if ($rawAnnotation[0] === ':')
 				{
-					$endPos = strpos($rawAnnotation, ' */');
-					$entityClass = substr($rawAnnotation, 1, $endPos-1);
+					$endPos = mb_strpos($rawAnnotation, ' */');
+					$entityClass = mb_substr($rawAnnotation, 1, $endPos - 1);
 					//$annotation = substr($rawAnnotation, $endPos + 3 + strlen(PHP_EOL));
 
 					$annotations[$entityClass] = '/* '.static::ANNOTATION_MARKER.rtrim($rawAnnotation);
@@ -154,12 +170,26 @@ class OrmAnnotateCommand extends Command
 		}
 
 		// add/rewrite new entities
-		foreach ($this->entitiesFound as $entityClass)
+		foreach ($this->entitiesFound as $entityMeta)
 		{
-			$entity = Entity::getInstance($entityClass);
-			$entityAnnotation = static::annotateEntity($entity, $input,$output);
-			$annotations[$entityClass] = "/* ".static::ANNOTATION_MARKER.":{$entityClass} */".PHP_EOL;
-			$annotations[$entityClass] .= $entityAnnotation;
+			try
+			{
+				$entityClass = $entityMeta['class'];
+				$annotateUfOnly = $entityMeta['ufOnly'];
+
+				$entity = Entity::getInstance($entityClass);
+				$entityAnnotation = static::annotateEntity($entity, $annotateUfOnly);
+
+				if (!empty($entityAnnotation))
+				{
+					$annotations[$entityClass] = "/* ".static::ANNOTATION_MARKER.":{$entityClass} */".PHP_EOL;
+					$annotations[$entityClass] .= $entityAnnotation;
+				}
+			}
+			catch (\Exception $e)
+			{
+				$exceptions[] = $e;
+			}
 		}
 
 		// write to file
@@ -179,14 +209,83 @@ class OrmAnnotateCommand extends Command
 		$output->writeln('Time: '.$time.' sec');
 		$output->writeln('Memory usage: '.(round($memoryAfter/1024/1024, 1)).'M (+'.(round($memoryDiff/1024/1024, 1)).'M)');
 		$output->writeln('Memory peak usage: '.(round(memory_get_peak_usage()/1024/1024, 1)).'M');
+
+		if (!empty($exceptions))
+		{
+			$io = new SymfonyStyle($input, $output);
+
+			foreach ($exceptions as $e)
+			{
+				$io->warning('Exception: '.$e->getMessage().PHP_EOL.$e->getTraceAsString());
+			}
+		}
 	}
 
 	protected function getDirsToScan($inputModules, InputInterface $input, OutputInterface $output)
 	{
+		$basePaths = [
+			//Application::getDocumentRoot().Application::getPersonalRoot().'/modules/',
+			Application::getDocumentRoot().'/local/modules/'
+		];
+
+		$dirs = [];
+
+		foreach ($basePaths as $basePath)
+		{
+			if (!file_exists($basePath))
+			{
+				continue;
+			}
+
+			$moduleList = [];
+
+			foreach (new \DirectoryIterator($basePath) as $item)
+			{
+				if($item->isDir() && !$item->isDot())
+				{
+					$moduleList[] = $item->getFilename();
+				}
+			}
+
+			// filter for input modules
+			if (!empty($inputModules))
+			{
+				$moduleList = array_intersect($moduleList, $inputModules);
+			}
+
+			foreach ($moduleList as $moduleName)
+			{
+				// filter for installed modules
+				if (!Loader::includeModule($moduleName))
+				{
+					continue;
+				}
+
+				$libDir = $basePath.$moduleName.'/lib';
+				if (is_dir($libDir) && is_readable($libDir))
+				{
+					$dirs[] = $libDir;
+				}
+
+				$libDir = $basePath.$moduleName.'/dev/lib';
+				if (is_dir($libDir) && is_readable($libDir))
+				{
+					$dirs[] = $libDir;
+				}
+
+				$this->modulesScanned[] = $moduleName;
+			}
+		}
+
+		return $dirs;
+	}
+
+	protected function scanBitrixEntities($inputModules, InputInterface $input, OutputInterface $output)
+	{
 		$basePath = Application::getDocumentRoot().Application::getPersonalRoot().'/modules/';
 
+		// get all available modules
 		$moduleList = [];
-		$dirs = [];
 
 		foreach (new \DirectoryIterator($basePath) as $item)
 		{
@@ -202,35 +301,51 @@ class OrmAnnotateCommand extends Command
 			$moduleList = array_intersect($moduleList, $inputModules);
 		}
 
+		// collect classes
 		foreach ($moduleList as $moduleName)
 		{
-			// filter for installed modules
-			if (!Loader::includeModule($moduleName))
-			{
-				continue;
-			}
+			$ufPath = $basePath.$moduleName.'/meta/'.static::ANNOTATION_UF_FILENAME;
 
-			$libDir = $basePath.$moduleName.'/lib';
-			if (is_dir($libDir) && is_readable($libDir))
+			if (file_exists($ufPath))
 			{
-				$dirs[] = $libDir;
-			}
+				$classes = include $ufPath;
 
-			$libDir = $basePath.$moduleName.'/dev/lib';
-			if (is_dir($libDir) && is_readable($libDir))
-			{
-				$dirs[] = $libDir;
+				foreach ($classes as $class)
+				{
+					if (class_exists($class))
+					{
+						$this->entitiesFound[] = [
+							'class' => $class,
+							'ufOnly' => true,
+						];
+					}
+				}
 			}
-
-			$this->modulesScanned[] = $moduleName;
 		}
 
-		return $dirs;
+		// clear diff buffer
+		$this->getDeclaredClassesDiff();
+	}
+
+	protected function registerFallbackAutoload()
+	{
+		spl_autoload_register(function($className) {
+			list($vendor, $module) = explode('\\', $className);
+
+			if (!empty($module))
+			{
+				Loader::includeModule($module);
+			}
+
+			return Loader::autoLoad($className);
+		});
 	}
 
 	protected function scanDir($dir, InputInterface $input, OutputInterface $output)
 	{
 		$this->debug($output,'scan dir: '.$dir);
+
+		$this->registerFallbackAutoload();
 
 		foreach (
 			$iterator = new \RecursiveIteratorIterator(
@@ -242,7 +357,7 @@ class OrmAnnotateCommand extends Command
 			foreach ($this->excludedFiles as $excludedFile)
 			{
 				$currentPath = str_replace('\\', '/', $item->getPathname());
-				if (substr($currentPath, -strlen($excludedFile)) === $excludedFile)
+				if (mb_substr($currentPath, -mb_strlen($excludedFile)) === $excludedFile)
 				{
 					continue 2;
 				}
@@ -250,27 +365,29 @@ class OrmAnnotateCommand extends Command
 
 			/** @var $iterator \RecursiveDirectoryIterator */
 			/** @var $item \SplFileInfo */
-			if ($item->isFile() && $item->isReadable() && substr($item->getFilename(), -4) == '.php')
+			if ($item->isFile() && $item->isReadable() && mb_substr($item->getFilename(), -4) == '.php')
 			{
 				$this->debug($output,'handle file: '.$item->getPathname());
 
-				// get classes from file
-				$classes = get_declared_classes();
-
 				try
 				{
+					// get classes from file
 					include_once $item->getPathname();
 					$this->filesIncluded++;
+
+					$classes = $this->getDeclaredClassesDiff();
+
+					// check classes
+					$this->handleClasses($classes, $input, $output);
 				}
-				catch (\Exception $e)
+				catch (\Throwable $e) // php7
 				{
-					throw  $e;
+					$this->debug($output, $e->getMessage());
 				}
-
-				$classes = array_diff(get_declared_classes(), $classes);
-
-				// check classes
-				$this->handleClasses($classes, $input, $output);
+				catch (\Exception $e) // php5
+				{
+					$this->debug($output, $e->getMessage());
+				}
 			}
 		}
 	}
@@ -281,343 +398,61 @@ class OrmAnnotateCommand extends Command
 		{
 			$debugMsg = $class;
 
-			if (is_subclass_of($class, DataManager::class))
+			if (is_subclass_of($class, DataManager::class) && mb_substr($class, -5) == 'Table')
 			{
+				if ((new \ReflectionClass($class))->isAbstract())
+				{
+					continue;
+				}
+
 				$debugMsg .= ' found!';
-				$this->entitiesFound[] = $class;
+				$this->entitiesFound[] = [
+					'class' => $class,
+					'ufOnly' => false,
+				];
 			}
 
 			$this->debug($output, $debugMsg);
 		}
 	}
 
-	public static function annotateEntity(Entity $entity, InputInterface $input, OutputInterface $output)
+	protected function getDeclaredClassesDiff()
 	{
-		$entityNamespace = trim($entity->getNamespace(), '\\');
-		$dataClass = $entity->getDataClass();
+		static $lastDeclaredClasses = [];
 
-		$objectClass = $entity->getObjectClass();
-		$objectClassName = $entity->getObjectClassName();
-		$objectNamespace =  trim(
-			substr($objectClass, 0, strrpos($objectClass, '\\')),
-			'\\'
-		);
+		$currentDeclaredClasses = get_declared_classes();
+		$diff = array_diff($currentDeclaredClasses, $lastDeclaredClasses);
+		$lastDeclaredClasses = $currentDeclaredClasses;
 
-		$collectionClass = $entity->getCollectionClass();
-		$collectionClassName = $entity->getCollectionClassName();
-		$collectionNamespace =  trim(
-			substr($collectionClass, 0, strrpos($collectionClass, '\\')),
-			'\\'
-		);
-
-		$code = [];
-		$objectCode = [];
-		$collectionCode = [];
-
-		$code[] = "namespace {$objectNamespace} {"; // start namespace
-		$code[] = "\t/**"; // start class annotations
-		$code[] = "\t * {$objectClassName}";
-		$code[] = "\t * @see {$dataClass}";
-		$code[] = "\t *";
-		$code[] = "\t * Custom methods:";
-		$code[] = "\t * ---------------";
-		$code[] = "\t *";
-
-		foreach ($entity->getFields() as $field)
-		{
-			$objectFieldCode = [];
-			$collectionFieldCode = [];
-
-			if ($field instanceof ScalarField)
-			{
-				list($objectFieldCode, $collectionFieldCode) = static::annotateScalarField($field);
-			}
-			elseif ($field instanceof UserTypeField)
-			{
-				list($objectFieldCode, $collectionFieldCode) = static::annotateUserType($field);
-			}
-			elseif ($field instanceof ExpressionField)
-			{
-				list($objectFieldCode, $collectionFieldCode) = static::annotateExpression($field);
-			}
-			elseif ($field instanceof Reference)
-			{
-				list($objectFieldCode, $collectionFieldCode) = static::annotateReference($field);
-			}
-			elseif ($field instanceof OneToMany)
-			{
-				list($objectFieldCode, $collectionFieldCode) = static::annotateOneToMany($field);
-			}
-			elseif ($field instanceof ManyToMany)
-			{
-				list($objectFieldCode, $collectionFieldCode) = static::annotateManyToMany($field);
-			}
-
-			$objectCode = array_merge($objectCode, $objectFieldCode);
-			$collectionCode = array_merge($collectionCode, $collectionFieldCode);
-		}
-
-		// common class methods
-		$code = array_merge($code, $objectCode);
-		$code[] = "\t *";
-		$code[] = "\t * Common methods:";
-		$code[] = "\t * ---------------";
-		$code[] = "\t *";
-		$code[] = "\t * @method \\".DataManager::class." dataClass()";
-		$code[] = "\t * @method \\".Entity::class." entity()";
-		$code[] = "\t * @method array primary()";
-		$code[] = "\t * @method mixed get(\$fieldName)";
-		$code[] = "\t * @method mixed actual(\$fieldName)";
-		$code[] = "\t * @method mixed require(\$fieldName)";
-		$code[] = "\t * @method {$objectClassName} set(\$fieldName, \$value)";
-		$code[] = "\t * @method {$objectClassName} reset(\$fieldName)";
-		$code[] = "\t * @method {$objectClassName} unset(\$fieldName)";
-		$code[] = "\t * @method void addTo(\$fieldName, \$value)";
-		$code[] = "\t * @method void removeFrom(\$fieldName, \$value)";
-		$code[] = "\t * @method void removeAll(\$fieldName)";
-		$code[] = "\t * @method void delete()";
-		$code[] = "\t * @method void fill(\$fields = \\".FieldTypeMask::class."::ALL) flag or array of field names";
-		$code[] = "\t * @method mixed[] values()";
-		$code[] = "\t * @method \\".AddResult::class."|\\".UpdateResult::class."|bool save()";
-		$code[] = "\t * @method static {$objectClassName} wakeUp(\$data)";
-		$code[] = "\t *";
-
-		$code[] = "\t * for parent class, @see \\".EntityObject::class;
-		// TODO we can put path to the original file here
-		$code[] = "\t */"; // end class annotations
-		$code[] = "\tclass {$objectClassName} {}";
-
-		// compatibility with default classes
-		if (strpos($objectClassName, Entity::DEFAULT_OBJECT_PREFIX) !== 0) // better to compare full classes definitions
-		{
-			$defaultObjectClassName = Entity::getDefaultObjectClassName($entity->getName());
-			$code[] = "\tclass_alias('{$objectClass}', '{$entityNamespace}\\{$defaultObjectClassName}');";
-		}
-
-		$code[] = "}"; // end namespace
-
-		// annotate collection class
-		$code[] = "namespace {$collectionNamespace} {"; // start namespace
-		$code[] = "\t/**";
-		$code[] = "\t * {$collectionClassName}";
-		$code[] = "\t *";
-		$code[] = "\t * Custom methods:";
-		$code[] = "\t * ---------------";
-		$code[] = "\t *";
-
-		$code = array_merge($code, $collectionCode);
-
-		$code[] = "\t *";
-		$code[] = "\t * Common methods:";
-		$code[] = "\t * ---------------";
-		$code[] = "\t *";
-		$code[] = "\t * @method void fill(\$fields = \\".FieldTypeMask::class."::ALL) flag or array of field names";
-		$code[] = "\t * @method {$objectClass} current()";
-		$code[] = "\t * @method {$objectClass}[] getAll()";
-		// TODO we can put path to the original file here
-		$code[] = "\t */";
-		$code[] = "\tclass {$collectionClassName} extends \\".Collection::class." {}";
-
-		// compatibility with default classes
-		if (strpos($objectClassName, Entity::DEFAULT_OBJECT_PREFIX) !== 0) // better to compare full classes definitions
-		{
-			$defaultCollectionClassName = Entity::getDefaultCollectionClassName($entity->getName());
-			$code[] = "\tclass_alias('{$entityNamespace}\\{$collectionClassName}', '{$entityNamespace}\\{$defaultCollectionClassName}');";
-		}
-
-		$code[] = "}"; // end namespace
-
-
-		// annotate query and result
-		$dataClassName = $entity->getName().'Table';
-		$queryClassName = Entity::DEFAULT_OBJECT_PREFIX.$entity->getName().'Query';
-		$resultClassName = Entity::DEFAULT_OBJECT_PREFIX.$entity->getName().'Result';
-
-		$code[] = "namespace {$entityNamespace} {"; // start namespace
-		$code[] = "\t/**";
-		$code[] = "\t * @method $queryClassName query()";
-		$code[] = "\t */";
-		$code[] = "\tclass {$dataClassName} {}";
-
-		$code[] = "\t/**";
-		$code[] = "\t * @method $resultClassName exec()";
-		$code[] = "\t */";
-		$code[] = "\tclass {$queryClassName} extends \\".Query::class." {}";
-
-		$code[] = "\t/**";
-		$code[] = "\t * @method {$objectClass} fetchObject()";
-		$code[] = "\t * @method {$collectionClass} fetchCollection()";
-		$code[] = "\t */";
-		$code[] = "\tclass {$resultClassName} {}";
-
-		$code[] = "}"; // end namespace
-
-		return join(PHP_EOL, $code);
+		return $diff;
 	}
 
-	public static function annotateScalarField(ScalarField $field)
+	/**
+	 * Builds annotation for classes outside regular filesystem (e.g. iblock, hlblock)
+	 *
+	 * @param array           $inputModules
+	 * @param InputInterface  $input
+	 * @param OutputInterface $output
+	 */
+	protected function handleVirtualClasses($inputModules, InputInterface $input, OutputInterface $output)
 	{
-		// TODO no setter if it is reference-elemental (could expressions become elemental?)
+		// init new classes by event
+		$event = new \Bitrix\Main\Event("main", "onVirtualClassBuildList", [], $inputModules);
+		$event->send();
 
-		$objectClassName = $field->getEntity()->getObjectClassName();
-		$dataType = static::scalarFieldToTypeHint($field);
-		list($lName, $uName) = static::getFieldNameCamelCase($field->getName());
+		// no need to handle event result, get classes from the memory
+		$classes = $this->getDeclaredClassesDiff();
 
-		$objectCode = [];
-		$collectionCode = [];
-
-		$objectCode[] = "\t * @method {$dataType} get{$uName}()";
-		$objectCode[] = "\t * @method {$objectClassName} set{$uName}({$dataType} \${$lName})";
-
-		$collectionCode[] = "\t * @method {$dataType}[] get{$uName}List()";
-
-		if (!$field->isPrimary())
-		{
-			$objectCode[] = "\t * @method {$dataType} actual{$uName}()";
-			$objectCode[] = "\t * @method {$dataType} require{$uName}()";
-
-			$objectCode[] = "\t * @method {$objectClassName} reset{$uName}()";
-			$objectCode[] = "\t * @method {$objectClassName} unset{$uName}()";
-
-			$objectCode[] = "\t * @method {$dataType} fill{$uName}()";
-			$collectionCode[] = "\t * @method fill{$uName}()";
-		}
-
-		return [$objectCode, $collectionCode];
+		$this->handleClasses($classes, $input, $output);
 	}
 
-	public static function annotateUserType(UserTypeField $field)
-	{
-		// no setter
-		$objectClassName = $field->getEntity()->getObjectClassName();
-		$dataType = static::scalarFieldToTypeHint($field->getValueType());
-		$dataType = $field->isMultiple() ? $dataType.'[]' : $dataType;
-		list($lName, $uName) = static::getFieldNameCamelCase($field->getName());
-
-		list($objectCode, $collectionCode) = static::annotateExpression($field);
-
-		// add setter
-		$objectCode[] = "\t * @method {$objectClassName} set{$uName}({$dataType} \${$lName})";
-
-		return [$objectCode, $collectionCode];
-	}
-
-	public static function annotateExpression(ExpressionField $field)
-	{
-		// no setter
-		$objectClassName = $field->getEntity()->getObjectClassName();
-		$dataType = static::scalarFieldToTypeHint($field->getValueType());
-		list($lName, $uName) = static::getFieldNameCamelCase($field->getName());
-
-		$objectCode = [];
-		$collectionCode = [];
-
-		$objectCode[] = "\t * @method {$dataType} get{$uName}()";
-		$objectCode[] = "\t * @method {$dataType} actual{$uName}()";
-		$objectCode[] = "\t * @method {$dataType} require{$uName}()";
-
-		$collectionCode[] = "\t * @method {$dataType}[] get{$uName}List()";
-
-		$objectCode[] = "\t * @method {$objectClassName} unset{$uName}()";
-
-		$objectCode[] = "\t * @method {$dataType} fill{$uName}()";
-		$collectionCode[] = "\t * @method fill{$uName}()";
-
-		return [$objectCode, $collectionCode];
-	}
-
-	public static function annotateReference(Reference $field)
-	{
-		$objectClassName = $field->getEntity()->getObjectClassName();
-		$dataType = $field->getRefEntity()->getObjectClass();
-
-		list($lName, $uName) = static::getFieldNameCamelCase($field->getName());
-
-		$objectCode = [];
-		$collectionCode = [];
-
-		$objectCode[] = "\t * @method {$dataType} get{$uName}()";
-		$objectCode[] = "\t * @method {$dataType} actual{$uName}()";
-		$objectCode[] = "\t * @method {$dataType} require{$uName}()";
-
-		$objectCode[] = "\t * @method {$objectClassName} set{$uName}({$dataType} \$object)";
-		$objectCode[] = "\t * @method {$objectClassName} reset{$uName}()";
-		$objectCode[] = "\t * @method {$objectClassName} unset{$uName}()";
-
-		$collectionCode[] = "\t * @method {$dataType}[] get{$uName}List()";
-
-		$objectCode[] = "\t * @method {$dataType} fill{$uName}()";
-		$collectionCode[] = "\t * @method fill{$uName}()";
-
-		return [$objectCode, $collectionCode];
-	}
-
-	public static function annotateOneToMany(OneToMany $field)
-	{
-		$objectClassName = $field->getEntity()->getObjectClassName();
-		$collectionDataType = $field->getRefEntity()->getCollectionClass();
-		$objectDataType = $field->getRefEntity()->getObjectClass();
-		$objectVarName = lcfirst($field->getRefEntity()->getName());
-
-		list($lName, $uName) = static::getFieldNameCamelCase($field->getName());
-
-		$objectCode = [];
-		$collectionCode = [];
-
-		$objectCode[] = "\t * @method {$collectionDataType} get{$uName}()";
-		$objectCode[] = "\t * @method {$collectionDataType} require{$uName}()";
-		$objectCode[] = "\t * @method {$collectionDataType} fill{$uName}()";
-
-		$objectCode[] = "\t * @method void addTo{$uName}({$objectDataType} \${$objectVarName})";
-		$objectCode[] = "\t * @method void removeFrom{$uName}({$objectDataType} \${$objectVarName})";
-		$objectCode[] = "\t * @method void removeAll{$uName}()";
-
-		$objectCode[] = "\t * @method {$objectClassName} reset{$uName}()";
-		$objectCode[] = "\t * @method {$objectClassName} unset{$uName}()";
-
-		$collectionCode[] = "\t * @method {$collectionDataType}[] get{$uName}List()";
-		$collectionCode[] = "\t * @method void fill{$uName}()";
-
-		return [$objectCode, $collectionCode];
-	}
-
-	public static function annotateManyToMany(ManyToMany $field)
-	{
-		$objectClassName = $field->getEntity()->getObjectClassName();
-		$collectionDataType = $field->getRefEntity()->getCollectionClass();
-		$objectDataType = $field->getRefEntity()->getObjectClass();
-		$objectVarName = lcfirst($field->getRefEntity()->getName());
-
-		list($lName, $uName) = static::getFieldNameCamelCase($field->getName());
-
-		$objectCode = [];
-		$collectionCode = [];
-
-		$objectCode[] = "\t * @method {$collectionDataType} get{$uName}()";
-		$objectCode[] = "\t * @method {$collectionDataType} require{$uName}()";
-		$objectCode[] = "\t * @method {$collectionDataType} fill{$uName}()";
-
-		$objectCode[] = "\t * @method void addTo{$uName}({$objectDataType} \${$objectVarName})";
-		$objectCode[] = "\t * @method void removeFrom{$uName}({$objectDataType} \${$objectVarName})";
-		$objectCode[] = "\t * @method void removeAll{$uName}()";
-
-		$objectCode[] = "\t * @method {$objectClassName} reset{$uName}()";
-		$objectCode[] = "\t * @method {$objectClassName} unset{$uName}()";
-
-		$collectionCode[] = "\t * @method {$collectionDataType}[] get{$uName}List()";
-		$collectionCode[] = "\t * @method fill{$uName}()";
-
-		return [$objectCode, $collectionCode];
-	}
-
-	protected static function getFieldNameCamelCase($fieldName)
-	{
-		$upperFirstName = Entity::snake2camel($fieldName);
-		$lowerFirstName = lcfirst($upperFirstName);
-
-		return [$lowerFirstName, $upperFirstName];
-	}
-
+	/**
+	 * @deprecated
+	 *
+	 * @param $field
+	 *
+	 * @return string
+	 */
 	public static function scalarFieldToTypeHint($field)
 	{
 		if (is_string($field))
@@ -641,6 +476,8 @@ class OrmAnnotateCommand extends Command
 				return '\\boolean';
 			case FloatField::class:
 				return '\\float';
+			case ArrayField::class:
+				return 'array';
 			default:
 				return '\\string';
 		}

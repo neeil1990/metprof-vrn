@@ -1,26 +1,31 @@
 <?
 
-use Bitrix\Main\Localization\Loc;
 use Bitrix\Main\ErrorCollection;
-use Bitrix\Sender\UI\PageNavigation;
-use Bitrix\Main\UI\Filter\Options as FilterOptions;
 use Bitrix\Main\Grid\Options as GridOptions;
-use Bitrix\Main\Loader;
-use Bitrix\Main\Error;
-
-use Bitrix\Sender\Entity;
+use Bitrix\Main\Localization\Loc;
+use Bitrix\Main\UI\Filter\Options as FilterOptions;
+use Bitrix\Sender\Access\ActionDictionary;
 use Bitrix\Sender\ContactTable;
+use Bitrix\Sender\Entity;
+use Bitrix\Sender\Internals\DataExport;
 use Bitrix\Sender\Recipient;
 use Bitrix\Sender\Security;
+use Bitrix\Sender\UI\PageNavigation;
 
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED !== true)
 {
 	die();
 }
 
+if (!Bitrix\Main\Loader::includeModule('sender'))
+{
+	ShowError('Module `sender` not installed');
+	die();
+}
+
 Loc::loadMessages(__FILE__);
 
-class SenderBlackListListComponent extends CBitrixComponent
+class SenderBlackListListComponent extends Bitrix\Sender\Internals\CommonSenderComponent
 {
 	/** @var ErrorCollection $errors */
 	protected $errors;
@@ -32,6 +37,7 @@ class SenderBlackListListComponent extends CBitrixComponent
 
 	protected function initParams()
 	{
+		parent::initParams();
 		$this->arParams['PATH_TO_LIST'] = isset($this->arParams['PATH_TO_LIST']) ? $this->arParams['PATH_TO_LIST'] : '';
 		$this->arParams['PATH_TO_USER_PROFILE'] = isset($this->arParams['PATH_TO_USER_PROFILE']) ? $this->arParams['PATH_TO_USER_PROFILE'] : '';
 		$this->arParams['NAME_TEMPLATE'] = empty($this->arParams['NAME_TEMPLATE']) ? CSite::GetNameFormat(false) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $this->arParams["NAME_TEMPLATE"]);
@@ -47,7 +53,7 @@ class SenderBlackListListComponent extends CBitrixComponent
 			?
 			$this->arParams['CAN_EDIT']
 			:
-			Security\Access::current()->canModifyBlacklist();
+			Security\Access::getInstance()->canModifyBlacklist();
 	}
 
 	protected function preparePost()
@@ -70,6 +76,25 @@ class SenderBlackListListComponent extends CBitrixComponent
 		}
 	}
 
+	protected function prepareExport()
+	{
+		$list = ContactTable::getList(array(
+			'select' => $this->getDataSelectedFields(),
+			'filter' => $this->getDataFilter(),
+			'order' => $this->getGridOrder()
+		));
+
+		DataExport::toCsv(
+			$this->getUiGridColumns(),
+			$list,
+			function ($item)
+			{
+				$item['TYPE_ID'] = Recipient\Type::getName($item['TYPE_ID']);
+				return $item;
+			}
+		);
+	}
+
 	protected function prepareResult()
 	{
 		/* Set title */
@@ -79,7 +104,7 @@ class SenderBlackListListComponent extends CBitrixComponent
 			$GLOBALS['APPLICATION']->SetTitle(Loc::getMessage('SENDER_BLACKLIST_LIST_TITLE'));
 		}
 
-		if (!Security\Access::current()->canViewBlacklist())
+		if (!Security\Access::getInstance()->canViewBlacklist())
 		{
 			Security\AccessChecker::addError($this->errors);
 			return false;
@@ -101,15 +126,19 @@ class SenderBlackListListComponent extends CBitrixComponent
 		// set ui grid columns
 		$this->setUiGridColumns();
 
+		// export
+		if ($this->request->get('export'))
+		{
+			$this->prepareExport();
+		}
+
 		// create nav
 		$nav = new PageNavigation("page-sender-blacklist");
 		$nav->allowAllRecords(false)->setPageSize(10)->initFromUri();
 
 		// get rows
 		$list = ContactTable::getList(array(
-			'select' => array(
-				'ID', 'NAME', 'TYPE_ID', 'CODE', 'DATE_INSERT'
-			),
+			'select' => $this->getDataSelectedFields(),
 			'filter' => $this->getDataFilter(),
 			'offset' => $nav->getOffset(),
 			'limit' => $nav->getLimit(),
@@ -129,6 +158,11 @@ class SenderBlackListListComponent extends CBitrixComponent
 		$this->arResult['NAV_OBJECT'] = $nav;
 
 		return true;
+	}
+
+	protected function getDataSelectedFields()
+	{
+		return ['ID', 'NAME', 'TYPE_ID', 'CODE', 'DATE_INSERT'];
 	}
 
 	protected function getDataFilter()
@@ -161,7 +195,7 @@ class SenderBlackListListComponent extends CBitrixComponent
 		$sorting = $gridOptions->getSorting(array('sort' => $defaultSort));
 
 		$by = key($sorting['sort']);
-		$order = strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
+		$order = mb_strtoupper(current($sorting['sort'])) === 'ASC' ? 'ASC' : 'DESC';
 
 		$list = array();
 		foreach ($this->getUiGridColumns() as $column)
@@ -283,27 +317,17 @@ class SenderBlackListListComponent extends CBitrixComponent
 
 	public function executeComponent()
 	{
-		$this->errors = new \Bitrix\Main\ErrorCollection();
-		if (!Loader::includeModule('sender'))
-		{
-			$this->errors->setError(new Error('Module `sender` is not installed.'));
-			$this->printErrors();
-			return;
-		}
+		parent::executeComponent();
+		parent::prepareResultAndTemplate();
+	}
 
-		$this->initParams();
-		if (!$this->checkRequiredParams())
-		{
-			$this->printErrors();
-			return;
-		}
+	public function getEditAction()
+	{
+		return ActionDictionary::ACTION_BLACKLIST_EDIT;
+	}
 
-		if (!$this->prepareResult())
-		{
-			$this->printErrors();
-			return;
-		}
-
-		$this->includeComponentTemplate();
+	public function getViewAction()
+	{
+		return ActionDictionary::ACTION_BLACKLIST_VIEW;
 	}
 }

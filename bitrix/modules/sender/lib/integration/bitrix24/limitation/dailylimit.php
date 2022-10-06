@@ -11,6 +11,7 @@ namespace Bitrix\Sender\Integration\Bitrix24\Limitation;
 use Bitrix\Main\Config;
 
 use Bitrix\Sender\Internals\Model;
+use Bitrix\Bitrix24;
 
 /**
  * Class DailyLimit
@@ -66,7 +67,17 @@ class DailyLimit
 	 */
 	public function getLimit()
 	{
-		return intval(Config\Option::get("sender", "~mail_counter_limit_daily", 1000));
+		$senderLimit = (int)Config\Option::get("sender", "~mail_counter_limit_daily", 1000);
+
+		$b24MailCounter = new Bitrix24\MailCounter();
+		$b24Limit = $b24MailCounter->getDailyLimit();
+		if (!$b24Limit)
+		{
+			return $senderLimit;
+		}
+
+		return min($senderLimit, $b24Limit);
+
 	}
 
 	/**

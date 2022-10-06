@@ -4,6 +4,7 @@ namespace Bitrix\Main\ORM\Query;
 
 use Bitrix\Main;
 use Bitrix\Main\ORM\Entity;
+use Bitrix\Main\ORM\Fields\ArrayField;
 use Bitrix\Main\ORM\Fields\BooleanField;
 use Bitrix\Main\ORM\Fields\ExpressionField;
 use Bitrix\Main\ORM\Fields\Field;
@@ -14,96 +15,101 @@ use Bitrix\Main\ORM\Fields\ScalarField;
 use Bitrix\Main\ORM\Fields\TextField;
 use Bitrix\Main\ORM\Query\Filter\ConditionTree as Filter;
 use Bitrix\Main\ORM\Query\Filter\Expressions\ColumnExpression;
+use Bitrix\Main\SystemException;
+use Bitrix\Main\Text\StringHelper;
 
 /**
  * Query builder for Entities.
  *
  * Virtual WHERE methods (proxy to Filter):
  *
- * @method Query where(...$filter)
+ * @method $this where(...$filter)
  * @see Filter::where()
  *
- * @method Query whereNot(...$filter)
+ * @method $this whereNot(...$filter)
  * @see Filter::whereNot()
  *
- * @method Query whereColumn(...$filter)
+ * @method $this whereColumn(...$filter)
  * @see Filter::whereColumn()
  *
- * @method Query whereNull($column)
+ * @method $this whereNull($column)
  * @see Filter::whereNull()
  *
- * @method Query whereNotNull($column)
+ * @method $this whereNotNull($column)
  * @see Filter::whereNotNull()
  *
- * @method Query whereIn($column, $values)
+ * @method $this whereIn($column, $values)
  * @see Filter::whereIn()
  *
- * @method Query whereNotIn($column, $values)
+ * @method $this whereNotIn($column, $values)
  * @see Filter::whereNotIn()
  *
- * @method Query whereBetween($column, $valueMin, $valueMax)
+ * @method $this whereBetween($column, $valueMin, $valueMax)
  * @see Filter::whereBetween()
  *
- * @method Query whereNotBetween($column, $valueMin, $valueMax)
+ * @method $this whereNotBetween($column, $valueMin, $valueMax)
  * @see Filter::whereNotBetween()
  *
- * @method Query whereLike($column, $value)
+ * @method $this whereLike($column, $value)
  * @see Filter::whereLike()
  *
- * @method Query whereNotLike($column, $value)
+ * @method $this whereNotLike($column, $value)
  * @see Filter::whereNotLike()
  *
- * @method Query whereExists($query)
+ * @method $this whereExists($query)
  * @see Filter::whereExists()
  *
- * @method Query whereNotExists($query)
+ * @method $this whereNotExists($query)
  * @see Filter::whereNotExists()
  *
- * @method Query whereMatch($column, $value)
+ * @method $this whereMatch($column, $value)
  * @see Filter::whereMatch()
  *
- * @method Query whereNotMatch($column, $value)
+ * @method $this whereNotMatch($column, $value)
  * @see Filter::whereNotMatch()
+ *
+ * @method $this whereExpr($expr, $arguments)
+ * @see Filter::whereExpr()
  *
  * Virtual HAVING methods (proxy to Filter):
  *
- * @method Query having(...$filter)
+ * @method $this having(...$filter)
  * @see Filter::where()
  *
- * @method Query havingNot(...$filter)
+ * @method $this havingNot(...$filter)
  * @see Filter::whereNot()
  *
- * @method Query havingColumn(...$filter)
+ * @method $this havingColumn(...$filter)
  * @see Filter::whereColumn()
  *
- * @method Query havingNull($column)
+ * @method $this havingNull($column)
  * @see Filter::whereNull()
  *
- * @method Query havingNotNull($column)
+ * @method $this havingNotNull($column)
  * @see Filter::whereNotNull()
  *
- * @method Query havingIn($column, $values)
+ * @method $this havingIn($column, $values)
  * @see Filter::whereIn()
  *
- * @method Query havingNotIn($column, $values)
+ * @method $this havingNotIn($column, $values)
  * @see Filter::whereNotIn()
  *
- * @method Query havingBetween($column, $valueMin, $valueMax)
+ * @method $this havingBetween($column, $valueMin, $valueMax)
  * @see Filter::whereBetween()
  *
- * @method Query havingNotBetween($column, $valueMin, $valueMax)
+ * @method $this havingNotBetween($column, $valueMin, $valueMax)
  * @see Filter::whereNotBetween()
  *
- * @method Query havingLike($column, $value)
+ * @method $this havingLike($column, $value)
  * @see Filter::whereLike()
  *
- * @method Query havingNotLike($column, $value)
+ * @method $this havingNotLike($column, $value)
  * @see Filter::whereNotLike()
  *
- * @method Query havingExists($query)
+ * @method $this havingExists($query)
  * @see Filter::whereExists()
  *
- * @method Query havingNotExists($query)
+ * @method $this havingNotExists($query)
  * @see Filter::whereNotExists()
  *
  * @package Bitrix\Main\ORM
@@ -160,6 +166,12 @@ class Query
 		$having_expr_chains = array(), // from having expr "build_from"
 		$hidden_chains = array(); // all expr "build_from" elements;
 
+	/**
+	 * Fields in result that are visible for fetchObject, but invisible for array
+	 * @var string[]
+	 */
+	protected $forcedObjectPrimaryFields;
+
 	/** @var Chain[] */
 	protected $runtime_chains;
 
@@ -179,6 +191,13 @@ class Query
 	 */
 	protected $data_doubling_off = false;
 
+	/**
+	 * Enable or disable handling private fields
+	 * @see ScalarField::$is_private
+	 * @var bool
+	 */
+	protected $private_fields_on = false;
+
 	/** @var string */
 	protected $table_alias_postfix = '';
 
@@ -195,6 +214,9 @@ class Query
 	protected $unionHandler;
 
 	/** @var bool */
+	protected $is_distinct = false;
+
+	/** @var bool */
 	protected $is_executing = false;
 
 	/** @var string Last executed SQL query */
@@ -205,6 +227,9 @@ class Query
 
 	/** @var array Replaced table aliases */
 	protected $replaced_taliases;
+
+	/** @var int */
+	protected $uniqueAliasCounter = 0;
 
 	/** @var callable[] */
 	protected $selectFetchModifiers = array();
@@ -265,7 +290,25 @@ class Query
 			if (method_exists($this->filterHandler, $method))
 			{
 				call_user_func_array(
-					array($this->filterHandler, $method),
+					[$this->filterHandler, $method],
+					$arguments
+				);
+
+				return $this;
+			}
+		}
+
+		if (substr($method, 0, 4) === 'with')
+		{
+			$dataClass = $this->entity->getDataClass();
+
+			if (method_exists($dataClass, $method))
+			{
+				// set query as first element
+				array_unshift($arguments, $this);
+
+				call_user_func_array(
+					[$dataClass, $method],
 					$arguments
 				);
 
@@ -307,7 +350,7 @@ class Query
 	 */
 	public function addSelect($definition, $alias = '')
 	{
-		if (strlen($alias))
+		if($alias <> '')
 		{
 			$this->select[$alias] = $definition;
 		}
@@ -360,6 +403,14 @@ class Query
 		}
 
 		return $this;
+	}
+
+	/**
+	 * @return Filter
+	 */
+	public function getFilterHandler()
+	{
+		return $this->filterHandler;
 	}
 
 	/**
@@ -673,9 +724,104 @@ class Query
 	}
 
 	/**
+	 * Allows private fields in query
+	 *
+	 * @return $this
+	 */
+	public function enablePrivateFields()
+	{
+		$this->private_fields_on = true;
+
+		return $this;
+	}
+
+	/**
+	 * Restricts private fields in query
+	 *
+	 * @return $this
+	 */
+	public function disablePrivateFields()
+	{
+		$this->private_fields_on = false;
+
+		return $this;
+	}
+
+	/**
+	 * @return bool
+	 */
+	public function isPrivateFieldsEnabled()
+	{
+		return $this->private_fields_on;
+	}
+
+	protected function checkForPrivateFields()
+	{
+		// check in filter
+		foreach ($this->filter_chains as $chain)
+		{
+			if (static::isFieldPrivate($chain->getLastElement()->getValue()))
+			{
+				$columnField = $chain->getLastElement()->getValue();
+
+				throw new SystemException(sprintf(
+					'Private field %s.%s is restricted in filter',
+					$columnField->getEntity()->getDataClass(),
+					$columnField->getName()
+				));
+			}
+		}
+
+		// check in general
+		if ($this->private_fields_on !== true)
+		{
+			foreach ($this->global_chains as $chain)
+			{
+				if (static::isFieldPrivate($chain->getLastElement()->getValue()))
+				{
+					$columnField = $chain->getLastElement()->getValue();
+
+					trigger_error(sprintf(
+						'Private field %s.%s is restricted in query, use Query::enablePrivateFields() to allow it',
+						$columnField->getEntity()->getDataClass(),
+						$columnField->getName()
+					), E_USER_WARNING);
+				}
+			}
+		}
+	}
+
+	/**
+	 * @param Field|Main\ORM\Fields\IReadable $field
+	 *
+	 * @return bool
+	 * @throws Main\ArgumentException
+	 * @throws SystemException
+	 */
+	public static function isFieldPrivate($field)
+	{
+		if ($field instanceof ScalarField)
+		{
+			return $field->isPrivate();
+		}
+		elseif ($field instanceof ExpressionField)
+		{
+			foreach ($field->getBuildFromChains() as $chain)
+			{
+				if (static::isFieldPrivate($chain->getLastElement()->getValue()))
+				{
+					return  true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	/**
 	 * Adds a runtime field (being created dynamically, opposite to being described statically in the entity map)
 	 *
-	 * @param string|null $name
+	 * @param string|null|Field $name
 	 * @param array|Field $fieldInfo
 	 *
 	 * @return $this
@@ -813,7 +959,118 @@ class Query
 
 		$this->is_executing = false;
 
-		return new Result($this, $result);
+		$queryResult = new Result($this, $result);
+
+		if (!empty($this->forcedObjectPrimaryFields))
+		{
+			$queryResult->setHiddenObjectFields($this->forcedObjectPrimaryFields);
+		}
+
+		return $queryResult;
+	}
+
+	/**
+	 * Short alias for $result->fetch()
+	 *
+	 * @param Main\Text\Converter|null $converter
+	 *
+	 * @return array|false
+	 * @throws Main\ObjectPropertyException
+	 * @throws Main\SystemException
+	 */
+	public function fetch(\Bitrix\Main\Text\Converter $converter = null)
+	{
+		return $this->exec()->fetch($converter);
+	}
+
+	/**
+	 * Short alias for $result->fetchAll()
+	 *
+	 * @param Main\Text\Converter|null $converter
+	 *
+	 * @return array
+	 * @throws Main\ObjectPropertyException
+	 * @throws Main\SystemException
+	 */
+	public function fetchAll(\Bitrix\Main\Text\Converter $converter = null)
+	{
+		return $this->exec()->fetchAll($converter);
+	}
+
+	/**
+	 * Short alias for $result->fetchObject()
+	 *
+	 * @return null Actual type should be annotated by orm:annotate
+	 * @throws Main\ArgumentException
+	 * @throws Main\ObjectPropertyException
+	 * @throws Main\SystemException
+	 */
+	public function fetchObject()
+	{
+		return $this->exec()->fetchObject();
+	}
+
+	/**
+	 * Short alias for $result->fetchCollection()
+	 *
+	 * @return null Actual type should be annotated by orm:annotate
+	 * @throws Main\ObjectPropertyException
+	 * @throws Main\SystemException
+	 */
+	public function fetchCollection()
+	{
+		return $this->exec()->fetchCollection();
+	}
+
+	protected function ensurePrimarySelect()
+	{
+		// no auto primary for queries with group
+		// it may change the result
+		if ($this->hasAggregation() || $this->hasDistinct())
+		{
+			return;
+		}
+
+		$entities = [[$this->entity, '']];
+
+		foreach ($this->join_map as $join)
+		{
+			$entities[] = [$join['entity'], $join];
+		}
+
+		// check for primaries in select
+		foreach ($entities as list($entity, $join))
+		{
+			/** @var Entity $entity */
+			foreach ($entity->getPrimaryArray() as $primary)
+			{
+				if (!empty($entity->getField($primary)->hasParameter('auto_generated')))
+				{
+					continue;
+				}
+
+				$needDefinition = !empty($join['definition']) ? $join['definition'].'.'.$primary : $primary;
+
+				$chain = $this->getRegisteredChain($needDefinition, true);
+
+				if (empty($this->select_chains[$chain->getAlias()]))
+				{
+					// set uniq alias
+					$alias = $this->getUniqueAlias();
+					$chain->setCustomAlias($alias);
+
+					$this->registerChain('select', $chain);
+
+					// remember to delete alias from array result
+					$this->forcedObjectPrimaryFields[] = $alias;
+
+					// set join alias
+					!empty($join)
+						? $chain->getLastElement()->setParameter('talias', $join['alias'])
+						: $chain->getLastElement()->setParameter('talias', $this->getInitAlias());
+				}
+			}
+		}
 	}
 
 	/**
@@ -861,7 +1118,7 @@ class Query
 
 			if ($localDefinitionPos !== false)
 			{
-				$localDefinition = substr($definition, $localDefinitionPos+1);
+				$localDefinition = substr($definition, $localDefinitionPos + 1);
 				$localEntityDef = substr($definition, 0, $localDefinitionPos);
 				$localChain = Chain::getChainByDefinition($this->entity, $localEntityDef.'.*');
 				$lastElemValue = $localChain->getLastElement()->getValue();
@@ -900,6 +1157,22 @@ class Query
 						&& fnmatch($localDefinition, $field->getName())
 					)
 					{
+						// skip private fields
+						if ($field instanceof ScalarField && $field->isPrivate())
+						{
+							continue;
+						}
+
+						// skip uf utm single
+						if (
+							substr($field->getName(), 0, 3) == 'UF_' && substr($field->getName(), -7) == '_SINGLE'
+							&& $localEntity->hasField(substr($field->getName(), 0, -7))
+						)
+						{
+							continue;
+						}
+
+
 						// build alias
 						$customAlias = null;
 
@@ -991,6 +1264,12 @@ class Query
 					// except for references and expressions
 					if ($exp_field instanceof ScalarField)
 					{
+						// skip private fields
+						if ($exp_field->isPrivate())
+						{
+							continue;
+						}
+
 						$exp_chain = clone $chain;
 						$exp_chain->addElement(new ChainElement(
 							$exp_field
@@ -1094,7 +1373,8 @@ class Query
 				}
 
 				// check for base linking
-				if ($dstField instanceof TextField && $dstEntity->hasField($dstField->getName().'_SINGLE'))
+				if (($dstField instanceof TextField || $dstField instanceof ArrayField)
+						&& $dstEntity->hasField($dstField->getName().'_SINGLE'))
 				{
 					$utmLinkField = $dstEntity->getField($dstField->getName().'_SINGLE');
 
@@ -1108,7 +1388,7 @@ class Query
 							$endField = $buildFromChains[0]->getLastElement()->getValue();
 
 							// and final check for entity name
-							if (strpos($endField->getEntity()->getName(), 'Utm'))
+							if(strpos($endField->getEntity()->getName(), 'Utm'))
 							{
 								$expressionChain = clone $chain;
 								$expressionChain->removeLastElement();
@@ -1229,7 +1509,8 @@ class Query
 					}
 
 					// check for base linking
-					if ($dstField instanceof TextField && $dstEntity->hasField($dstField->getName().'_SINGLE'))
+					if (($dstField instanceof TextField || $dstField instanceof ArrayField)
+						&& $dstEntity->hasField($dstField->getName().'_SINGLE'))
 					{
 						$utmLinkField = $dstEntity->getField($dstField->getName().'_SINGLE');
 
@@ -1243,7 +1524,7 @@ class Query
 								$endField = $buildFromChains[0]->getLastElement()->getValue();
 
 								// and final check for entity name
-								if (strpos($endField->getEntity()->getName(), 'Utm'))
+								if(strpos($endField->getEntity()->getName(), 'Utm'))
 								{
 									$expressionChain = clone $chain;
 									$expressionChain->removeLastElement();
@@ -1572,7 +1853,7 @@ class Query
 
 					// register primary's chain
 					$idChain = $this->getRegisteredChain($primaryName);
-					$this->registerChain($section, $idChain);
+					$this->registerChain($section, $idChain, $primaryName);
 				}
 			}
 		}
@@ -1676,17 +1957,20 @@ class Query
 					// ref to another entity
 					$ref_field = $element->getValue();
 					$dst_entity = $ref_field->getRefEntity();
+					$joinType = $ref_field->getJoinType();
 				}
 				elseif (is_array($element->getValue()))
 				{
 					// link from another entity to this
 					list($dst_entity, $ref_field) = $element->getValue();
+					$joinType = $ref_field->getJoinType();
 				}
 				elseif ($element->getValue() instanceof OneToMany)
 				{
 					// the same as back reference
 					$dst_entity = $element->getValue()->getRefEntity();
 					$ref_field = $element->getValue()->getRefField();
+					$joinType = $element->getValue()->getJoinType() ?: $ref_field->getJoinType();
 				}
 				elseif ($element->getValue() instanceof ManyToMany)
 				{
@@ -1779,12 +2063,13 @@ class Query
 
 						$definition_this = join('.', array_slice($currentDefinition, 0, -1));
 						$definition_ref = join('.', $currentDefinition);
+						$definition_join = $definition_ref;
 					}
 					elseif (is_array($element->getValue()) || $element->getValue() instanceof OneToMany)
 					{
 						if (is_null($table_alias))
 						{
-							$table_alias = Entity::camel2snake($dst_entity->getName()) . '_' . strtolower($ref_field->getName());
+							$table_alias = StringHelper::camel2snake($dst_entity->getName()).'_'.strtolower($ref_field->getName());
 							$table_alias = $prev_alias.'_'.$table_alias;
 
 							if (strlen($table_alias.$this->table_alias_postfix) > $aliasLength)
@@ -1802,6 +2087,7 @@ class Query
 
 						$definition_this = join('.', $currentDefinition);
 						$definition_ref = join('.', array_slice($currentDefinition, 0, -1));
+						$definition_join = $definition_this;
 					}
 					else
 					{
@@ -1836,7 +2122,9 @@ class Query
 					if (!isset($this->join_registry[$map_key]))
 					{
 						$join = array(
-							'type' => $ref_field->getJoinType(),
+							'type' => $joinType,
+							'entity' => $dst_entity,
+							'definition' => $definition_join,
 							'table' => $dst_entity->getDBTableName(),
 							'alias' => $table_alias.$this->table_alias_postfix,
 							'reference' => $csw_reference,
@@ -1858,19 +2146,30 @@ class Query
 
 	protected function buildSelect()
 	{
-		$sql = array();
+		$sql = [];
 
 		foreach ($this->select_chains as $chain)
 		{
 			$sql[] = $chain->getSqlDefinition(true);
 		}
 
-		if (empty($sql))
+		// empty select (or select forced primary only)
+		if (empty($sql) ||
+			(!empty($this->forcedObjectPrimaryFields) && count($sql) == count($this->forcedObjectPrimaryFields))
+		)
 		{
 			$sql[] = 1;
 		}
 
-		return "\n\t".join(",\n\t", $sql);
+		$strSql = join(",\n\t", $sql);
+
+		if ($this->hasDistinct() && $this->is_distinct)
+		{
+			// distinct by query settings, not by field
+			$strSql = 'DISTINCT '.$strSql;
+		}
+
+		return "\n\t".$strSql;
 	}
 
 	/**
@@ -1952,10 +2251,7 @@ class Query
 	{
 		$sql = array();
 
-		if (!empty($this->group_chains) || !empty($this->having_chains)
-			|| $this->checkChainsAggregation($this->select_chains)
-			|| $this->checkChainsAggregation($this->order_chains)
-		)
+		if ($this->hasAggregation())
 		{
 			// add non-aggr fields to group
 			foreach ($this->global_chains as $chain)
@@ -2114,11 +2410,13 @@ class Query
 	}
 
 	/**
+	 * @param bool $forceObjectPrimary Add missing primaries to select
+	 *
 	 * @return mixed|string
 	 * @throws Main\ArgumentException
 	 * @throws Main\SystemException
 	 */
-	protected function buildQuery()
+	protected function buildQuery($forceObjectPrimary = true)
 	{
 		$connection = $this->entity->getConnection();
 		$helper = $connection->getSqlHelper();
@@ -2134,11 +2432,11 @@ class Query
 			$this->setFilterChains($this->filter);
 			$this->divideFilter();
 
-			if ($this->filterHandler)
-			{
-				$this->setFilterHandlerChains($this->filterHandler);
-				$this->divideFilterHandler();
-			}
+			// unconditional entity scope
+			$this->entity->setDefaultScope($this);
+
+			$this->setFilterHandlerChains($this->filterHandler);
+			$this->divideFilterHandler();
 
 			foreach ($this->group as $value)
 			{
@@ -2152,8 +2450,14 @@ class Query
 
 			$this->buildJoinMap();
 
-			$sqlSelect = $this->buildSelect();
+			if ($forceObjectPrimary && empty($this->unionHandler))
+			{
+				$this->ensurePrimarySelect();
+			}
+
 			$sqlJoin = $this->buildJoin();
+
+			$sqlSelect = $this->buildSelect();
 			$sqlWhere = $this->buildWhere();
 			$sqlGroup = $this->buildGroup();
 			$sqlHaving = $this->buildHaving();
@@ -2172,6 +2476,9 @@ class Query
 				'HAVING' => $sqlHaving,
 				'ORDER BY' => $sqlOrder
 			));
+
+			// ensure there are no private fields in query
+			$this->checkForPrivateFields();
 		}
 
 		$build_parts = $this->query_build_parts;
@@ -2194,7 +2501,10 @@ class Query
 		// union
 		if (!empty($this->unionHandler))
 		{
-			$query = "({$query})";
+			if ($this->order || $this->limit)
+			{
+				$query = "({$query})";
+			}
 
 			foreach ($this->unionHandler->getQueries() as $union)
 			{
@@ -2435,7 +2745,7 @@ class Query
 				{
 					// parse the chain
 					$definition = str_replace(\CSQLWhere::getOperationByCode($operation).'this.', '', $k);
-					$absDefinition = strlen($baseDefinition) ? $baseDefinition . '.' . $definition : $definition;
+					$absDefinition = $baseDefinition <> ''? $baseDefinition.'.'.$definition : $definition;
 
 					$chain = $this->getRegisteredChain($absDefinition, true);
 
@@ -2478,8 +2788,15 @@ class Query
 				elseif (strpos($field, 'ref.') === 0)
 				{
 					$definition = str_replace(\CSQLWhere::getOperationByCode($operation).'ref.', '', $k);
-					$absDefinition = strlen($refDefinition) ? $refDefinition . '.' . $definition : $definition;
 
+					if (strpos($definition, '.') !== false)
+					{
+						throw new Main\ArgumentException(sprintf(
+							'Reference chain `%s` is not allowed here. First-level definitions only.', $field
+						));
+					}
+
+					$absDefinition = $refDefinition <> ''? $refDefinition.'.'.$definition : $definition;
 					$chain = $this->getRegisteredChain($absDefinition, true);
 
 					if ($isBackReference)
@@ -2522,7 +2839,7 @@ class Query
 					if (strpos($v, 'this.') === 0)
 					{
 						$definition = str_replace('this.', '', $v);
-						$absDefinition = strlen($baseDefinition) ? $baseDefinition . '.' . $definition : $definition;
+						$absDefinition = $baseDefinition <> ''? $baseDefinition.'.'.$definition : $definition;
 
 						$chain = $this->getRegisteredChain($absDefinition, true);
 
@@ -2565,8 +2882,15 @@ class Query
 					elseif (strpos($v, 'ref.') === 0)
 					{
 						$definition = str_replace('ref.', '', $v);
-						$absDefinition = strlen($refDefinition) ? $refDefinition . '.' . $definition : $definition;
 
+						if (strpos($definition, '.') !== false)
+						{
+							throw new Main\ArgumentException(sprintf(
+								'Reference chain `%s` is not allowed here. First-level definitions only.', $v
+							));
+						}
+
+						$absDefinition = $refDefinition <> ''? $refDefinition.'.'.$definition : $definition;
 						$chain = $this->getRegisteredChain($absDefinition, true);
 
 						if ($isBackReference)
@@ -2584,8 +2908,28 @@ class Query
 						// recursively collect all "build_from" fields
 						if ($chain->getLastElement()->getValue() instanceof ExpressionField)
 						{
-							$this->collectExprChains($chain);
-							$this->buildJoinMap($chain->getLastElement()->getValue()->getBuildFromChains());
+							// here could be one more check "First-level definitions only" for buildFrom elements
+							$buildFromChains = $this->collectExprChains($chain);
+
+							// set same talias to buildFrom elements
+							foreach ($buildFromChains as $buildFromChain)
+							{
+								if (!$isBackReference && $buildFromChain->getSize() > $chain->getSize())
+								{
+									throw new Main\ArgumentException(sprintf(
+										'Reference chain `%s` is not allowed here. First-level definitions only.',
+										$buildFromChain->getDefinition()
+									));
+								}
+
+								if ($buildFromChain->getSize() === $chain->getSize())
+								{
+									// same entity, same table
+									$buildFromChain->getLastElement()->setParameter('talias', $alias_ref);
+								}
+							}
+
+							$this->buildJoinMap($buildFromChains);
 						}
 
 						$field_def = $chain->getSqlDefinition();
@@ -2595,7 +2939,7 @@ class Query
 						throw new Main\SystemException(sprintf('Unknown reference value `%s`', $v));
 					}
 
-					$v = new \CSQLWhereExpression('?#', $field_def);
+					$v = new \CSQLWhereExpression($field_def);
 				}
 				else
 				{
@@ -2654,7 +2998,7 @@ class Query
 				{
 					// parse the chain
 					$definition = str_replace('this.', '', $field);
-					$absDefinition = strlen($baseDefinition) ? $baseDefinition . '.' . $definition : $definition;
+					$absDefinition = $baseDefinition <> ''? $baseDefinition.'.'.$definition : $definition;
 
 					$chain = $this->getRegisteredChain($absDefinition, true);
 
@@ -2705,7 +3049,7 @@ class Query
 						));
 					}
 
-					$absDefinition = strlen($refDefinition) ? $refDefinition . '.' . $definition : $definition;
+					$absDefinition = $refDefinition <> ''? $refDefinition.'.'.$definition : $definition;
 					$chain = $this->getRegisteredChain($absDefinition, true);
 
 					if ($isBackReference)
@@ -2745,7 +3089,7 @@ class Query
 					if (strpos($v->getDefinition(), 'this.') === 0)
 					{
 						$definition = str_replace('this.', '', $v->getDefinition());
-						$absDefinition = strlen($baseDefinition) ? $baseDefinition . '.' . $definition : $definition;
+						$absDefinition = $baseDefinition <> ''? $baseDefinition.'.'.$definition : $definition;
 
 						$chain = $this->getRegisteredChain($absDefinition, true);
 
@@ -2796,7 +3140,7 @@ class Query
 							));
 						}
 
-						$absDefinition = strlen($refDefinition) ? $refDefinition . '.' . $definition : $definition;
+						$absDefinition = $refDefinition <> ''? $refDefinition.'.'.$definition : $definition;
 						$chain = $this->getRegisteredChain($absDefinition, true);
 
 						if ($isBackReference)
@@ -2814,8 +3158,28 @@ class Query
 						// recursively collect all "build_from" fields
 						if ($chain->getLastElement()->getValue() instanceof ExpressionField)
 						{
-							$this->collectExprChains($chain);
-							$this->buildJoinMap($chain->getLastElement()->getValue()->getBuildFromChains());
+							// here could be one more check "First-level definitions only" for buildFrom elements
+							$buildFromChains = $this->collectExprChains($chain);
+
+							// set same talias to buildFrom elements
+							foreach ($buildFromChains as $buildFromChain)
+							{
+								if (!$isBackReference && $buildFromChain->getSize() > $chain->getSize())
+								{
+									throw new Main\ArgumentException(sprintf(
+										'Reference chain `%s` is not allowed here. First-level definitions only.',
+										$buildFromChain->getDefinition()
+									));
+								}
+
+								if ($buildFromChain->getSize() === $chain->getSize())
+								{
+									// same entity, same table
+									$buildFromChain->getLastElement()->setParameter('talias', $alias_ref);
+								}
+							}
+
+							$this->buildJoinMap($buildFromChains);
 						}
 
 						$v->setDefinition($absDefinition);
@@ -2889,12 +3253,66 @@ class Query
 		return false;
 	}
 
+	protected function checkChainsDistinct($chain)
+	{
+		/** @var Chain[] $chains */
+		$chains = is_array($chain) ? $chain : array($chain);
+
+		foreach ($chains as $chain)
+		{
+			$field = $chain->getLastElement()->getValue();
+
+			if ($field instanceof ExpressionField)
+			{
+				$expression = $field->getFullExpression();
+				$expression = ExpressionField::removeSubqueries($expression);
+
+				preg_match_all('/(?:^|[^a-z0-9_])(DISTINCT)[\s\(]+/i', $expression, $matches);
+
+				if (!empty($matches[1]))
+				{
+					return true;
+				}
+			}
+		}
+
+		return false;
+	}
+
+	public function hasAggregation()
+	{
+		return !empty($this->group_chains) || !empty($this->having_chains)
+			|| $this->checkChainsAggregation($this->select_chains)
+			|| $this->checkChainsAggregation($this->order_chains);
+	}
+
+	public function setDistinct($distinct = true)
+	{
+		$this->is_distinct = (bool) $distinct;
+
+		return $this;
+	}
+
+	public function hasDistinct()
+	{
+		$distinctInSelect = $this->checkChainsDistinct($this->select_chains);
+
+		if ($distinctInSelect && $this->is_distinct)
+		{
+			// to avoid double distinct
+			$this->is_distinct = false;
+		}
+
+		return ($distinctInSelect || $this->is_distinct);
+	}
+
 	/**
 	 * The most magic method. Do not edit without strong need, and for sure run tests after.
 	 *
 	 * @param Chain $chain
 	 * @param array $storages
 	 *
+	 * @return Chain[]
 	 * @throws Main\SystemException
 	 */
 	protected function collectExprChains(Chain $chain, $storages = array('hidden'))
@@ -2904,6 +3322,7 @@ class Query
 
 		$pre_chain = clone $chain;
 		//$pre_chain->removeLastElement();
+		$scopedBuildFrom = [];
 
 		foreach ($bf_chains as $bf_chain)
 		{
@@ -2932,6 +3351,20 @@ class Query
 				$bf_chain->removeLastElement();
 				/** @var Chain $reg_chain */
 				$bf_chain->addElement($reg_chain->getLastElement());
+
+				// return buildFrom elements with original start of chain for this query
+				$scoped_bf_chain = clone $pre_chain;
+				$scoped_bf_chain->removeLastElement();
+
+				// copy tail from registered chain
+				$tail = array_slice($reg_chain->getAllElements(), $pre_chain->getSize());
+
+				foreach ($tail as $tailElement)
+				{
+					$scoped_bf_chain->addElement($tailElement);
+				}
+
+				$scopedBuildFrom[] = $scoped_bf_chain;
 			}
 
 			// check elements to recursive collect hidden chains
@@ -2943,6 +3376,8 @@ class Query
 				}
 			}
 		}
+
+		return $scopedBuildFrom;
 	}
 
 	/**
@@ -2978,6 +3413,11 @@ class Query
 				$reg_chain = $chain;
 
 				$this->global_chains[$reg_chain->getDefinition()] = $chain;
+
+				// or should we make unique alias and register with it?
+				$alias = $this->getUniqueAlias();
+				$chain->setCustomAlias($alias);
+				$this->global_chains[$alias] = $chain;
 			}
 		}
 		else
@@ -2995,6 +3435,7 @@ class Query
 		if (!isset($this->{$storage_name}[$alias]))
 		{
 			$this->{$storage_name}[$alias] = $reg_chain;
+			// should we store by definition too?
 		}
 
 		if (!is_null($opt_key))
@@ -3029,6 +3470,11 @@ class Query
 		}
 
 		return false;
+	}
+
+	protected function getUniqueAlias()
+	{
+		return 'UALIAS_'.($this->uniqueAliasCounter++);
 	}
 
 	public function booleanStrongEqualityCallback($field, $operation, $value)
@@ -3109,37 +3555,26 @@ class Query
 		if ($result === null)
 		{
 			// regular SQL query
-			$cnt = null;
-
-			if ($this->countTotal)
-			{
-				$buildParts = $this->query_build_parts;
-
-				//remove order
-				unset($buildParts['ORDER BY']);
-
-				//remove select
-				$buildParts['SELECT'] = "1 cntholder";
-
-				foreach ($buildParts as $k => &$v)
-				{
-					$v = $k . ' ' . $v;
-				}
-
-				$cntQuery = join("\n", $buildParts);
-
-				// select count
-				$cntQuery = /** @lang text */
-					"SELECT COUNT(cntholder) AS TMP_ROWS_CNT FROM ({$cntQuery}) xxx";
-				$cnt = $connection->queryScalar($cntQuery);
-			}
-
 			$result = $connection->query($query);
 			$result->setReplacedAliases($this->replaced_aliases);
 
 			if($this->countTotal)
 			{
-				$result->setCount($cnt);
+				if ($this->limit && ($result->getSelectedRowsCount() < $this->limit))
+				{
+					// optimization for first and last pages
+					$result->setCount((int) $this->offset + $result->getSelectedRowsCount());
+				}
+				elseif (empty($this->limit))
+				{
+					// optimization for queries without limit
+					$result->setCount($result->getSelectedRowsCount());
+				}
+				else
+				{
+					// dedicated query
+					$result->setCount($this->queryCountTotal());
+				}
 			}
 
 			static::$last_query = $query;
@@ -3151,6 +3586,35 @@ class Query
 		}
 
 		return $result;
+	}
+
+	public function queryCountTotal()
+	{
+		if ($this->query_build_parts === null)
+		{
+			$this->buildQuery();
+		}
+
+		$buildParts = $this->query_build_parts;
+
+		//remove order
+		unset($buildParts['ORDER BY']);
+
+		//remove select
+		$buildParts['SELECT'] = "1 cntholder";
+
+		foreach ($buildParts as $k => &$v)
+		{
+			$v = $k . ' ' . $v;
+		}
+
+		$cntQuery = join("\n", $buildParts);
+
+		// select count
+		$cntQuery = /** @lang text */
+			"SELECT COUNT(cntholder) AS TMP_ROWS_CNT FROM ({$cntQuery}) xxx";
+
+		return $this->entity->getConnection()->queryScalar($cntQuery);
 	}
 
 	/**
@@ -3249,6 +3713,10 @@ class Query
 	public function __clone()
 	{
 		$this->entity = clone $this->entity;
+
+		$this->filterHandler = clone $this->filterHandler;
+		$this->whereHandler = clone $this->whereHandler;
+		$this->havingHandler = clone $this->havingHandler;
 
 		foreach ($this->select as $k => $v)
 		{
@@ -3361,13 +3829,15 @@ class Query
 	/**
 	 * Builds and returns SQL query string
 	 *
+	 * @param bool $forceObjectPrimary
+	 *
 	 * @return string
 	 * @throws Main\ArgumentException
 	 * @throws Main\SystemException
 	 */
-	public function getQuery()
+	public function getQuery($forceObjectPrimary = false)
 	{
-		return $this->buildQuery();
+		return $this->buildQuery($forceObjectPrimary);
 	}
 
 	/**

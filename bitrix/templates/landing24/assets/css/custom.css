@@ -1,136 +1,4 @@
-/* Add here all your css styles (customizations) */
-
-li.g-brd-bottom:last-child {
-	border-bottom: none!important;
-}
-
-
-/* xl
-   Large devices more than 992px
- */
-@media (min-width: 992px) {
-	.l-d-lg-none {
-		display: none;
-	}
-}
-
-/* md
-   Medium devices less than 1200px and more than 576px
-*/
-@media (max-width: 992px) and (min-width: 575px) {
-	.l-d-md-none {
-		display: none;
-	}
-}
-
-/* xs
-   Extra small devices less than 576px
- */
-@media (max-width: 575px) {
-	.l-d-xs-none {
-		display: none;
-	}
-}
-
-
-
-/*------------------------------------
-  Boxed layout
-------------------------------------*/
-.g-layout-boxed,
-.g-layout-semiboxed {
-  background-color: #f7f7f7;
-}
-.u-outer-space-v1 .g-layout-boxed::after,
-.u-outer-space-v2 .g-layout-boxed::after,
-.u-outer-space-v1 .g-layout-semiboxed::after,
-.u-outer-space-v2 .g-layout-semiboxed::after {
-  border-bottom-color: #f7f7f7;
-}
-.g-layout-boxed main,
-.g-layout-semiboxed main {
-  position: relative;
-  max-width: 100%;
-  margin-left: auto;
-  margin-right: auto;
-  background-color: #fff;
-  box-shadow: 0 0 5px rgba(0, 0, 0, 0.1);
-}
-@media (min-width: 1200px) {
-  .g-layout-boxed main {
-    width: 1140px;
-  }
-}
-@media (min-width: 1400px) {
-  .g-layout-semiboxed main {
-    width: 1340px;
-  }
-}
-@media (min-width: 768px) {
-  .u-outer-space-v1 {
-    margin: 20px;
-  }
-}
-@media (min-width: 768px) {
-  .u-outer-space-v1 body {
-    height: calc(100% - 40px);
-    min-height: calc(100% - 40px);
-  }
-}
-@media (min-width: 768px) {
-  .u-outer-space-v2 {
-    margin: 40px;
-  }
-}
-@media (min-width: 768px) {
-  .u-outer-space-v2 body {
-    height: calc(100% - 80px);
-    min-height: calc(100% - 80px);
-  }
-}
-
-
-
-/* some fix  */
-
-/* to not show border to first elem in row */
-/*collision between col-sm and col-lg*/
-.g-brd-between-cols.col-sm-3:not(.col-lg-4):not(.col-lg-2):not(.col-lg-1):nth-child(4n+1) {
-	border: none !important;
-}
-.g-brd-between-cols.col-sm-4:not(.col-lg-6):not(.col-lg-3):not(.col-lg-2):not(.col-lg-1):nth-child(3n+1) {
-	border: none !important;
-}
-.g-brd-between-cols.col-sm-6:not(.col-lg-4):not(.col-lg-3):not(.col-lg-2):not(.col-lg-1):nth-child(2n+1) {
-	border: none !important;
-}
-
-
-.g-brd-between-cols.col-lg-12{
-	border: none !important;
-}
-
-.g-brd-between-cols.col-lg-6:nth-child(2n+1){
-	border: none !important;
-}
-
-.g-brd-between-cols.col-lg-4:nth-child(3n+1){
-	border: none !important;
-}
-
-.g-brd-between-cols.col-lg-3:nth-child(4n+1){
-	border: none !important;
-}
-
-.g-brd-between-cols.col-lg-2:nth-child(6n+1){
-	border: none !important;
-}
-
-.g-brd-between-cols.col-lg-1:nth-child(12n+1){
-	border: none !important;
-}
-
-
+/*deprecated. Use Unify custom_core.scss*/
 .custom-text-shadow-1 {
 	text-shadow: 2px 4px 3px rgba(0, 0, 0, .3);
 }
@@ -189,4 +57,12 @@ li.g-brd-bottom:last-child {
 
 [style*="line-through"] {
 	text-decoration: line-through;
+}
+
+.gm-style .gm-style-iw {
+	font-weight: normal;
+}
+
+.landing-public-mode [data-pseudo-url*="\"enabled\":true}"] {
+	cursor: pointer;
 }

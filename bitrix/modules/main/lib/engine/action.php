@@ -15,7 +15,7 @@ use Bitrix\Main\SystemException;
  */
 class Action implements Errorable
 {
-	/** @var Binder */
+	/** @var AutoWire\Binder */
 	protected $binder;
 	/** @var  ErrorCollection */
 	protected $errorCollection;
@@ -73,7 +73,7 @@ class Action implements Errorable
 	 *
 	 * @param array $arguments List of action arguments.
 	 *
-	 * @return Binder
+	 * @return AutoWire\Binder
 	 * @throws SystemException
 	 */
 	final public function setArguments(array $arguments)
@@ -92,7 +92,17 @@ class Action implements Errorable
 				throw new SystemException(static::className() . ' must implement run()');
 			}
 
-			$this->binder = new Binder($this, 'run', $this->controller->getSourceParametersList());
+			$controller = $this->getController();
+			$this->binder = AutoWire\ControllerBinder::buildForMethod($this, 'run')
+				->setController($controller)
+				->setSourcesParametersToMap($controller->getSourceParametersList())
+				->setAutoWiredParameters(
+					array_filter(array_merge(
+						[$controller->getPrimaryAutoWiredParameter()],
+						$controller->getAutoWiredParameters()
+					))
+				)
+			;
 		}
 
 		return $this;
@@ -105,9 +115,9 @@ class Action implements Errorable
 		{
 			/** @see Action::run */
 			$result = $binder->invoke();
-				
+
 			$this->onAfterRun();
-			
+
 			return $result;
 		}
 
@@ -115,7 +125,7 @@ class Action implements Errorable
 	}
 
 	/**
-	 * @return Binder
+	 * @return AutoWire\Binder
 	 */
 	final public function getBinder()
 	{
@@ -153,6 +163,23 @@ class Action implements Errorable
 
 	protected function onAfterRun()
 	{
+	}
+
+	final public function getCurrentUser()
+	{
+		return $this->getController()->getCurrentUser();
+	}
+
+	/**
+	 * Converts keys of array to camel case notation.
+	 * @see \Bitrix\Main\Engine\Response\Converter::OUTPUT_JSON_FORMAT
+	 * @param mixed $data Data.
+	 *
+	 * @return array|mixed|string
+	 */
+	public function convertKeysToCamelCase($data)
+	{
+		return $this->getController()->convertKeysToCamelCase($data);
 	}
 
 	/**
