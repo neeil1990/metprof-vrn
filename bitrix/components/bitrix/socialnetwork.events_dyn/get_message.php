@@ -2,19 +2,6 @@
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/bx_root.php");
 
 $cuid = IntVal($_REQUEST["cuid"]);
-
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-
-if(
-	$CACHE_MANAGER->Read(86400*30, "socnet_cm_".$cuid)
-	&& $CACHE_MANAGER->Read(86400*30, "socnet_cf_".$cuid)
-	&& $CACHE_MANAGER->Read(86400*30, "socnet_cg_".$cuid)
-)
-{
-	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
-	die();
-}
-/*
 $abs_path = $_SERVER["DOCUMENT_ROOT"].BX_PERSONAL_ROOT."/managed_flags/socnet/c/".IntVal($cuid / 1000)."/".$cuid;
 
 if (
@@ -23,14 +10,13 @@ if (
 	&& !file_exists($abs_path."_g")
 )
 	die();
-*/
 
 $site = trim($_REQUEST["site"]);
 define("NO_KEEP_STATISTIC", true);
 define("BX_STATISTIC_BUFFER_USED", false);
 define("NO_LANG_FILES", true);
 
-// require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
+require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 
 if(CModule::IncludeModule("compression"))
 	CCompress::Disable2048Spaces();
@@ -57,7 +43,7 @@ if(CModule::IncludeModule("socialnetwork"))
 	if (strlen(trim($_REQUEST["nt"])) > 0)
 		$arParams['NAME_TEMPLATE'] = Trim($GLOBALS["APPLICATION"]->UnJSEscape($_REQUEST["nt"]));
 	else
-		$arParams['NAME_TEMPLATE'] = CSite::GetNameFormat();
+		$arParams['NAME_TEMPLATE'] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 
 	if (trim($_REQUEST["sl"]) == "N")
 		$bUseLogin = false;

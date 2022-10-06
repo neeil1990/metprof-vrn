@@ -16,6 +16,6 @@ $MESS ['SONET_C11_EMAIL'] = "Вы можете также отправить п�
 $MESS ['SONET_C11_USER_INTRANET'] = "Сотрудники компании:";
 $MESS ['SONET_C11_USER_INTRANET_STRUCTURE'] = "Из структуры компании";
 $MESS ['SONET_C11_USER_EXTRANET'] = "Внешние пользователи:";
-$MESS ['SONET_C11_MESSAGE_DEFAULT'] = "";
+$MESS ['SONET_C11_MESSAGE_DEFAULT'] = "Приглашаю вступить в рабочую группу \"#NAME#\"";
 $MESS ['SONET_C11_MESSAGE_GROUP_LINK'] = "Перейти в рабочую группу ";
 ?>

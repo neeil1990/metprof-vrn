@@ -26,10 +26,9 @@ $MESS["SEARCH_CONTENT_TYPE_FILES"] = "Файлы";
 $MESS["SEARCH_CONTENT_TYPE_CALENDAR"] = "Календарь";
 $MESS["SEARCH_CONTENT_TYPE_TASKS"] = "Задачи";
 $MESS["SEARCH_CONTENT_TYPE_PHOTO"] = "Фото";
-$MESS["SEARCH_CONTENT_TYPE_BLOG"] = "Сообщения";
+$MESS["SEARCH_CONTENT_TYPE_BLOG"] = "Блог";
 $MESS["SEARCH_CONTENT_TYPE_FORUM"] = "Форум";
 $MESS["SEARCH_ADDITIONAL_FILTER"] = "Расширенный поиск";
 $MESS["SEARCH_ADDITIONAL_FILTER_FEATURE"] = "По функционалу";
 $MESS["SEARCH_ADDITIONAL_FILTER_DATE"] = "По дате изменения";
-$MESS["CT_BSP_KEYBOARD_WARNING"] = "В запросе \"#query#\" восстановлена раскладка клавиатуры.";
 ?>

@@ -18,12 +18,7 @@ $MESS["CP_BL_PAGE_LIST_SECTIONS"] = "Управление разделами";
 $MESS["CP_BL_PAGE_LIST_ELEMENT_EDIT"] = "Редактирование элемента";
 $MESS["CP_BL_PAGE_BIZPROC_LOG"] = "URL просмотра журнала бизнес-процесса";
 $MESS["CP_BL_PAGE_BIZPROC_WORKFLOW_START"] = "URL запуска бизнес-процесса";
-$MESS["CP_BL_PAGE_BIZPROC_WORKFLOW_DELETE"] = "URL удаления бизнес-процесса";
 $MESS["CP_BL_PAGE_BIZPROC_TASK"] = "URL задачи бизнес-процесса";
 $MESS["CP_BL_PAGE_BIZPROC_WORKFLOW_ADMIN"] = "URL списка бизнес-процессов";
 $MESS["CP_BL_PAGE_BIZPROC_WORKFLOW_EDIT"] = "URL настройки бизнес-процесса";
-$MESS["CP_BL_PAGE_BIZPROC_WORKFLOW_VARS"] = "URL переменных бизнес-процесса";
-$MESS["CP_BL_PAGE_BIZPROC_WORKFLOW_CONSTANTS"] = "URL констант бизнес-процесса";
-$MESS["CP_BL_PAGE_EXPORT_EXCEL"] = "Экспорт Excel";
-$MESS["CP_BL_PAGE_CATALOG_PROCESSES"] = "Каталог Бизнес процессов";
 ?>

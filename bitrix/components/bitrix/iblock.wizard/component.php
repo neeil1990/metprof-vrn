@@ -1,4 +1,5 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+<?
+if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
 if(!isset($arParams['NEXT_URL']))
 	$arParams['NEXT_URL'] = 'ticket_edit.php';
@@ -54,10 +55,10 @@ if ($CURRENT_STEP > 1 && is_array($_POST['wizard']))
 		{
 			foreach($v as $k1=>$v1)
 				if (trim($v1))
-					$arHidden[$k][$k1] = htmlspecialcharsbx($v1);
+					$arHidden[$k][$k1] = htmlspecialchars($v1);
 		}
 		elseif (trim($v))
-			$arHidden[$k] = htmlspecialcharsbx($v);
+			$arHidden[$k] = htmlspecialchars($v);
 	}
 }
 
@@ -89,16 +90,6 @@ $arFilter = array(
 
 if ($SECTION_ID)
 	$arFilter['SECTION_ID'] = $SECTION_ID;
-
-//if (!empty($arParams['ALLOWED_IBLOCK_SECTIONS']))
-//{
-//	$arFilter['=ID'] = $arParams['ALLOWED_IBLOCK_SECTIONS'];
-//}
-
-if (!empty($arParams['RESTRICTED_IBLOCK_SECTIONS']))
-{
-	$arFilter['!ID'] = $arParams['RESTRICTED_IBLOCK_SECTIONS'];
-}
 
 $rs = CIBlockSection::GetList(array('sort'=>'asc'),$arFilter);
 while($f = $rs->GetNext())
@@ -134,6 +125,8 @@ while($el=$rs->GetNextElement())
 			$arField['FIELD_TYPE'] = $prop[$type]['VALUE_XML_ID'];
 			$arField['FIELD_VALUES'] = $prop[$arParams['PROPERTY_FIELD_VALUES']]['VALUE'];
 		}
+//			$arField['PROPERTIES'] = $prop;
+//			echo '<pre>';print_r($arField);echo '</pre>';
 	}
 
 	$arResult['FIELDS'][] = $arField;

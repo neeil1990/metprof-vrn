@@ -1,13 +1,5 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-if (!CModule::IncludeModule("support"))
-{
-	ShowError(GetMessage("MODULE_NOT_INSTALL"));
-	return;
-}
-
-/** @var array $arParams */
-
 $arDefaultUrlTemplates404 = array(
 	"ticket_list" => "index.php",
 	"ticket_edit" => "#ID#.php",
@@ -28,57 +20,16 @@ CComponentEngine::InitComponentVariables(false, $arComponentVariables, $arVariab
 $componentPage = "";
 $arResult = array();
 
+//print_r($arVariables);
+//print_r($arVariableAliases);
 $end_wizard = $_REQUEST['end_wizard'] || $_REQUEST['end_wizard_x'];
 
 if ($_REQUEST['show_wizard']=='Y' && !$end_wizard)
-{
 	$componentPage = "wizard";
-
-	$allowedISections = array();
-	$restrictedISections = array();
-
-	// filter ticket categories if necessary
-	if ($arParams['SECTIONS_TO_CATEGORIES'] === 'Y' && !empty($arParams['SELECTED_SECTIONS']))
-	{
-		$ticketSite = SITE_ID;
-		$ticketSla = CTicketSLA::GetForUser();
-
-		$ticketDictionary = CTicketDictionary::GetDropDownArray($ticketSite, $ticketSla);
-
-		if (!empty($ticketDictionary['C']))
-		{
-			$allowSupportCategories = array_keys($ticketDictionary['C']);
-
-			foreach ($arParams['SELECTED_SECTIONS'] as $ISectionId)
-			{
-				$ISectionCategoryId = (int) $arParams['SECTION_'.$ISectionId];
-
-				if (in_array($ISectionCategoryId, $allowSupportCategories, true))
-				{
-					$allowedISections[] = $ISectionId;
-				}
-				else
-				{
-					$restrictedISections[] = $ISectionId;
-				}
-			}
-		}
-
-		if (empty($allowedISections))
-		{
-			$allowedISections = array(0);
-		}
-	}
-
-	$arResult['ALLOWED_IBLOCK_SECTIONS'] = $allowedISections;
-	$arResult['RESTRICTED_IBLOCK_SECTIONS'] = $restrictedISections;
-}
 elseif (isset($arVariables["UID"]) && intval($arVariables["UID"]) > 0 && 
 	(isset($arVariables["ID"]) && intval($arVariables["ID"]) >= 0))
-{
 	$componentPage = "profile_view";
-}
-elseif ($end_wizard || (isset($arVariables["ID"]) && intval($arVariables["ID"]) >= 0 && isset($_REQUEST['edit'])))
+elseif ($end_wizard || (isset($arVariables["ID"]) && intval($arVariables["ID"]) >= 0))
 {
 	$componentPage = "ticket_edit";
 
@@ -132,26 +83,26 @@ elseif ($end_wizard || (isset($arVariables["ID"]) && intval($arVariables["ID"]) 
 		if (is_array($arResult['PATH']))
 		{
 			$arResult['MESSAGE'] .= "<i>" . implode(' > ',$arResult['PATH']) . "</i>\n\n";
-			$arResult['DISPLAY_MESSAGE'] .= "<i>" . htmlspecialcharsbx(implode(' > ',$arResult['PATH'])) . "</i>\n\n";
+			$arResult['DISPLAY_MESSAGE'] .= "<i>" . htmlspecialchars(implode(' > ',$arResult['PATH'])) . "</i>\n\n";
 		}
 
 		if (is_array($arResult['FIELDS']))
 			foreach($arResult['FIELDS'] as $arField)
 			{
 				$arResult['MESSAGE'] .= "<b>".$arField[0]."</b>\n";
-				$arResult['DISPLAY_MESSAGE'] .= "<b>".htmlspecialcharsbx($arField[0])."</b>\n";
+				$arResult['DISPLAY_MESSAGE'] .= "<b>".htmlspecialchars($arField[0])."</b>\n";
 
 				if (!is_array($arField[1]))
 				{
 					$arResult['MESSAGE'] .= (trim($arField[1])?$arField[1]:GetMessage('WZ_NOT_SET'))."\n\n";
-					$arResult['DISPLAY_MESSAGE'] .= (trim($arField[1])?htmlspecialcharsbx($arField[1]):GetMessage('WZ_NOT_SET'))."\n\n";
+					$arResult['DISPLAY_MESSAGE'] .= (trim($arField[1])?htmlspecialchars($arField[1]):GetMessage('WZ_NOT_SET'))."\n\n";
 				}
 				else
 				{
 					foreach($arField[1] as $vals)
 					{
 						$arResult['MESSAGE'] .= "\t".$vals[0].": ".$vals[1]."\n";
-						$arResult['DISPLAY_MESSAGE'] .= "\t".htmlspecialcharsbx($vals[0].": ".$vals[1])."\n";
+						$arResult['DISPLAY_MESSAGE'] .= "\t".htmlspecialchars($vals[0].": ".$vals[1])."\n";
 					}
 					$arResult['MESSAGE'] .= "\n";
 					$arResult['DISPLAY_MESSAGE'] .= "\n";
@@ -175,13 +126,13 @@ $arResult = array_merge($arResult,
 	array(
 		"FOLDER" => "",
 		"URL_TEMPLATES" => Array(
-			"ticket_edit" => htmlspecialcharsbx($APPLICATION->GetCurPage())."?".$arVariableAliases["ID"]."=#ID#&edit=1",
-			"ticket_list" => htmlspecialcharsbx($APPLICATION->GetCurPage()),
+			"ticket_edit" => htmlspecialchars($APPLICATION->GetCurPage())."?".$arVariableAliases["ID"]."=#ID#",
+			"ticket_list" => htmlspecialchars($APPLICATION->GetCurPage()),
 		),
 		"VARIABLES" => $arVariables, 
 		"ALIASES" => $arVariableAliases,
-		"BACK_URL"	=>	htmlspecialcharsbx($APPLICATION->GetCurPage()),
-		"NEXT_URL"	=>	htmlspecialcharsbx($APPLICATION->GetCurPage())."?".$arVariableAliases["ID"]."=0&edit=1",
+		"BACK_URL"	=>	htmlspecialchars($APPLICATION->GetCurPage()),
+		"NEXT_URL"	=>	htmlspecialchars($APPLICATION->GetCurPage())."?".$arVariableAliases["ID"]."=0",
 	)
 );
 

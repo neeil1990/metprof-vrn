@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS['SALE_MODULE_NOT_INSTALL']="Модуль Интернет-магазин не установлен.";
 // UnitellerPlugin change
 $MESS['SALE_ACCESS_DENIED'] = 'Для просмотра чека необходимо авторизоваться.';

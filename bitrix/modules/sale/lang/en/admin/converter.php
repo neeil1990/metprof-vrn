@@ -27,7 +27,7 @@ $MESS['SALE_CONVERTER_AJAX_STEP_UPDATE_SHIPMENT_BASKET_BARCODE'] = "Update barco
 $MESS['SALE_CONVERTER_AJAX_STEP_UPDATE_ORDER_PAYMENT'] = "Update paid orders";
 $MESS['SALE_CONVERTER_AJAX_STEP_TRANSACT'] = "Update transactions table structure";
 $MESS['SALE_CONVERTER_AJAX_STEP_ORDER_CHANGE'] = "Update order history table structure";
-$MESS['SALE_CONVERTER_AJAX_STEP_FINAL'] = "The conversion wizard has finished.";
+$MESS['SALE_CONVERTER_AJAX_STEP_FINAL'] = "The conversion wizard has finished.<br><br>Check for available updates and upgrade <br>to the latest version.";
 $MESS['SALE_CONVERTER_AJAX_STEP_FINAL_MESSAGE'] = "Conversion completed.";
 $MESS['SALE_CONVERTER_BUTTON_START_AJAX'] = "Convert";
 $MESS['SALE_CONVERTER_BUTTON_START'] = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Next&nbsp;&nbsp;&gt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -43,6 +43,8 @@ $MESS['SALE_CONVERTER_STEP_3_DETAILS'] = "Locations need to be converted to be u
 
 $MESS['SALE_CONVERTER_STEP_4_MESSAGE'] = "Locations converted";
 $MESS['SALE_CONVERTER_STEP_4_DETAILS'] = "Migration to Locations 2.0 is complete";
+$MESS['SALE_CONVERTER_STEP_FIND_GARBAGE'] = "<b>Important!</b><br><br>The database is in an inconsistent state after some previous attempts to convert the data. To fix the situation click \"Next &gt;&gt;\"";
+$MESS['SALE_CONVERTER_STEP_CLEAR_GARBAGE'] = "Database errors have been fixed";
 $MESS['SALE_CONVERTER_STEP_5_MESSAGE'] = "Select default delivery service";
 $MESS['SALE_CONVERTER_STEP_6_MESSAGE'] = "Convert e-Store";
 $MESS['SALE_CONVERTER_STEP_5_DETAILS'] = "Your e-Store uses warehouse control. <br>Your store has shipped orders some of which don't specify a delivery service.<br> To prevent data loss, select the delivery service to apply to all such orders.";
@@ -57,3 +59,5 @@ $MESS['SALE_CONVERTER_EMPTY_DELIVERY_SERVICE'] = "No delivery";
 $MESS['SALE_CONVERTER_TITLE'] = "New order management system migration wizard";
 $MESS['SALE_CONVERTER_AJAX_STEP_UPDATE_BASKET'] = "Update table structure: shopping cart";
 $MESS['SALE_CONVERTER_ADMIN_NOTIFY_CONVERT_BASKET_DISCOUNT'] = "Commercial Catalog coupon data needs to be converted for the existing orders. Please proceed to <a href=\"#LINK#\">the module settings page</a>, the \"Service Operations\" area, use the \"Data Conversion\" tab.";
+$MESS['SALE_CONVERTER_MODULE_NO_ACCESS'] = "You don’t have access rights to execute conversion";
+$MESS['SALE_CONVERTER_MODULE_ALREADY_CONVERTED'] = " e-Store has been already converted. You can not repeat this process again.";

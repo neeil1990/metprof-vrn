@@ -6,24 +6,29 @@ if ($arResult["NEED_AUTH"] == "Y")
 }
 elseif (strlen($arResult["FatalError"]) > 0)
 {
-	?><span class='errortext'><?=$arResult["FatalError"]?></span><br /><br /><?
+	?>
+	<span class='errortext'><?=$arResult["FatalError"]?></span><br /><br />
+	<?
 }
 else
 {
 	if(strlen($arResult["ErrorMessage"])>0)
 	{
-		?><span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br /><?
+		?>
+		<span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br />
+		<?
 	}
 
 	if ($arResult["ShowForm"] == "Input")
 	{
-		?><form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
+		?>
+		<form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
 			<table class="sonet-message-form data-table" cellspacing="0" cellpadding="0">
 				<tr>
 					<th colspan="2"><?= GetMessage("SONET_C40_T_SETTINGS") ?></th>
-				</tr><?
-				foreach ($arResult["Features"] as $feature => $perm):
-					?><tr>
+				</tr>
+				<?foreach ($arResult["Features"] as $feature => $perm):?>
+					<tr>
 						<td valign="top" width="50%" align="right"><?= GetMessage("SONET_USER_OPERATIONS_".$feature) ?>:</td>
 						<td valign="top" width="50%">
 							<select name="<?= $feature ?>_perm">
@@ -32,15 +37,24 @@ else
 								<?endforeach;?>
 							</select>
 						</td>
-					</tr><?
-				endforeach;
-			?></table>
+					</tr>
+				<?endforeach;?>
+			</table>
 			<input type="hidden" name="SONET_USER_ID" value="<?= $arParams["USER_ID"] ?>">
 			<?=bitrix_sessid_post()?>
 			<br />
 			<input type="submit" name="save" value="<?= GetMessage("SONET_C40_T_SAVE") ?>">
 			<input type="reset" name="cancel" value="<?= GetMessage("SONET_C40_T_CANCEL") ?>" OnClick="window.location='<?= $arResult["Urls"]["User"] ?>'">
-		</form><?
+		</form>
+		<?
+	}
+	else
+	{
+		?>
+		<?= GetMessage("SONET_C40_T_SUCCESS") ?>
+		<br><br>
+		<a href="<?= $arResult["Urls"]["User"] ?>"><?= $arResult["User"]["NAME_FORMATTED"]; ?></a>
+		<?
 	}
 }
 ?>

@@ -1,20 +1,5 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
-/** @global CMain $APPLICATION */
-/** @global CUser $USER */
-/** @global CDatabase $DB */
-/** @var CBitrixComponent $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @var string $componentName */
-/** @var string $componentPath */
-/** @var string $componentTemplate */
-/** @var string $parentComponentName */
-/** @var string $parentComponentPath */
-/** @var string $parentComponentTemplate */
-$this->setFrameMode(false);
-/** @var CCacheManager $CACHE_MANAGER */
-global $CACHE_MANAGER;
 
 if(!CModule::IncludeModule('lists'))
 {
@@ -38,37 +23,18 @@ if($lists_perm < 0)
 	case CListPermissions::WRONG_IBLOCK:
 		ShowError(GetMessage("CC_BLFE_WRONG_IBLOCK"));
 		return;
-	case CListPermissions::LISTS_FOR_SONET_GROUP_DISABLED:
-		ShowError(GetMessage("CC_BLFE_LISTS_FOR_SONET_GROUP_DISABLED"));
-		return;
 	default:
 		ShowError(GetMessage("CC_BLFE_UNKNOWN_ERROR"));
 		return;
 	}
 }
-elseif(
-	(
-		$arParams["~IBLOCK_ID"] > 0
-		&& $lists_perm < CListPermissions::IS_ADMIN
-		&& !CIBlockRights::UserHasRightTo($arParams["~IBLOCK_ID"], $arParams["~IBLOCK_ID"], "iblock_edit")
-	) || (
-		$arParams["~IBLOCK_ID"] == 0
-		&& $lists_perm < CListPermissions::IS_ADMIN
-	)
-)
+elseif($lists_perm < CListPermissions::IS_ADMIN)
 {
 	ShowError(GetMessage("CC_BLFE_ACCESS_DENIED"));
 	return;
 }
 
-$arParams["CAN_EDIT"] =
-	$lists_perm >= CListPermissions::IS_ADMIN
-	|| (
-		$arParams["~IBLOCK_ID"] > 0
-		&& CIBlockRights::UserHasRightTo($arParams["~IBLOCK_ID"], $arParams["~IBLOCK_ID"], "iblock_edit")
-	)
-;
-
+$arParams["CAN_EDIT"] = $lists_perm >= CListPermissions::IS_ADMIN;
 $arIBlock = CIBlock::GetArrayByID(intval($arParams["~IBLOCK_ID"]));
 $arResult["~IBLOCK"] = $arIBlock;
 $arResult["IBLOCK"] = htmlspecialcharsex($arIBlock);
@@ -87,28 +53,28 @@ $arResult["~LISTS_URL"] = str_replace(
 	array($arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LISTS_URL"]
 );
-$arResult["LISTS_URL"] = htmlspecialcharsbx($arResult["~LISTS_URL"]);
+$arResult["LISTS_URL"] = htmlspecialchars($arResult["~LISTS_URL"]);
 
 $arResult["~LIST_URL"] = CHTTP::urlAddParams(str_replace(
 	array("#list_id#", "#section_id#", "#group_id#"),
 	array($arResult["IBLOCK_ID"], 0, $arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LIST_URL"]
 ), array("list_section_id" => ""));
-$arResult["LIST_URL"] = htmlspecialcharsbx($arResult["~LIST_URL"]);
+$arResult["LIST_URL"] = htmlspecialchars($arResult["~LIST_URL"]);
 
 $arResult["~LIST_EDIT_URL"] = str_replace(
 	array("#list_id#", "#group_id#"),
 	array($arResult["IBLOCK_ID"], $arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LIST_EDIT_URL"]
 );
-$arResult["LIST_EDIT_URL"] = htmlspecialcharsbx($arResult["~LIST_EDIT_URL"]);
+$arResult["LIST_EDIT_URL"] = htmlspecialchars($arResult["~LIST_EDIT_URL"]);
 
 $arResult["~LIST_FIELDS_URL"] = str_replace(
 	array("#list_id#", "#group_id#"),
 	array($arResult["IBLOCK_ID"], $arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LIST_FIELDS_URL"]
 );
-$arResult["LIST_FIELDS_URL"] = htmlspecialcharsbx($arResult["~LIST_FIELDS_URL"]);
+$arResult["LIST_FIELDS_URL"] = htmlspecialchars($arResult["~LIST_FIELDS_URL"]);
 
 $obList = new CList($arIBlock["ID"]);
 
@@ -129,7 +95,7 @@ $arResult["~LIST_FIELD_EDIT_URL"] = str_replace(
 	array($arResult["IBLOCK_ID"], $arResult["FIELD_ID"], $arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LIST_FIELD_EDIT_URL"]
 );
-$arResult["LIST_FIELD_EDIT_URL"] = htmlspecialcharsbx($arResult["~LIST_FIELD_EDIT_URL"]);
+$arResult["LIST_FIELD_EDIT_URL"] = htmlspecialchars($arResult["~LIST_FIELD_EDIT_URL"]);
 
 //Assume there was no error
 $bVarsFromForm = false;
@@ -148,38 +114,11 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 			"NAME" => trim($_POST["NAME"], " \n\r\t\x0"),
 			"IS_REQUIRED" => $_POST["IS_REQUIRED"],
 			"MULTIPLE" => $_POST["MULTIPLE"],
-			"CODE" => $_POST["CODE"],
 			"TYPE" => $_POST["TYPE"],
 			"DEFAULT_VALUE" => $_POST["DEFAULT_VALUE"],
 			"USER_TYPE_SETTINGS" => $_POST["USER_TYPE_SETTINGS"],
 			"SETTINGS" => $_POST["SETTINGS"],
 		);
-
-		if(isset($arField["SETTINGS"]["ADD_READ_ONLY_FIELD"]) && $arField["SETTINGS"]["ADD_READ_ONLY_FIELD"] == "Y")
-		{
-			switch($arField["TYPE"])
-			{
-				case "SORT":
-					if(strlen($arField["DEFAULT_VALUE"]) <= 0)
-						$strError = GetMessage("CC_BLFE_BAD_FIELD_ADD_READ_ONLY")."<br>";
-					break;
-				case "L":
-					if(is_array($_POST["LIST_DEF"]))
-					{
-						$listDefaultValue = current($_POST["LIST_DEF"]);
-						if(empty($listDefaultValue))
-							$strError = GetMessage("CC_BLFE_BAD_FIELD_ADD_READ_ONLY")."<br>";
-					}
-					break;
-				case "S:HTML":
-					if(empty($arField["DEFAULT_VALUE"]["TEXT"]))
-						$strError = GetMessage("CC_BLFE_BAD_FIELD_ADD_READ_ONLY")."<br>";
-					break;
-				default:
-					if(empty($arField["DEFAULT_VALUE"]))
-						$strError = GetMessage("CC_BLFE_BAD_FIELD_ADD_READ_ONLY")."<br>";
-			}
-		}
 
 		if(strlen($arField["NAME"]) <= 0)
 			$strError = GetMessage("CC_BLFE_BAD_FIELD_NAME")."<br>";
@@ -188,20 +127,6 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 		{
 			$arField["DEFAULT_VALUE"]["METHOD"] = "resample";
 			$arField["DEFAULT_VALUE"]["COMPRESSION"] = intval(COption::GetOptionString('main', 'image_resize_quality', '95'));
-		}
-		elseif($arField["TYPE"] == "S:Date")
-		{
-			if(!empty($arField["DEFAULT_VALUE"]) && !CheckDateTime($arField["DEFAULT_VALUE"], FORMAT_DATE))
-			{
-				$strError = GetMessage("CC_BLFE_INVALID_DEFAULT_VALUE")."<br>";
-			}
-		}
-		elseif($arField["TYPE"] == "S:DateTime")
-		{
-			if(!empty($arField["DEFAULT_VALUE"]) && !CheckDateTime($arField["DEFAULT_VALUE"]))
-			{
-				$strError = GetMessage("CC_BLFE_INVALID_DEFAULT_VALUE")."<br>";
-			}
 		}
 
 		if(preg_match("/^(G|G:|E|E:)/", $arField["TYPE"]))
@@ -216,11 +141,6 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 				$strError = GetMessage("CC_BLFE_WRONG_LINK_IBLOCK")."<br>";
 		}
 
-
-		if(isset($_POST["ROW_COUNT"]) && $_POST["ROW_COUNT"] > 0)
-			$arField["ROW_COUNT"] = intval($_POST["ROW_COUNT"]);
-		if(isset($_POST["COL_COUNT"]) && $_POST["COL_COUNT"] > 0)
-			$arField["COL_COUNT"] = intval($_POST["COL_COUNT"]);
 
 		if(isset($_POST["LIST"]))
 			$arField["LIST"] = $_POST["LIST"];
@@ -260,69 +180,51 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 
 		if(isset($_POST["LIST_DEF"]) && is_array($_POST["LIST_DEF"]))
 		{
-			foreach($arField["LIST"] as $i => $arEnum)
-			{
-				$arField["LIST"][$i]["DEF"] = "N";
-			}
-
+			$bWasDef = false;
 			foreach($_POST["LIST_DEF"] as $def)
 			{
 				$def = intval($def);
 				if($def > 0 && isset($arField["LIST"][$def]))
 				{
 					$arField["LIST"][$def]["DEF"] = "Y";
+					$bWasDef = true;
 				}
 			}
+
+			if($bWasDef)
+				foreach($arField["LIST"] as $i => $arEnum)
+					if($arEnum["DEF"] !== "Y")
+						$arField["LIST"][$i]["DEF"] = "N";
 		}
 
 		if(!$strError)
 		{
-			try
-			{
-				if ($arResult["FIELD_ID"])
-				{
-					unset($arField["TYPE"]);
-					$arResult["FIELD_ID"] = $obList->UpdateField($arResult["FIELD_ID"], $arField);
-				}
-				else
-				{
-					$arResult["FIELD_ID"] = $obList->AddField($arField);
-				}
+			if($arResult["FIELD_ID"])
+				$arResult["FIELD_ID"] = $obList->UpdateField($arResult["FIELD_ID"], $arField);
+			else
+				$arResult["FIELD_ID"] = $obList->AddField($arField);
 
-				//Clear components cache
-				$CACHE_MANAGER->ClearByTag("lists_list_".$arIBlock["ID"]);
+			//Clear components cache
+			$GLOBALS["CACHE_MANAGER"]->ClearByTag("lists_list_".$arIBlock["ID"]);
 
-				$tab_name = $arResult["FORM_ID"]."_active_tab";
+			$tab_name = $arResult["FORM_ID"]."_active_tab";
 
-				$obList->actualizeDocumentAdminPage(str_replace(
-					array("#list_id#", "#group_id#"),
-					array($arResult["IBLOCK_ID"], $arParams["SOCNET_GROUP_ID"]), $arParams["LIST_ELEMENT_URL"]));
-
-				//And go to proper page
-				if (isset($_POST["save"]))
-					LocalRedirect($arResult["~LIST_FIELDS_URL"]);
-				elseif ($arResult["FIELD_ID"])
-					LocalRedirect(
-						CHTTP::urlAddParams(str_replace(
+			//And go to proper page
+			if(isset($_POST["save"]))
+				LocalRedirect($arResult["~LIST_FIELDS_URL"]);
+			elseif($arResult["FIELD_ID"])
+				LocalRedirect(
+					CHTTP::urlAddParams(str_replace(
 							array("#list_id#", "#field_id#", "#group_id#"),
 							array($arResult["IBLOCK_ID"], $arResult["FIELD_ID"], $arParams["SOCNET_GROUP_ID"]),
 							$arParams["~LIST_FIELD_EDIT_URL"]
 						),
-							array($tab_name => $_POST[$tab_name]),
-							array("skip_empty" => true, "encode" => true)
-						)
-					);
-				else
-					LocalRedirect($arResult["~LIST_FIELDS_URL"]);
-			}
-			catch (Bitrix\Main\SystemException $exception)
-			{
-				ShowError($exception->getMessage());
-				if (!$arResult["FIELD_ID"])
-				{
-					$bVarsFromForm = true;
-				}
-			}
+						array($tab_name => $_POST[$tab_name]),
+						array("skip_empty" => true, "encode" => true)
+					)
+				);
+			else
+				LocalRedirect($arResult["~LIST_FIELDS_URL"]);
 		}
 		else
 		{
@@ -340,7 +242,7 @@ if($_SERVER["REQUEST_METHOD"] == "POST" && check_bitrix_sessid())
 		$obList->Save();
 
 		//Clear components cache
-		$CACHE_MANAGER->ClearByTag("lists_list_".$arIBlock["ID"]);
+		$GLOBALS["CACHE_MANAGER"]->ClearByTag("lists_list_".$arIBlock["ID"]);
 
 		LocalRedirect($arResult["~LIST_FIELDS_URL"]);
 	}
@@ -361,17 +263,11 @@ if($bVarsFromForm)
 	$data["NAME"] = $_POST["NAME"];
 	$data["IS_REQUIRED"] = $_POST["IS_REQUIRED"];
 	$data["MULTIPLE"] = $_POST["MULTIPLE"];
-	$data["CODE"] = $_POST["CODE"];
 	$data["TYPE"] = $_POST["TYPE"];
-	if (isset($_POST["ROW_COUNT"]))
-		$data["ROW_COUNT"] = $_POST["ROW_COUNT"];
-	if (isset($_POST["COL_COUNT"]))
-		$data["COL_COUNT"] = $_POST["COL_COUNT"];
 
 	if($data["TYPE"] !== $arResult["FIELD"]["TYPE"])
 	{
 		//field type was changed so it needs adjustment
-		$arMatch = array();
 		if(preg_match("/^(.):(.+)$/", $data["TYPE"], $arMatch))
 		{
 			$arResult["FIELD"]["PROPERTY_USER_TYPE"] = CIBlockProperty::GetUserType($arMatch[2]);
@@ -399,7 +295,6 @@ if($bVarsFromForm)
 		$arResult["LIST"] = array();
 		foreach($_POST["LIST"] as $k => $v)
 		{
-			$match = array();
 			if(preg_match("/^n(\d+)$/", $k, $match))
 			{
 				if(intval($match[1]) > $n)
@@ -475,12 +370,9 @@ elseif($arResult["FIELD_ID"])
 	$data["NAME"] = $arResult["FIELD"]["NAME"];
 	$data["IS_REQUIRED"] = $arResult["FIELD"]["IS_REQUIRED"];
 	$data["MULTIPLE"] = $arResult["FIELD"]["MULTIPLE"];
-	$data["CODE"] = $arResult["FIELD"]["CODE"];
 	$data["TYPE"] = $arResult["FIELD"]["TYPE"];
 	$data["DEFAULT_VALUE"] = $arResult["FIELD"]["DEFAULT_VALUE"];
 	$data["SETTINGS"] = $arResult["FIELD"]["SETTINGS"];
-	$data["ROW_COUNT"] = $arResult["FIELD"]["ROW_COUNT"];
-	$data["COL_COUNT"] = $arResult["FIELD"]["COL_COUNT"];
 
 	if(isset($arResult["FIELD"]["LINK_IBLOCK_ID"]))
 	{
@@ -520,7 +412,6 @@ else
 	$data["NAME"] = GetMessage("CC_BLFE_FIELD_NAME_DEFAULT");
 	$data["IS_REQUIRED"] = "N";
 	$data["MULTIPLE"] = "N";
-	$data["CODE"] = "";
 	list($data["TYPE"], $temp) = each($arResult["TYPES"]);
 	reset($arResult["TYPES"]);
 	$arResult["LIST"] = false;
@@ -542,24 +433,18 @@ foreach($data as $key => $value)
 	if(is_array($value))
 	{
 		foreach($value as $key1 => $value1)
-			$value[$key1] = htmlspecialcharsbx($value1);
+			$value[$key1] = htmlspecialchars($value1);
 		$arResult["FORM_DATA"][$key] = $value;
 	}
 	else
 	{
-		$arResult["FORM_DATA"][$key] = htmlspecialcharsbx($value);
+		$arResult["FORM_DATA"][$key] = htmlspecialchars($value);
 	}
 }
 
-$arResult['RAND_STRING'] = $this->randString();
 $arResult["CAN_BE_MULTIPLE"] = !$obList->is_field($data["TYPE"]);
-$arResult["IS_PROPERTY"] = $arResult["CAN_BE_MULTIPLE"];
-
-if($data["TYPE"] == "S:map_yandex")
-	$arResult["CAN_BE_MULTIPLE"] = false;
 $arResult["CAN_BE_OPTIONAL"] = $data["TYPE"] != "NAME";
 $arResult["IS_READ_ONLY"] = $arResult["FIELD_ID"]? $obList->is_readonly($arResult["FIELD_ID"]): CListFieldTypeList::GetByID($data["TYPE"])->IsReadonly();
-$arResult["IS_MULTIPLE_ONLY"] = $data["TYPE"] == "S:DiskFile";
 
 $this->IncludeComponentTemplate();
 

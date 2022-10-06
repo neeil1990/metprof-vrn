@@ -16,7 +16,7 @@ $arParams["SET_NAV_CHAIN"] = ($arParams["SET_NAV_CHAIN"] == "N" ? "N" : "Y");
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
@@ -175,7 +175,7 @@ else
 				"USER_PERSONAL_PHOTO_IMG" => $arImage["IMG"],
 				"USER_PROFILE_URL" => $pu,
 				"SHOW_PROFILE_LINK" => $canViewProfile,
-				"DELETE_FROM_BAN_LINK" => htmlspecialcharsbx($APPLICATION->GetCurUri("eventID=".$arBan["ID"]."&action=clear_ban&".bitrix_sessid_get()."")),
+				"DELETE_FROM_BAN_LINK" => htmlspecialchars($APPLICATION->GetCurUri("eventID=".$arBan["ID"]."&action=clear_ban&".bitrix_sessid_get()."")),
 				"CAN_DELETE_BAN" => $bInitiated,
 			);
 		}

@@ -1,7 +1,7 @@
 <?
-$MESS["WIZ_MENU_LEFT_DEFAULT"] = "Ð›Ñ–Ð²Ðµ Ð¼ÐµÐ½ÑŽ";
-$MESS["WIZ_MENU_LEFT"] = "Ð›Ñ–Ð²Ðµ Ð¼ÐµÐ½ÑŽ (Ð¿Ñ–Ð´Ñ€Ñ–Ð²ÐµÐ½ÑŒ)";
-$MESS["WIZ_MENU_LEFT_FIRST"] = "Ð›Ñ–Ð²Ðµ Ð¼ÐµÐ½ÑŽ (Ð¿ÐµÑ€ÑˆÐ¸Ð¹ Ñ€Ñ–Ð²ÐµÐ½ÑŒ)";
-$MESS["WIZ_MENU_TOP"] = "Ð’ÐµÑ€Ñ…Ð½Ñ” Ð¼ÐµÐ½ÑŽ";
-$MESS["WIZ_MENU_BOTTOM"] = "ÐÐ¸Ð¶Ð½Ñ” Ð¼ÐµÐ½ÑŽ";
+$MESS["WIZ_MENU_LEFT_DEFAULT"] = "Ë³âå ìåíþ";
+$MESS["WIZ_MENU_LEFT"] = "Ë³âå ìåíþ (ï³äð³âåíü)";
+$MESS["WIZ_MENU_LEFT_FIRST"] = "Ë³âå ìåíþ (ïåðøèé ð³âåíü)";
+$MESS["WIZ_MENU_TOP"] = "Âåðõíº ìåíþ";
+$MESS["WIZ_MENU_BOTTOM"] = "Íèæíº ìåíþ";
 ?>

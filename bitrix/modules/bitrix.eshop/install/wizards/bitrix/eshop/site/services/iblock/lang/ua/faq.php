@@ -1,8 +1,8 @@
 <?
-$MESS["WZD_OPTION_FAQ_1"] = "ÐŸÐ¸Ñ‚Ð°Ð½Ð½Ñ";
-$MESS["WZD_OPTION_FAQ_2"] = "ÐŸÐ¸Ñ‚Ð°Ð½Ð½Ñ Ð¾Ð¿ÑƒÐ±Ð»Ñ–ÐºÐ¾Ð²Ð°Ð½Ðµ";
-$MESS["WZD_OPTION_FAQ_3"] = "Ð†Ð½Ð´ÐµÐºÑ ÑÐ¾Ñ€Ñ‚ÑƒÐ²Ð°Ð½Ð½Ñ Ñƒ ÑÐ¿Ð¸ÑÐºÑƒ";
-$MESS["WZD_OPTION_FAQ_4"] = "* ÐŸÐ¸Ñ‚Ð°Ð½Ð½Ñ";
-$MESS["WZD_OPTION_FAQ_5"] = "Ð’Ñ–Ð´Ð¿Ð¾Ð²Ñ–Ð´ÑŒ";
-$MESS["WZD_OPTION_FAQ_6"] = "Ð¢ÐµÐ³Ð¸";
+$MESS["WZD_OPTION_FAQ_1"] = "Ïèòàííÿ";
+$MESS["WZD_OPTION_FAQ_2"] = "Ïèòàííÿ îïóáë³êîâàíå";
+$MESS["WZD_OPTION_FAQ_3"] = "²íäåêñ ñîðòóâàííÿ ó ñïèñêó";
+$MESS["WZD_OPTION_FAQ_4"] = "* Ïèòàííÿ";
+$MESS["WZD_OPTION_FAQ_5"] = "Â³äïîâ³äü";
+$MESS["WZD_OPTION_FAQ_6"] = "Òåãè";
 ?>

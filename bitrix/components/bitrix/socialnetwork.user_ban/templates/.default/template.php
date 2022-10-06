@@ -20,10 +20,12 @@ else
 	}
 
 	?><form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
+	<input type="submit" name="delete" value="<?= GetMessage("SONET_C32_T_DELETE") ?>">
+	<br /><br /><?
+	?>	
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>
-	<div class="sonet-cntnr-user-ban">
 	<table width="100%" class="sonet-user-profile-friends data-table">
 		<tr>
 			<th><?= GetMessage("SONET_C32_T_BAN") ?></th>
@@ -120,10 +122,10 @@ else
 			</td>
 		</tr>
 	</table>
-	</div>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<br><?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>
+
 	<br />
 	<input type="hidden" name="max_count" value="<?= $ind ?>">
 	<?=bitrix_sessid_post()?>

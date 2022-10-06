@@ -27,10 +27,6 @@ if (CModule::IncludeModule("socialnetwork"))
 		//messages from *all* users
 		$bFirst = true;
 		$currUserId = $GLOBALS["USER"]->GetID();
-		
-		$mptr_ts = MakeTimeStamp($mptr, "YYYY-MM-DD HH:MI:SS") - CTimeZone::GetOffset();
-		$mptr = date("Y-m-d H:i:s", $mptr_ts);
-
 		$dbMessages = CSocNetMessages::GetMessagesForChat($currUserId, 0, $mptr, false, $replyMessId);
 		if ($dbMessages)
 		{

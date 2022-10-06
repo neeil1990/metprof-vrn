@@ -1,4 +1,4 @@
-create table if not exists b_uniteller_agent (
+﻿create table if not exists b_uniteller_agent (
 	ID int(18) not null auto_increment,
 	ORDER_ID int(18) not null,
 	INSERT_DATATIME timestamp not null,

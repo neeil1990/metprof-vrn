@@ -1,4 +1,4 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
+﻿<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 <form method="GET" action="<?= $arResult["CURRENT_PAGE"] ?>" name="bfilter">
 <table class="sale-personal-order-list-filter data-table">
 	<tr>

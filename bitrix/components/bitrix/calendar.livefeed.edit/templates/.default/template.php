@@ -3,7 +3,12 @@
 $id = $arResult['ID'];
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/tools/clock.php");
 
-CJSCore::Init(array('popup', 'date'));
+\Bitrix\Main\UI\Extension::load([
+	'ui.design-tokens',
+	'ui.fonts.opensans',
+	'popup',
+	'date',
+]);
 
 \Bitrix\Main\Localization\Loc::loadLanguageFile($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/calendar/classes/general/calendar.php");
 
@@ -60,8 +65,7 @@ $APPLICATION->IncludeComponent(
 						"height" => 120,
 						"documentCSS" => "body {color:#434343;}",
 						"jsObjName" => $arParams["JS_OBJECT_NAME"],
-						"fontFamily" => "'Helvetica Neue', Helvetica, Arial, sans-serif",
-						"fontSize" => "12px",
+						"fontSize" => "14px",
 						"lazyLoad" => true,
 						"setFocusAfterShow" => false
 				)
@@ -74,6 +78,9 @@ $APPLICATION->IncludeComponent(
 ?>
 
 <!-- Event From/To, Reminder, Location-->
+<input name="TIME_FROM" type="hidden" id="<?=$id?>_time_from_real" value="">
+<input name="TIME_TO" type="hidden" id="<?=$id?>_time_to_real" value="">
+
 <div class="feed-event-grey-cont">
 	<div class="feed-event-from-to-reminder" id="feed-cal-from-to-cont<?=$id?>">
 		<span class="feed-event-from-to-reminder-inner">
@@ -82,14 +89,14 @@ $APPLICATION->IncludeComponent(
 				<label class="feed-event-date-label-full-day" for="<?=$id?>edev-from"><?=GetMessage('EC_EDEV_DATE_FROM')?></label>
 				<input id="feed-cal-event-from<?=$id?>" name="DATE_FROM" type="text" class="calendar-inp calendar-inp-cal"/>
 			</span>
-			<span class="feed-event-time<?=$addWidthStyle?>"><?CClock::Show(array('inputId' => 'feed_cal_event_from_time'.$id, 'inputName' => 'TIME_FROM', 'inputTitle' => GetMessage('ECLF_TIME_FROM'), 'showIcon' => false));?></span>
+			<span class="feed-event-time<?=$addWidthStyle?>"><?CClock::Show(array('inputId' => 'feed_cal_event_from_time'.$id, 'inputName' => 'TIME_FROM_', 'inputTitle' => GetMessage('ECLF_TIME_FROM'), 'showIcon' => false));?></span>
 			<span class="feed-event-mdash">&mdash;</span>
 			<span class="feed-event-date">
 				<label class="feed-event-date-label" for="<?=$id?>edev-from"><?=GetMessage('ECLF_EVENT_TO_DATE_TIME')?></label>
 				<label class="feed-event-date-label-full-day" for="<?=$id?>edev-from"><?=GetMessage('EC_EDEV_DATE_TO')?></label>
 				<input id="feed-cal-event-to<?=$id?>" name="DATE_TO" type="text" class="calendar-inp calendar-inp-cal"/>
 			</span>
-			<span class="feed-event-time<?=$addWidthStyle?>"><?CClock::Show(array('inputId' => 'feed_cal_event_to_time'.$id, 'inputName' => 'TIME_TO', 'inputTitle' => GetMessage('ECLF_TIME_TO'), 'showIcon' => false));?></span>
+			<span class="feed-event-time<?=$addWidthStyle?>"><?CClock::Show(array('inputId' => 'feed_cal_event_to_time'.$id, 'inputName' => 'TIME_TO_', 'inputTitle' => GetMessage('ECLF_TIME_TO'), 'showIcon' => false));?></span>
 		</span>
 		<span class="feed-event-full-day">
 			<input type="checkbox" id="event-full-day<?=$id?>" value="Y" name="EVENT_FULL_DAY"/>
@@ -154,7 +161,7 @@ $APPLICATION->IncludeComponent(
 
 	<div  class="feed-event-location">
 		<label style="display: inline-block;" for="event-location<?=$id?>"><?= GetMessage('ECLF_EVENT_LOCATION')?></label>
-		<input type="text" id="event-location<?=$id?>" value="" class="calendar-inp calendar-inp-loc" name="EVENT_LOCATION"/>
+		<input type="text" id="event-location<?=$id?>" value="" class="calendar-inp calendar-inp-loc"/>
 		<input id="event-location-new<?=$id?>" type="hidden" value=""/>
 	</div>
 </div>
@@ -162,53 +169,33 @@ $APPLICATION->IncludeComponent(
 <!-- Destination - "Attendees" -->
 <div class="feed-event-destination-block">
 	<div class="feed-event-destination-title"><?=GetMessage("ECLF_DESTINATION")?>:</div>
-	<div class="feed-event-destination-wrap" id="feed-event-dest-cont">
-		<span id="feed-event-dest-item"></span>
-	<span class="feed-add-destination-input-box" id="feed-event-dest-input-box">
-		<input type="text" value="" class="feed-add-destination-inp" id="feed-event-dest-input">
-	</span>
-		<a href="#" class="feed-add-destination-link" id="feed-event-dest-add-link"></a>
-		<script type="text/javascript">
-			destinationFormName = 'cal<?=$this->randString(6)?>';
-			BXSocNetLogDestinationDisableBackspace = null;
-			BX.SocNetLogDestination.init({
-				name : destinationFormName,
-				searchInput : BX('feed-event-dest-input'),
-				extranetUser :  false,
-				bindMainPopup : { 'node' : BX('feed-event-dest-cont'), 'offsetTop' : '5px', 'offsetLeft': '15px'},
-				bindSearchPopup : { 'node' : BX('feed-event-dest-cont'), 'offsetTop' : '5px', 'offsetLeft': '15px'},
-				callback : {
-					select : BXEvDestSelectCallback,
-					unSelect : BXEvDestUnSelectCallback,
-					openDialog : BXEvDestOpenDialogCallback,
-					closeDialog : BXEvDestCloseDialogCallback,
-					openSearch : BXEvDestOpenDialogCallback,
-					closeSearch : BXEvDestCloseSearchCallback
-				},
-				items : {
-					users : <?=(empty($arParams["DESTINATION"]['USERS'])? '{}': CUtil::PhpToJSObject($arParams["DESTINATION"]['USERS']))?>,
-					groups : <?=($arParams["DESTINATION"]["EXTRANET_USER"] == 'Y'? '{}': "{'UA' : {'id':'UA','name': '".(!empty($arParams["DESTINATION"]['DEPARTMENT']) ? GetMessageJS("MPF_DESTINATION_3"): GetMessageJS("MPF_DESTINATION_4"))."'}}")?>,
-					sonetgroups : <?=(empty($arParams["DESTINATION"]['SONETGROUPS'])? '{}': CUtil::PhpToJSObject($arParams["DESTINATION"]['SONETGROUPS']))?>,
-					department : <?=(empty($arParams["DESTINATION"]['DEPARTMENT'])? '{}': CUtil::PhpToJSObject($arParams["DESTINATION"]['DEPARTMENT']))?>,
-					departmentRelation : (typeof departmentRelation != 'undefined' ? departmentRelation : {})
-				},
-				itemsLast : {
-					users : <?=(empty($arParams["DESTINATION"]['LAST']['USERS'])? '{}': CUtil::PhpToJSObject($arParams["DESTINATION"]['LAST']['USERS']))?>,
-					sonetgroups : <?=(empty($arParams["DESTINATION"]['LAST']['SONETGROUPS'])? '{}': CUtil::PhpToJSObject($arParams["DESTINATION"]['LAST']['SONETGROUPS']))?>,
-					department : <?=(empty($arParams["DESTINATION"]['LAST']['DEPARTMENT'])? '{}': CUtil::PhpToJSObject($arParams["DESTINATION"]['LAST']['DEPARTMENT']))?>,
-					groups : <?=($arParams["DESTINATION"]["EXTRANET_USER"] == 'Y'? '{}': "{'UA':true}")?>
-				},
-				itemsSelected : <?=(empty($arParams["DESTINATION"]['SELECTED'])? '{}': CUtil::PhpToJSObject($arParams["DESTINATION"]['SELECTED']))?>,
-				destSort : <?=CUtil::PhpToJSObject(isset($arParams["DESTINATION"]['DEST_SORT']) ? $arParams["DESTINATION"]['DEST_SORT'] : array())?>
-			});
-			BX.bind(BX('feed-event-dest-input'), 'keyup', BXEvDestSearch);
-			BX.bind(BX('feed-event-dest-input'), 'keydown', BXEvDestSearchBefore);
-			BX.bind(BX('feed-event-dest-add-link'), 'click', function(e){BX.SocNetLogDestination.openDialog(destinationFormName); BX.PreventDefault(e); });
-			BX.bind(BX('feed-event-dest-cont'), 'click', function(e){BX.SocNetLogDestination.openDialog(destinationFormName); BX.PreventDefault(e);});
-			BXEvDestSetLinkName(destinationFormName);
-
-		</script>
-	</div>
+	<div class="feed-event-destination-wrap" id="feed-event-dest-cont"><?
+		$APPLICATION->IncludeComponent(
+			"bitrix:main.user.selector",
+			"",
+			[
+				"ID" => 'calendar_livefeed_event',
+				"LAZYLOAD" => 'Y',
+				"LIST" => [],
+				"INPUT_NAME" => 'EVENT_DEST_CODES[]',
+				"USE_SYMBOLIC_ID" => true,
+				"BUTTON_SELECT_CAPTION" => \Bitrix\Main\Localization\Loc::getMessage("ECLF_DESTINATION_ADD_USERS"),
+				"BUTTON_SELECT_CAPTION_MORE" => \Bitrix\Main\Localization\Loc::getMessage("ECLF_DESTINATION_ADD_MORE"),
+				"API_VERSION" => 3,
+				"SELECTOR_OPTIONS" => array(
+					'lazyLoad' => 'Y',
+					'context' => \Bitrix\Calendar\Util::getUserSelectorContext(),
+					'contextCode' => '',
+					'enableSonetgroups' => 'Y',
+					'departmentSelectDisable' => 'N',
+					'showVacations' => 'Y',
+					'enableAll' => 'Y',
+					'allowSearchEmailUsers' => 'Y',
+					'allowEmailInvitation' => 'Y'
+				)
+			]
+		);
+	?></div>
 </div>
 
 <div class="feed-event-planner-block" id="event-planner-block<?=$id?>">

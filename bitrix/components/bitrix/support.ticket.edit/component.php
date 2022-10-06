@@ -10,17 +10,15 @@ if (!CModule::IncludeModule("support"))
 }
 
 //Permissions
-if ( !($USER->IsAuthorized() && (CTicket::IsSupportClient() || CTicket::IsAdmin() || CTicket::IsSupportTeam() || CTicket::IsDemo())) )
+if ( !($USER->IsAuthorized() && (CTicket::IsSupportClient() || CTicket::IsAdmin() || CTicket::IsSupportTeam())) )
 	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 
-global $USER_FIELD_MANAGER;
-$arrUF = $USER_FIELD_MANAGER->GetUserFields( "SUPPORT", 0, LANGUAGE_ID );
 
 //Post
 $strError = "";
 
 $arParams["TICKET_EDIT_TEMPLATE"] = trim($arParams["TICKET_EDIT_TEMPLATE"]);
-$arParams["TICKET_EDIT_TEMPLATE"] = (strlen($arParams["TICKET_EDIT_TEMPLATE"]) > 0 ? htmlspecialcharsbx($arParams["TICKET_EDIT_TEMPLATE"]) : "ticket_edit.php?ID=#ID#");
+$arParams["TICKET_EDIT_TEMPLATE"] = (strlen($arParams["TICKET_EDIT_TEMPLATE"]) > 0 ? htmlspecialchars($arParams["TICKET_EDIT_TEMPLATE"]) : "ticket_edit.php?ID=#ID#");
 
 $arParams['SHOW_COUPON_FIELD'] = (array_key_exists('SHOW_COUPON_FIELD', $arParams) && $arParams['SHOW_COUPON_FIELD'] == 'Y') ? 'Y' : 'N';
 
@@ -63,57 +61,50 @@ if ((strlen($_REQUEST["save"])>0 || strlen($_REQUEST["apply"])>0) && $_SERVER["R
 	}
 
 	$arParams["TICKET_LIST_URL"] = trim($arParams["TICKET_LIST_URL"]);
-	$arParams["TICKET_LIST_URL"] = (strlen($arParams["TICKET_LIST_URL"]) > 0 ? htmlspecialcharsbx($arParams["TICKET_LIST_URL"]) : "ticket_list.php");
+	$arParams["TICKET_LIST_URL"] = (strlen($arParams["TICKET_LIST_URL"]) > 0 ? htmlspecialchars($arParams["TICKET_LIST_URL"]) : "ticket_list.php");
 
 	if ($strError == "")
 	{
-		// check before writing,  user access to ticket
-		$bSetTicket = false;
-		if ($arParams["ID"] > 0) 
+		if ($_REQUEST["OPEN"]=="Y")
+			$_REQUEST["CLOSE"]="N";
+		if ($_REQUEST["CLOSE"]=="Y")
+			$_REQUEST["OPEN"]="N";
+
+		$arFields = array(
+			'SITE_ID'					=> SITE_ID,
+			'CLOSE'						=> $_REQUEST['CLOSE'],
+			'TITLE'						=> $_REQUEST['TITLE'],
+			'CRITICALITY_ID'			=> $_REQUEST['CRITICALITY_ID'],
+			'CATEGORY_ID'				=> $_REQUEST['CATEGORY_ID'],
+			'MARK_ID'					=> $_REQUEST['MARK_ID'],
+			'MESSAGE'					=> $_REQUEST['MESSAGE'],
+			'HIDDEN'					=> 'N',
+			'FILES'						=> $arFILES,
+			'COUPON'					=> $_REQUEST['COUPON'],
+			'PUBLIC_EDIT_URL'			=> $APPLICATION->GetCurPage(),
+		);
+        
+		// проверка перед записью, может ли пользователь поддержки оставлять комментарий
+		if ($arParams["ID"] > 0 && (CTicket::IsSupportClient() || CTicket::IsSupportTeam())) 
 		{
-			if (CTicket::IsAdmin())
-				$bSetTicket = true;
-			else
+			$rsTicket = CTicket::GetByID($arParams["ID"], SITE_ID, $check_rights = "N", $get_user_name = "N", $get_extra_names = "N");
+			if ($arTicket = $rsTicket->GetNext())
 			{
-				$rsTicket = CTicket::GetByID($arParams["ID"], SITE_ID, $check_rights = "Y", $get_user_name = "N", $get_extra_names = "N");
-				if ($arTicket = $rsTicket->GetNext())
-					$bSetTicket = true;
+				$OWNER_USER_ID = IntVal($arTicket["OWNER_USER_ID"]);;
+				$RESPONSIBLE_USER_ID = IntVal($arTicket["RESPONSIBLE_USER_ID"]);
 			}
 		} 
 		else 
 		{
-			$bSetTicket = true;
+		    $OWNER_USER_ID = 0;
+		    $RESPONSIBLE_USER_ID = 0;
 		}
-		
-		if ($bSetTicket)
+		// если пользователь АДМИН или 
+		// пользователь СОТРУДНИК ТЕХ.ПОДДЕРЖКИ и создает сообщение или он ответсвеннен или
+		// пользователь КЛИЕНТ ТЕХ.ПОДДЕРЖКИ и создает сообщение или он владелец сообщения 
+		if (CTicket::IsSupportTeam() && (intval($arParams["ID"]) == 0 || $RESPONSIBLE_USER_ID==$USER->GetID()) || 
+			CTicket::IsSupportClient() && (intval($arParams["ID"]) == 0 || $OWNER_USER_ID==$USER->GetID()) || CTicket::IsAdmin()) 
 		{
-			if ($_REQUEST["OPEN"]=="Y")
-				$_REQUEST["CLOSE"]="N";
-			if ($_REQUEST["CLOSE"]=="Y")
-				$_REQUEST["OPEN"]="N";
-
-			$arFields = array(
-				'SITE_ID'					=> SITE_ID,
-				'CLOSE'						=> $_REQUEST['CLOSE'],
-				'TITLE'						=> $_REQUEST['TITLE'],
-				'CRITICALITY_ID'			=> $_REQUEST['CRITICALITY_ID'],
-				'CATEGORY_ID'				=> $_REQUEST['CATEGORY_ID'],
-				'MARK_ID'					=> $_REQUEST['MARK_ID'],
-				'MESSAGE'					=> $_REQUEST['MESSAGE'],
-				'HIDDEN'					=> 'N',
-				'FILES'						=> $arFILES,
-				'COUPON'					=> $_REQUEST['COUPON'],
-				'PUBLIC_EDIT_URL'			=> $APPLICATION->GetCurPage(),
-			);
-			
-			foreach( $_REQUEST as $k => $v )
-			{
-				if( array_key_exists( $k, $arrUF ) )
-				{
-					$arFields[$k] = $v;
-				}
-			}
-
 			$ID = CTicket::SetTicket($arFields, $ID, "Y", $NOTIFY = "Y");
 			if (intval($ID)>0)
 			{
@@ -166,7 +157,7 @@ $arResult = Array(
 		"CATEGORY_DEFAULT" => "",
 	),
 	"ERROR_MESSAGE" => $strError,
-	"REAL_FILE_PATH" => (strlen($_SERVER["REAL_FILE_PATH"]) > 0 ? htmlspecialcharsbx($_SERVER["REAL_FILE_PATH"]) : htmlspecialcharsbx($APPLICATION->GetCurPage())),
+	"REAL_FILE_PATH" => (strlen($_SERVER["REAL_FILE_PATH"]) > 0 ? htmlspecialchars($_SERVER["REAL_FILE_PATH"]) : htmlspecialchars($APPLICATION->GetCurPage())),
 	"NAV_STRING" => "",
 	"NAV_RESULT" => null,
 	"OPTIONS" => Array(
@@ -176,34 +167,10 @@ $arResult = Array(
 );
 
 $arParams["ID"] = (intval($arParams["ID"]) > 0 ? intval($arParams["ID"]) : intval($_REQUEST["ID"]));
-
-$UFA = array();
-$UFAT = array();
-
-if( isset( $arParams["SET_SHOW_USER_FIELD"] ) )
-{
-	foreach( $arParams["SET_SHOW_USER_FIELD"] as $k => $v )
-	{
-		if( strlen( trim( $v ) ) > 0 )
-		{
-			$UFAT[$v] = array(
-							"NAME_C" => $arrUF[$v]["LIST_COLUMN_LABEL"],
-							"NAME_F" => $arrUF[$v]["EDIT_FORM_LABEL"],
-							"ALL" => $arrUF[$v],
-			);
-			$UFA[] = $v;
-		}
-	}
-}
-$arParams["SET_SHOW_USER_FIELD_T"] = $UFAT;
-$rsTicket = CTicket::GetByID($arParams["ID"], SITE_ID, $check_rights = "Y", $get_user_name = "N", $get_extra_names = "N", array( "SELECT" => $UFA ) );
+$rsTicket = CTicket::GetByID($arParams["ID"], SITE_ID, $check_rights = "Y", $get_user_name = "N", $get_extra_names = "N");
 
 if ($arTicket = $rsTicket->GetNext())
 {
-	foreach( $UFA as $k => $v )
-	{
-		$arParams[$v] = $arTicket[$v];
-	}
 	//+Ticket and user names
 	$arResult["TICKET"] = $arTicket +
 	_GetUserInfo($arTicket["RESPONSIBLE_USER_ID"], "RESPONSIBLE") +
@@ -228,10 +195,10 @@ if ($arTicket = $rsTicket->GetNext())
 	//+Sla
 	$arResult["TICKET"]["SLA_NAME"] = $arResult["TICKET"]["SLA_DESCRIPTION"] = "";
 	$rsSla = CTicketSLA::GetByID($arTicket["SLA_ID"]);
-	if ($rsSla && $arSla = $rsSla->Fetch())
+	if ($arSla = $rsSla->Fetch())
 	{
-		$arResult["TICKET"]["SLA_NAME"] = htmlspecialcharsbx($arSla["NAME"]);
-		$arResult["TICKET"]["SLA_DESCRIPTION"] = htmlspecialcharsbx($arSla["DESCRIPTION"]);
+		$arResult["TICKET"]["SLA_NAME"] = htmlspecialchars($arSla["NAME"]);
+		$arResult["TICKET"]["SLA_DESCRIPTION"] = htmlspecialchars($arSla["DESCRIPTION"]);
 	}
 
 	//Messages files
@@ -246,7 +213,7 @@ if ($arTicket = $rsTicket->GetNext())
 				$suffix_length = strlen($arFile["EXTENSION_SUFFIX"]);
 				$name = substr($name, 0, strlen($name)-$suffix_length);
 			}
-			$arMessagesFiles[$arFile["MESSAGE_ID"]][] = array("ID" => $arFile["ID"], "HASH" => $arFile["HASH"], "NAME" => htmlspecialcharsbx($name), "FILE_SIZE" => $arFile["FILE_SIZE"]);
+			$arMessagesFiles[$arFile["MESSAGE_ID"]][] = array("HASH" => $arFile["HASH"], "NAME" => htmlspecialchars($name), "FILE_SIZE" => $arFile["FILE_SIZE"]);
 		}
 	}
 

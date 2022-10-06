@@ -28,7 +28,7 @@ $sCurrentTab = (isset($_GET[$arParams["FORM_ID"].'_active_tab']) ? $_GET[$arPara
 $_GET[$arParams["FORM_ID"].'_active_tab'] =$sTabName;
 
 ob_start();
-$result = $APPLICATION->IncludeComponent("bitrix:bizproc.document.history", "webdav", Array(
+$APPLICATION->IncludeComponent("bitrix:bizproc.document.history", "webdav", Array(
     "MODULE_ID" => $arResult["VARIABLES"]["MODULE_ID"],
     "ENTITY" => $arResult["VARIABLES"]["ENTITY"],
     "DOCUMENT_TYPE" => $arResult["VARIABLES"]["DOCUMENT_TYPE"],
@@ -44,30 +44,22 @@ $result = $APPLICATION->IncludeComponent("bitrix:bizproc.document.history", "web
 $component,
 array("HIDE_ICONS" => "Y")
 );
-
-if ($result !== false)
-{
-	$historyLength = (isset($this->__component->arResult["HISTORY_LENGTH"]) ? $this->__component->arResult["HISTORY_LENGTH"] : 0);
-	$this->__component->arResult['TABS'][] = 
-		array(
-			"id" => $sTabName, 
-			"name" => GetMessage("WD_HIST_ELEMENT_TITLE", array("#NUM#" => $historyLength)), 
-			"title" => GetMessage("WD_HIST_ELEMENT"), 
-			"fields" => array(
-				array(
-					"id" => "WD_HIST_ELEMENT", 
-					"name" => GetMessage("WD_HIST_ELEMENT"), 
-					"colspan" => true,
-					"type" => "custom", 
-					"value" => ob_get_clean()
-				)
-			) 
-		);
-}
-else
-{
-	ob_get_clean();
-}
+$historyLength = (isset($this->__component->arResult["HISTORY_LENGTH"]) ? $this->__component->arResult["HISTORY_LENGTH"] : 0);
+$this->__component->arResult['TABS'][] = 
+    array(
+        "id" => $sTabName, 
+        "name" => GetMessage("WD_HIST_ELEMENT_TITLE", array("#NUM#" => $historyLength)), 
+        "title" => GetMessage("WD_HIST_ELEMENT"), 
+        "fields" => array(
+            array(
+                "id" => "WD_HIST_ELEMENT", 
+                "name" => GetMessage("WD_HIST_ELEMENT"), 
+                "colspan" => true,
+                "type" => "custom", 
+                "value" => ob_get_clean()
+            )
+        ) 
+    );
 
 unset($_GET[$arParams["FORM_ID"].'_active_tab']);
 if ($sCurrentTab !== '') 

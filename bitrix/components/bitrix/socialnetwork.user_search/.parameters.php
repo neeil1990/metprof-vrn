@@ -11,8 +11,59 @@ if (!empty($arRes))
 		$userProp[$val["FIELD_NAME"]] = (strLen($val["EDIT_FORM_LABEL"]) > 0 ? $val["EDIT_FORM_LABEL"] : $val["FIELD_NAME"]);
 }
 
-$userProp1 = CSocNetUser::GetFields();
-unset($userProp1["PASSWORD"]);
+$userProp1 = array(
+	"ID" => GetMessage("SONET_UP1_ID"),
+	"LOGIN" => GetMessage("SONET_UP1_LOGIN"),
+	"NAME" => GetMessage("SONET_UP1_NAME"),
+	"SECOND_NAME" => GetMessage("SONET_UP1_SECOND_NAME"),
+	"LAST_NAME" => GetMessage("SONET_UP1_LAST_NAME"),
+	"EMAIL" => GetMessage("SONET_UP1_EMAIL"),
+	"LAST_LOGIN" => GetMessage("SONET_UP1_LAST_LOGIN"),
+	"DATE_REGISTER" => GetMessage("SONET_UP1_DATE_REGISTER"),
+	"LID" => GetMessage("SONET_UP1_LID"),
+
+	"PERSONAL_BIRTHDAY" => GetMessage("SONET_UP1_PERSONAL_BIRTHDAY"),
+	"PERSONAL_BIRTHDAY_YEAR" => GetMessage("SONET_C241_PERSONAL_BIRTHDAY_YEAR"),
+	"PERSONAL_BIRTHDAY_DAY" => GetMessage("SONET_C241_PERSONAL_BIRTHDAY_DAY"),
+
+	"PERSONAL_PROFESSION" => GetMessage("SONET_UP1_PERSONAL_PROFESSION"),
+	"PERSONAL_WWW" => GetMessage("SONET_UP1_PERSONAL_WWW"),
+	"PERSONAL_ICQ" => GetMessage("SONET_UP1_PERSONAL_ICQ"),
+	"PERSONAL_GENDER" => GetMessage("SONET_UP1_PERSONAL_GENDER"),
+	"PERSONAL_PHOTO" => GetMessage("SONET_UP1_PERSONAL_PHOTO"),
+	"PERSONAL_NOTES" => GetMessage("SONET_UP1_PERSONAL_NOTES"),
+
+	"PERSONAL_PHONE" => GetMessage("SONET_UP1_PERSONAL_PHONE"),
+	"PERSONAL_FAX" => GetMessage("SONET_UP1_PERSONAL_FAX"),
+	"PERSONAL_MOBILE" => GetMessage("SONET_UP1_PERSONAL_MOBILE"),
+	"PERSONAL_PAGER" => GetMessage("SONET_UP1_PERSONAL_PAGER"),
+
+	"PERSONAL_COUNTRY" => GetMessage("SONET_UP1_PERSONAL_COUNTRY"),
+	"PERSONAL_STATE" => GetMessage("SONET_UP1_PERSONAL_STATE"),
+	"PERSONAL_CITY" => GetMessage("SONET_UP1_PERSONAL_CITY"),
+	"PERSONAL_ZIP" => GetMessage("SONET_UP1_PERSONAL_ZIP"),
+	"PERSONAL_STREET" => GetMessage("SONET_UP1_PERSONAL_STREET"),
+	"PERSONAL_MAILBOX" => GetMessage("SONET_UP1_PERSONAL_MAILBOX"),
+
+	"WORK_COMPANY" => GetMessage("SONET_UP1_WORK_COMPANY"),
+	"WORK_DEPARTMENT" => GetMessage("SONET_UP1_WORK_DEPARTMENT"),
+	"WORK_POSITION" => GetMessage("SONET_UP1_WORK_POSITION"),
+	"WORK_WWW" => GetMessage("SONET_UP1_WORK_WWW"),
+	"WORK_PROFILE" => GetMessage("SONET_UP1_WORK_PROFILE"),
+	"WORK_LOGO" => GetMessage("SONET_UP1_WORK_LOGO"),
+	"WORK_NOTES" => GetMessage("SONET_UP1_WORK_NOTES"),
+
+	"WORK_PHONE" => GetMessage("SONET_UP1_WORK_PHONE"),
+	"WORK_FAX" => GetMessage("SONET_UP1_WORK_FAX"),
+	"WORK_PAGER" => GetMessage("SONET_UP1_WORK_PAGER"),
+
+	"WORK_COUNTRY" => GetMessage("SONET_UP1_WORK_COUNTRY"),
+	"WORK_STATE" => GetMessage("SONET_UP1_WORK_STATE"),
+	"WORK_CITY" => GetMessage("SONET_UP1_WORK_CITY"),
+	"WORK_ZIP" => GetMessage("SONET_UP1_WORK_ZIP"),
+	"WORK_STREET" => GetMessage("SONET_UP1_WORK_STREET"),
+	"WORK_MAILBOX" => GetMessage("SONET_UP1_WORK_MAILBOX"),
+);
 
 $arComponentParameters = Array(
 	"GROUPS" => array(
@@ -183,16 +234,7 @@ $arComponentParameters = Array(
 			'NAME' => GetMessage('INTR_ISBN_PARAM_SHOW_YEAR'),
 			"PARENT" => "ADDITIONAL_SETTINGS",
 		),
-		"CACHE_TIME" => array('DEFAULT' => 3600),
-		"NAME_TEMPLATE" => array(
-					"TYPE" => "LIST",
-					"NAME" => GetMessage("SONET_NAME_TEMPLATE"),
-					"VALUES" => CComponentUtil::GetDefaultNameTemplates(),
-					"MULTIPLE" => "N",
-					"ADDITIONAL_VALUES" => "Y",
-					"DEFAULT" => "",
-					"PARENT" => "VISUAL",
-		),		
+		"CACHE_TIME" => array('DEFAULT' => 3600),		
 	)
 );
 $arComponentParameters["PARAMETERS"]["ALLOW_RATING_SORT"] = array(
@@ -204,17 +246,12 @@ $arComponentParameters["PARAMETERS"]["ALLOW_RATING_SORT"] = array(
 );
 $arComponentParameters["PARAMETERS"]["SHOW_RATING"] = array(
 	"PARENT" => "ADDITIONAL_SETTINGS",
-	"NAME" => GetMessage("SHOW_RATING"),
-	"TYPE" => "LIST",
-	"VALUES" => Array(
-		"" => GetMessage("SHOW_RATING_CONFIG"),
-		"Y" => GetMessage("MAIN_YES"),
-		"N" => GetMessage("MAIN_NO"),
-	),
-	"MULTIPLE" => "N",
-	"DEFAULT" => "",
+	"NAME" => GetMessage("SONET_SHOW_RATING"),
+	"TYPE" => "CHECKBOX",
+	"DEFAULT" => "N", 
+	"REFRESH" => "Y"
 );
-if ($arCurrentValues["SHOW_RATING"] != "N" || $arCurrentValues["ALLOW_RATING_SORT"] == "Y" )
+if ($arCurrentValues["SHOW_RATING"] == "Y" || $arCurrentValues["ALLOW_RATING_SORT"] == "Y" )
 {
 	$arRatingsList = array();
 	$db_res = CRatings::GetList($aSort = array("ID" => "ASC"), array("ACTIVE" => "Y", "ENTITY_ID" => "USER"));
@@ -228,20 +265,6 @@ if ($arCurrentValues["SHOW_RATING"] != "N" || $arCurrentValues["ALLOW_RATING_SOR
 		"VALUES" => $arRatingsList,
 		"DEFAULT" => "",
 		"REFRESH" => "Y"
-	);
-	$arComponentParameters["PARAMETERS"]["RATING_TYPE"] = array(
-		"NAME" => GetMessage("RATING_TYPE"),
-		"TYPE" => "LIST",
-		"VALUES" => Array(
-			"" => GetMessage("RATING_TYPE_CONFIG"),
-			"like" => GetMessage("RATING_TYPE_LIKE_TEXT"),
-			"like_graphic" => GetMessage("RATING_TYPE_LIKE_GRAPHIC"),
-			"standart_text" => GetMessage("RATING_TYPE_STANDART_TEXT"),
-			"standart" => GetMessage("RATING_TYPE_STANDART_GRAPHIC"),
-		),
-		"MULTIPLE" => "N",
-		"DEFAULT" => "",
-		"PARENT" => "ADDITIONAL_SETTINGS",
 	);
 }
 ?>

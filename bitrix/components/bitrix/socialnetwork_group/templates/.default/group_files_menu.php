@@ -26,30 +26,28 @@ endif;
 
 if ($arParams["PERMISSION"] >= "W" && $arParams["CHECK_CREATOR"] != "Y" && $arResult["VARIABLES"]["PAGE_NAME"] == "SECTIONS")
 {
-	if (($arParams["OBJECT"]->workflow == "bizproc") || $arParams['OBJECT']->e_rights)
-	{
-		$bIBlockPerms = $arParams['OBJECT']->GetPermission('IBLOCK', $arParams["OBJECT"]->IBLOCK_ID, 'iblock_rights_edit');
-		$bSectionPerms = $arParams['OBJECT']->GetPermission('SECTION', $arParams["OBJECT"]->arRootSection['ID'], 'section_rights_edit');
-		$bNeedButton = ($bIBlockPerms || $bSectionPerms);
-	}
-	elseif ($arParams["OBJECT"]->workflow == "bizproc_limited")
-	{
-		$bNeedButton = (CIBlock::GetArrayByID($arParams["OBJECT"]->IBLOCK_ID, "BIZPROC") != "N");
-	}
-	if ($bNeedButton)
-	{
-		$component->arResult["arButtons"] = (is_array($component->arResult["arButtons"]) ? $component->arResult["arButtons"] : array()); 
-
-		$docType = "iblock_".$arParams["OBJECT"]->IBLOCK_ID."_group_".  $arResult["VARIABLES"]["group_id"];
-		$component->arResult["arButtons"][] = array(
-			"TEXT" => GetMessage("SOCNET_SETTINGS"),
-			"TITLE" => GetMessage("SOCNET_SETTINGS_ALT"),
-			"LINK" => "javascript:".$APPLICATION->GetPopupLink(Array(
-				"URL" => $component->__path."/include/webdav_settings.php?DOCUMENT_ID=".$docType."&back_url=".urlencode($APPLICATION->GetCurPage()),
-				"PARAMS" => Array("min_width" => 300, "min_height" => 150)
-			)),
-			"ICON" => "btn-list settings"); 
-	}
+//	$result = CSocNetUserToGroup::InitUserPerms($GLOBALS["USER"]->GetId(), $arGroup, CSocNetUser::IsCurrentUserModuleAdmin()); 
+//	if ($result["UserCanModerateGroup"] === true)
+//	{
+		$bNeedButton = ($arParams["OBJECT"]->workflow == "bizproc"); 
+		if ($arParams["OBJECT"]->workflow == "bizproc_limited")
+		{
+			$bNeedButton = (CIBlock::GetArrayByID($arParams["OBJECT"]->IBLOCK_ID, "BIZPROC") != "N"); 
+		}
+		if ($bNeedButton)
+		{
+			$component->arResult["arButtons"] = (is_array($component->arResult["arButtons"]) ? $component->arResult["arButtons"] : array()); 
+			$component->arResult["arButtons"][] = array(
+				"TEXT" => GetMessage("SOCNET_SETTINGS"),
+				"TITLE" => GetMessage("SOCNET_SETTINGS_ALT"),
+				"LINK" => "javascript:".$APPLICATION->GetPopupLink(Array(
+					"URL" => $component->__path."/include/webdav_settings.php?DOCUMENT_ID=".$arParams["OBJECT"]->wfParams['DOCUMENT_TYPE'][2].
+						"&back_url=".urlencode($APPLICATION->GetCurPage()),
+					"PARAMS" => Array("min_width" => 300, "min_height" => 150)
+				)),
+				"ICON" => "btn-list settings"); 
+		}
+//	}
 }
 
 ?><?$result = $APPLICATION->IncludeComponent("bitrix:webdav.menu", ".default", Array(

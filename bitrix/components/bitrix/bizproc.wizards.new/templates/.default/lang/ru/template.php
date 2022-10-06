@@ -20,8 +20,4 @@ $MESS ['BPWC_WNCT_EADD'] = "Подпись 'Добавить элемент'";
 $MESS ['BPWC_WNCT_SAVE0'] = "Изменить";
 $MESS ['BPWC_WNCT_FILTERABLEFIELDS'] = "Поля, доступные для фильтрования";
 $MESS ['BPWC_WNCT_VISIBLEFIELDS'] = "Поля, доступные для просмотра";
-$MESS ['BPWC_WNCT_COMP_START_TPL'] = "Шаблон компонента запуска бизнес-процесса";
-$MESS ['BPWC_WNCT_COMP_LIST_TPL'] = "Шаблон компонента списка бизнес-процессов";
-$MESS ['BPWC_WNCT_COMP_VIEW_TPL'] = "Шаблон компонента бизнес-процесса";
-$MESS ['BPWC_WNCT_COMP_TPL_DEF'] = "(по-умолчанию)";
 ?>

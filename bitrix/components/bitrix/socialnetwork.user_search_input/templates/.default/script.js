@@ -108,47 +108,57 @@ function SonetJsTc(oHandler, sParams, sParser, oBtn, bHint)
 
 	t.Send = function(sSearch)
 	{
+		//if (!sSearch)
+		//	return false;
+
+		var TID = null, oError = Array(); 
 		t.bReady = false;
-		var oError = Array();
-
-		var arData = {
-			"search" : sSearch,
-			"params" : t.sParams
-		};
-		var data = '';
-
-		for(var i in arData)
-		{
-			if (data.length > 0) data += '&';
-			var name = escape(i).replace(/\+/g, '%2B');
-			data += name + '=' + escape(arData[i]).replace(/\+/g, '%2B');
-		}
-
-		BX.ajax({
-			url: '/bitrix/components/bitrix/socialnetwork.user_search_input/search.php' + '?' + data,
-			method: 'GET',
-			dataType: 'json',
-			data: {},
-			onsuccess: function(result) {
-				t.bReady = true;
-				if (
-					typeof result == 'object'
-					&& result.length != 0 
-					&& !(
-						result.length == 1 
-						&& result[0]['NAME'] == t.oEl['content']
-					)
-				)
+		PShowWaitMessage('wait_container', true);
+		TID = CPHttpRequest.InitThread();
+		CPHttpRequest.SetAction(
+				TID, 
+				function(data)
 				{
-					t.Show(result);
-					oError['result_empty'] = Errors['result_empty'];
+					var result = {};
+					t.bReady = true;
+
+					try 
+					{
+						eval("result = " + data + ";");
+					}
+					catch(e)
+					{
+						oError['result_unval'] = e;
+					}
+
+					if (SonetTCJsUtils.empty(result))
+						oError['result_empty'] = Errors['result_empty'];
+
+					try
+					{
+						if (SonetTCJsUtils.empty(oError) && (typeof result == 'object'))
+						{
+							if (!(result.length == 1 && result[0]['NAME'] == t.oEl['content']))
+							{
+								t.Show(result);
+								return;
+							}
+						}
+						else
+						{
+							t.oUnfinedWords[t.oEl['content']] = '!fined';
+						}
+					}
+					catch(e)
+					{
+						oError['unknown_error'] = e;
+					}
+
+					PCloseWaitMessage('wait_container', true);
+					return;
 				}
-			},
-			onfailure: function(result) {
-				t.bReady = true;
-				t.oUnfinedWords[t.oEl['content']] = '!fined';
-			}
-		});
+			);
+		CPHttpRequest.Send(TID, '/bitrix/components/bitrix/socialnetwork.user_search_input/search.php', {"search":sSearch, "params":t.sParams});
 	},
 
 	t.Show = function(result)
@@ -172,12 +182,11 @@ function SonetJsTc(oHandler, sParams, sParser, oBtn, bHint)
 
 		t.oDiv.className = "search-popup";
 		t.oDiv.style.position = 'absolute';
-		t.oDiv.style.zIndex = "1000";					
 
 		t.aDiv = t.Print(result);
 		var pos = SonetTCJsUtils.GetRealPos(t.oObj);
-		if (pos["width"] < 400)
-			pos["width"] = 400;
+		if (pos["width"] < 600)
+			pos["width"] = 600;
 
 		v = (document.compatMode=='CSS1Compat' && !window.opera ? document.documentElement.clientWidth : document.body.clientWidth);
 		if (v < pos["width"] + pos["left"])
@@ -223,10 +232,7 @@ function SonetJsTc(oHandler, sParams, sParser, oBtn, bHint)
 
 			oDiv.onmouseover = function(){t.Init(); this.className='search-popup-row-active';};
 			oDiv.onmouseout = function(){t.Init(); this.className='search-popup-row';};
-			oDiv.onclick = function(){
-				t.oActive = this.id
-				BX.fireEvent(BX(BX.message("sonetUSIInputID")), 'change');
-			};
+			oDiv.onclick = function(){t.oActive = this.id};
 
 			//oSpan = oDiv.appendChild(document.createElement("DIV"));
 			//oSpan.id = oDiv.id + '_NAME';
@@ -245,11 +251,13 @@ function SonetJsTc(oHandler, sParams, sParser, oBtn, bHint)
 
 	t.Destroy = function()
 	{
-		if (t.oDiv && t.oDiv.parentNode)
+		try
 		{
 			SonetTCJsUtils.hide(t.oDiv);
 			t.oDiv.parentNode.removeChild(t.oDiv);
 		}
+		catch(e)
+		{}
 		t.aDiv = Array();
 		t.oPointer = Array(), t.oPointer_default = Array(), t.oPointer_this = 'input_field';
 		t.bReady = true, t.eFocus = true, oError = {}, 
@@ -544,7 +552,7 @@ var SonetTCJsUtils =
 			return;
 		var zIndex = parseInt(oDiv.style.zIndex);
 		if(zIndex <= 0 || isNaN(zIndex))
-			zIndex = 1000;
+			zIndex = 100;
 		oDiv.style.zIndex = zIndex;
 		oDiv.style.left = iLeft + "px";
 		oDiv.style.top = iTop + "px";

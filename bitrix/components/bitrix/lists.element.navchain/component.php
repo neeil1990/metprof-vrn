@@ -1,21 +1,11 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
-/** @global CMain $APPLICATION */
-/** @global CUser $USER */
-/** @global CDatabase $DB */
-/** @var CBitrixComponent $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @var string $componentName */
-/** @var string $componentPath */
-/** @var string $componentTemplate */
-/** @var string $parentComponentName */
-/** @var string $parentComponentPath */
-/** @var string $parentComponentTemplate */
-$this->setFrameMode(false);
 
 if(!CModule::IncludeModule('lists'))
+{
+	ShowError(GetMessage("CC_BLEN_MODULE_NOT_INSTALLED"));
 	return;
+}
 
 $lists_perm = CListPermissions::CheckAccess(
 	$USER,
@@ -24,7 +14,25 @@ $lists_perm = CListPermissions::CheckAccess(
 	$arParams["~SOCNET_GROUP_ID"]
 );
 if($lists_perm < 0)
+{
+	switch($lists_perm)
+	{
+	case CListPermissions::WRONG_IBLOCK_TYPE:
+		ShowError(GetMessage("CC_BLEN_WRONG_IBLOCK_TYPE"));
+		return;
+	case CListPermissions::WRONG_IBLOCK:
+		ShowError(GetMessage("CC_BLEN_WRONG_IBLOCK"));
+		return;
+	default:
+		ShowError(GetMessage("CC_BLEN_UNKNOWN_ERROR"));
+		return;
+	}
+}
+elseif($lists_perm < CListPermissions::CAN_READ)
+{
+	ShowError(GetMessage("CC_BLEN_ACCESS_DENIED"));
 	return;
+}
 
 $arIBlock = CIBlock::GetArrayByID(intval($arParams["~IBLOCK_ID"]));
 $arResult["~IBLOCK"] = $arIBlock;
@@ -43,7 +51,7 @@ if($arParams["ADD_NAVCHAIN_GROUP"] === "Y" && $arParams["SOCNET_GROUP_ID"])
 		array($arParams["SOCNET_GROUP_ID"]),
 		$arParams["~LISTS_URL"]
 	);
-	$arResult["LISTS_URL"] = htmlspecialcharsbx($arResult["~LISTS_URL"]);
+	$arResult["LISTS_URL"] = htmlspecialchars($arResult["~LISTS_URL"]);
 
 	$arGroup = CSocNetGroup::GetByID($arParams["SOCNET_GROUP_ID"]);
 	if(!empty($arGroup))
@@ -69,7 +77,7 @@ if($arParams["ADD_NAVCHAIN_LIST"] !== "N")
 		array($arResult["IBLOCK_ID"], 0, $arParams["SOCNET_GROUP_ID"]),
 		$arParams["~LIST_URL"]
 	), array("list_section_id" => ""));
-	$arResult["LIST_URL"] = htmlspecialcharsbx($arResult["~LIST_URL"]);
+	$arResult["LIST_URL"] = htmlspecialchars($arResult["~LIST_URL"]);
 
 	$APPLICATION->AddChainItem($arResult["IBLOCK"]["NAME"], $arResult["~LIST_URL"]);
 }
@@ -81,15 +89,11 @@ if($arParams["ADD_NAVCHAIN_SECTIONS"] !== "N")
 		array($arResult["IBLOCK_ID"], intval($arParams["~SECTION_ID"]), $arParams["SOCNET_GROUP_ID"]),
 		$arParams["~LIST_URL"]
 	);
-	$arResult["LIST_SECTION_URL"] = htmlspecialcharsbx($arResult["~LIST_SECTION_URL"]);
+	$arResult["LIST_SECTION_URL"] = htmlspecialchars($arResult["~LIST_SECTION_URL"]);
 
 	$rsElement = CIBlockElement::GetList(
 		array(),
-		array(
-			"IBLOCK_ID" => $arResult["IBLOCK_ID"],
-			"=ID" => $arParams["ELEMENT_ID"],
-			"CHECK_PERMISSIONS" => ($lists_perm >= CListPermissions::CAN_READ? "N": "Y"),
-		),
+		array("IBLOCK_ID" => $arResult["IBLOCK_ID"], "=ID" => $arParams["ELEMENT_ID"]),
 		false,
 		false,
 		array("ID", "NAME", "IBLOCK_SECTION_ID")
@@ -129,11 +133,7 @@ if($arParams["ADD_NAVCHAIN_ELEMENT"] !== "N")
 	{
 		$rsElement = CIBlockElement::GetList(
 			array(),
-			array(
-				"IBLOCK_ID" => $arResult["IBLOCK_ID"],
-				"=ID" => $arParams["ELEMENT_ID"],
-				"CHECK_PERMISSIONS" => ($lists_perm >= CListPermissions::CAN_READ? "N": "Y"),
-			),
+			array("IBLOCK_ID" => $arResult["IBLOCK_ID"], "=ID" => $arParams["ELEMENT_ID"]),
 			false,
 			false,
 			array("ID", "NAME", "IBLOCK_SECTION_ID")
@@ -150,7 +150,7 @@ if($arParams["ADD_NAVCHAIN_ELEMENT"] !== "N")
 		array($arResult["IBLOCK_ID"], intval($arResult["ELEMENT"]["IBLOCK_SECTION_ID"]), $arResult["ELEMENT_ID"], $arParams["SOCNET_GROUP_ID"]),
 		$arParams["~LIST_ELEMENT_URL"]
 	);
-	$arResult["LIST_ELEMENT_URL"] = htmlspecialcharsbx($arResult["~LIST_ELEMENT_URL"]);
+	$arResult["LIST_ELEMENT_URL"] = htmlspecialchars($arResult["~LIST_ELEMENT_URL"]);
 
 	$APPLICATION->AddChainItem($arResult["ELEMENT"]["NAME"], $arResult["~LIST_ELEMENT_URL"]);
 }

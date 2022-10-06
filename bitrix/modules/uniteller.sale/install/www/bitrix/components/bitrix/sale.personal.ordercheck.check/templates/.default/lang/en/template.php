@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS["SPOD_RECORDS_LIST"] = "List of orders";
 $MESS["P_ORDER_PRICE"] = "Order price";
 $MESS["P_ORDER_CANCELED"] = "Canceled";

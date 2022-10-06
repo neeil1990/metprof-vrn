@@ -64,6 +64,8 @@ if ($arParams["FILES_USE_COMMENTS"]=="Y" && $arResult["GROUP"]["CLOSED"] != "Y" 
 		"URL_TEMPLATES_PROFILE_VIEW" => str_replace("#USER_ID#", "#UID#", $arResult["~PATH_TO_USER"]),
 		"URL_TEMPLATES_DETAIL" => $arResult["~PATH_TO_GROUP_FILES_ELEMENT"],
 		
+		"POST_FIRST_MESSAGE" => "Y", 
+		"POST_FIRST_MESSAGE_TEMPLATE" => GetMessage("WD_TEMPLATE_MESSAGE"), 
 		"SUBSCRIBE_AUTHOR_ELEMENT" => "Y", 
 		"IMAGE_SIZE" => false, 
 		"MESSAGES_PER_PAGE" => 20,
@@ -72,9 +74,6 @@ if ($arParams["FILES_USE_COMMENTS"]=="Y" && $arResult["GROUP"]["CLOSED"] != "Y" 
 		"PREORDER" => $arParams["FILES_PREORDER"],
 		"PAGE_NAVIGATION_TEMPLATE" => false, 
 		"DISPLAY_PANEL" => "N", 
-		"SHOW_RATING" => $arParams["SHOW_RATING"],
-		"RATING_TYPE" => $arParams["RATING_TYPE"],
-		"PATH_TO_USER" => $arParams["PATH_TO_USER"],
 		
 		"CACHE_TYPE" => $arParams["CACHE_TYPE"],
 		"CACHE_TIME" => $arParams["CACHE_TIME"],

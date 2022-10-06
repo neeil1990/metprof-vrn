@@ -1,4 +1,4 @@
-<?
+ï»¿<?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 if (!CModule::IncludeModule("sale"))
@@ -43,7 +43,7 @@ $dbOrder = CSaleOrder::GetList(Array("ID" => "ASC"), $arFilter);
 if($arOrder = $dbOrder->GetNext())
 {
 // UnitellerPlugin add
-	// Îïðåäåëÿåò ID îáðàáîò÷èêà ïëàò¸æíîé ñèñòåìû Uniteller
+	// ÐžÐ¿Ñ€ÐµÐ´ÐµÐ»ÑÐµÑ‚ ID Ð¾Ð±Ñ€Ð°Ð±Ð¾Ñ‚Ñ‡Ð¸ÐºÐ° Ð¿Ð»Ð°Ñ‚Ñ‘Ð¶Ð½Ð¾Ð¹ ÑÐ¸ÑÑ‚ÐµÐ¼Ñ‹ Uniteller
 	$uniteller_payment_id = -1;
 	$dbPaySystem = CSalePaySystem::GetList();
 	while ($arPaySystem = $dbPaySystem->Fetch()) {

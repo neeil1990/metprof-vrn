@@ -107,7 +107,7 @@ $APPLICATION->IncludeComponent("bitrix:search.tags.cloud", ".default", $arCloudP
 		?><div class="sonet-search-advanced"><div class="sonet-search-advanced-filter"><a href="#" onclick="document.getElementById('sonet_content_search_filter').style.display = document.getElementById('sonet_content_search_filter').style.display == 'none' ? 'block' : 'none'; return false;"><?=GetMessage("SEARCH_ADDITIONAL_FILTER")?></a></div></div><?
 
 		$default_style = (
-					strlen($GLOBALS[$arParams["FILTER_NAME"]]["SONET_FEATURE"]) > 0 ||
+					strlen($GLOBALS[$arParams["FILTER_NAME"]]["SONET_FEATURE"]) > 0 || 
 					strlen($_REQUEST[$arParams["FILTER_DATE_NAME"]."_from"]) > 0 ||
 					strlen($_REQUEST[$arParams["FILTER_DATE_NAME"]."_to"]) > 0 ?
 					"block" : "none"
@@ -139,7 +139,7 @@ $APPLICATION->IncludeComponent("bitrix:search.tags.cloud", ".default", $arCloudP
 				</select></td>
 			</tr>
 		<?endif;
-
+		
 		if(array_key_exists("FILTER_DATE_NAME", $arParams) && strlen($arParams["FILTER_DATE_NAME"]) > 0):
 			?>
 			<tr>
@@ -173,12 +173,6 @@ $APPLICATION->IncludeComponent("bitrix:search.tags.cloud", ".default", $arCloudP
 	?>
 	<input type="hidden" name="how" value="<?echo $arResult["REQUEST"]["HOW"]=="d"? "d": "r"?>" />
 </form>
-<?if(isset($arResult["REQUEST"]["ORIGINAL_QUERY"])):
-	?>
-	<div class="search-language-guess">
-		<?echo GetMessage("CT_BSP_KEYBOARD_WARNING", array("#query#"=>'<a href="'.$arResult["ORIGINAL_QUERY_URL"].'">'.$arResult["REQUEST"]["ORIGINAL_QUERY"].'</a>'))?>
-	</div><br /><?
-endif;?>
 <?if($arResult["REQUEST"]["QUERY"] === false && $arResult["REQUEST"]["TAGS"] === false):?>
 <?elseif($arResult["ERROR_CODE"]!=0):?>
 	<p><?=GetMessage("SEARCH_ERROR")?></p>
@@ -219,31 +213,6 @@ endif;?>
 		<td>
 		<a href="<?echo $arItem["URL"]?>"><?echo $arItem["TITLE_FORMATED"]?></a>
 		<p><?echo $arItem["BODY_FORMATED"]?></p>
-		<?if (
-			$arParams["SHOW_RATING"] == "Y"
-			&& strlen($arItem["RATING_TYPE_ID"]) > 0
-			&& $arItem["RATING_ENTITY_ID"] > 0
-		):?>
-			<div class="search-item-rate"><?
-				$APPLICATION->IncludeComponent(
-					"bitrix:rating.vote", $arParams["RATING_TYPE"],
-					Array(
-						"ENTITY_TYPE_ID" => $arItem["RATING_TYPE_ID"],
-						"ENTITY_ID" => $arItem["RATING_ENTITY_ID"],
-						"OWNER_ID" => $arItem["USER_ID"],
-						"USER_VOTE" => $arItem["RATING_USER_VOTE_VALUE"],
-						"USER_HAS_VOTED" => $arItem["RATING_USER_VOTE_VALUE"] == 0? 'N': 'Y',
-						"TOTAL_VOTES" => $arItem["RATING_TOTAL_VOTES"],
-						"TOTAL_POSITIVE_VOTES" => $arItem["RATING_TOTAL_POSITIVE_VOTES"],
-						"TOTAL_NEGATIVE_VOTES" => $arItem["RATING_TOTAL_NEGATIVE_VOTES"],
-						"TOTAL_VALUE" => $arItem["RATING_TOTAL_VALUE"],
-						"PATH_TO_USER_PROFILE" => $arParams["~PATH_TO_USER"],
-					),
-					$component,
-					array("HIDE_ICONS" => "Y")
-				);?>
-			</div>
-		<?endif;?>
 		<small><?=GetMessage("SEARCH_MODIFIED")?> <?=$arItem["DATE_CHANGE"]?><br /></small><?
 		if($arItem["CHAIN_PATH"]):?>
 			<small><?=GetMessage("SEARCH_PATH")?>&nbsp;<?=$arItem["CHAIN_PATH"]?></small><?

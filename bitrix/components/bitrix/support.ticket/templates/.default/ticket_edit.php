@@ -13,7 +13,6 @@ $APPLICATION->IncludeComponent(
 		"MESSAGE_MAX_LENGTH" => $arParams["MESSAGE_MAX_LENGTH"],
 		"SET_PAGE_TITLE" =>$arParams["SET_PAGE_TITLE"],
 		'SHOW_COUPON_FIELD' => $arParams['SHOW_COUPON_FIELD'],
-		"SET_SHOW_USER_FIELD" => $arParams["SET_SHOW_USER_FIELD"]
 	),
 	$component,
 	array('HIDE_ICONS' => 'Y')

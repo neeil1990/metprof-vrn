@@ -1,6 +1,6 @@
 <?
-$MESS["MAIN_OPT_DESCRIPTION"] = "ÐžÐ¿Ð¸Ñ ÑÑ‚Ð¾Ñ€Ñ–Ð½ÐºÐ¸";
-$MESS["MAIN_OPT_KEYWORDS"] = "ÐšÐ»ÑŽÑ‡Ð¾Ð²Ñ– ÑÐ»Ð¾Ð²Ð°";
-$MESS["MAIN_OPT_TITLE"] = "Ð—Ð°Ð³Ð¾Ð»Ð¾Ð²Ð¾Ðº Ð²Ñ–ÐºÐ½Ð° Ð±Ñ€Ð°ÑƒÐ·ÐµÑ€Ð°";
-$MESS["MAIN_OPT_KEYWORDS_INNER"] = "Ð¡Ð»Ð¾Ð²Ð°,Ñ‰Ð¾ Ð¿Ñ€Ð¾ÑÑƒÐ²Ð°ÑŽÑ‚ÑŒÑÑ";
+$MESS["MAIN_OPT_DESCRIPTION"] = "Îïèñ ñòîð³íêè";
+$MESS["MAIN_OPT_KEYWORDS"] = "Êëþ÷îâ³ ñëîâà";
+$MESS["MAIN_OPT_TITLE"] = "Çàãîëîâîê â³êíà áðàóçåðà";
+$MESS["MAIN_OPT_KEYWORDS_INNER"] = "Ñëîâà,ùî ïðîñóâàþòüñÿ";
 ?>

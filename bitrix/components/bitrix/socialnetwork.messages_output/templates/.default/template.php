@@ -46,10 +46,11 @@ else
 	//-->
 	</script>
 	<form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
+		<input type="submit" name="do_delete" value="<?= GetMessage("SONET_C28_T_DO_DELETE") ?>">
+		<br><br>
 		<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 			<?=$arResult["NAV_STRING"]?><br /><br />
 		<?endif;?>
-		<div class="sonet-cntnr-messages-output">
 		<table width="100%" class="sonet-user-profile-friends data-table">
 			<tr>
 				<th><input type="checkbox" id="check_all" value="" title="<?= GetMessage("SONET_C28_T_SELECT_ALL") ?>" onclick="SelectAllRows(this);"></th>
@@ -118,7 +119,6 @@ else
 				</tr>
 			<?endif;?>
 		</table>
-		</div>
 		<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 			<br /><?=$arResult["NAV_STRING"]?><br />
 		<?endif;?>

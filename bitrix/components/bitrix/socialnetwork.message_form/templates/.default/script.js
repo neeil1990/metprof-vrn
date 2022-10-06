@@ -522,13 +522,9 @@ function ValidateForm(form)
 		return false;
 	}
 	
-	var arr = form.getElementsByTagName("input");
-	for (var i=0; i < arr.length; i++)
-	{
-		var butt = arr[i];
-		if (butt.getAttribute("type") == "submit")
-			butt.disabled = true;
-	}
+	var arr = form.getElementsByTagName("submit")
+	for (var butt in arr)
+		butt.disabled = true;
 	return true;
 }
 

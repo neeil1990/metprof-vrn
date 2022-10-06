@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS["SALE_RECORDS_LIST"] = "В список заказов";
 $MESS["SALE_CANCEL_ORDER3"] = "Отмена заказа необратима.";
 $MESS["SALE_CANCEL_ORDER4"] = "Укажите, пожалуйста, причину отмены заказа";

@@ -28,11 +28,42 @@ if (!CModule::IncludeModule('sale'))
 	return;
 }
 
+global $USER;
+if (!$USER->IsAdmin())
+{
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+	CAdminMessage::ShowMessage(array(
+		"MESSAGE" => Loc::getMessage('SALE_CONVERTER_MESSAGE_TITLE'),
+		"DETAILS" => Loc::getMessage('SALE_CONVERTER_MODULE_NO_ACCESS'),
+		"HTML" => true,
+		"TYPE" => "ERROR"
+	));
+	
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+	return;
+}
+
+$saleConverted = \Bitrix\Main\Config\Option::get("main", "~sale_converted_15", 'N');
+$converterStart = \Bitrix\Main\Config\Option::get("main", "~sale_converter_start", 'N');
+if ($saleConverted === 'Y' && $converterStart === 'N')
+{
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_after.php");
+	CAdminMessage::ShowMessage(array(
+		"MESSAGE" => Loc::getMessage('SALE_CONVERTER_MESSAGE_TITLE'),
+		"DETAILS" => Loc::getMessage('SALE_CONVERTER_MODULE_ALREADY_CONVERTED'),
+		"HTML" => true,
+		"TYPE" => "ERROR"
+	));
+	
+	require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_admin.php");
+	return;
+}
+
 global $APPLICATION;
 
 $APPLICATION->SetTitle(Loc::getMessage('SALE_CONVERTER_TITLE'));
 
-$stepsBeforeAjax = 4;
+$stepsBeforeAjax = 6;
 $ajax_step = 0;
 
 if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
@@ -47,6 +78,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 	switch ($ajax_step)
 	{
 		case 0:
+			Bitrix\Main\Config\Option::set("main", "~sale_converter_start", 'Y');
 			// SITE_STOP
 			COption::SetOptionString("main", "site_stopped", "Y");
 			
@@ -62,23 +94,40 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 			{
 				if ($DB->type == "MYSQL")
 				{
-					if (!$DB->Query("ALTER TABLE b_sale_order CHANGE STATUS_ID STATUS_ID char(2) not null", true))
+					if (!$DB->Query("ALTER TABLE b_sale_order CHANGE STATUS_ID STATUS_ID varchar(2) not null", true))
 						$error .= "<br>".$DB->GetErrorMessage();
 				}
 				elseif ($DB->type == "MSSQL")
 				{
-					$DB->Query("DROP INDEX IX_B_SALE_ORDER_6 ON B_SALE_ORDER", true);
 
-					if (!$DB->Query("ALTER TABLE B_SALE_ORDER ALTER COLUMN STATUS_ID char(2) NOT NULL", true))
+					$DB->Query("ALTER TABLE B_SALE_ORDER DROP CONSTRAINT DF_B_SALE_ORDER_STATUS_ID", true);
+
+					if ($DB->IndexExists("B_SALE_ORDER", array("STATUS_ID")))
+					{
+						$DB->Query("DROP INDEX IX_B_SALE_ORDER_6 ON B_SALE_ORDER", true);
+					}
+
+					if (!$DB->Query("ALTER TABLE B_SALE_ORDER ALTER COLUMN STATUS_ID varchar(2) NOT NULL", true))
 						$error .= "<br>".$DB->GetErrorMessage();
 
-					$DB->Query("CREATE INDEX IX_B_SALE_ORDER_6 ON B_SALE_ORDER(STATUS_ID)", false);
+					if (!$DB->Query("UPDATE B_SALE_ORDER SET STATUS_ID = LTRIM(RTRIM(STATUS_ID))", true))
+						$error .= "<br>".$DB->GetErrorMessage();
+
+					if (!$DB->IndexExists("B_SALE_ORDER", array("STATUS_ID")))
+					{
+						$DB->Query("CREATE INDEX IX_B_SALE_ORDER_6 ON B_SALE_ORDER(STATUS_ID)", false);
+					}
+
+					$DB->Query("ALTER TABLE B_SALE_ORDER ADD CONSTRAINT DF_B_SALE_ORDER_STATUS_ID DEFAULT 'N' FOR STATUS_ID", true);
 				}
 				elseif ($DB->type == "ORACLE")
 				{
 					$DB->Query("DROP INDEX IXS_ORDER_STATUS_ID", true);
 					
-					if (!$DB->Query("ALTER TABLE B_SALE_ORDER MODIFY (STATUS_ID CHAR(2 CHAR))", true))
+					if (!$DB->Query("ALTER TABLE B_SALE_ORDER MODIFY (STATUS_ID VARCHAR2(2 CHAR))", true))
+						$error .= "<br>".$DB->GetErrorMessage();
+						
+					if (!$DB->Query("UPDATE B_SALE_ORDER SET STATUS_ID = TRIM(STATUS_ID)", true))
 						$error .= "<br>".$DB->GetErrorMessage();
 						
 					$DB->Query("CREATE INDEX IXS_ORDER_STATUS_ID ON B_SALE_ORDER(STATUS_ID)", false);
@@ -90,12 +139,42 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 1: B_SALE_ORDER.STATUS_ID",
 						"DESCRIPTION" => $error,
 					));
 				}
 			}
 
+			if ($DB->Query("SELECT PRICE FROM b_sale_order WHERE 1=0", true))
+			{
+				if ($DB->type == "MYSQL")
+				{
+					if (!$DB->Query("ALTER TABLE b_sale_order CHANGE COLUMN PRICE PRICE DECIMAL(18,4) NOT NULL", true))
+						$error .= "<br>".$DB->GetErrorMessage();
+				}
+				elseif ($DB->type == "MSSQL")
+				{
+					if (!$DB->Query("ALTER TABLE b_sale_order ALTER COLUMN PRICE DECIMAL(18,4) NOT NULL", true))
+						$error .= "<br>".$DB->GetErrorMessage();
+				}
+				elseif ($DB->type == "ORACLE")
+				{
+					if (!$DB->Query("ALTER TABLE b_sale_order MODIFY PRICE NUMBER(20,4)", true))
+						$error .= "<br>".$DB->GetErrorMessage();
+				}
+
+				if (!empty($error))
+				{
+					\CEventLog::Add(array(
+						"SEVERITY" => "ERROR",
+						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
+						"MODULE_ID" => "sale",
+						"ITEM_ID" => "STEP 1: B_SALE_ORDER.PRICE",
+						"DESCRIPTION" => $error,
+					));
+				}
+			}
+			
 			if ($DB->Query("SELECT DISCOUNT_VALUE FROM b_sale_order WHERE 1=0", true))
 			{
 				if ($DB->type == "MYSQL")
@@ -127,7 +206,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 1: B_SALE_ORDER.DISCOUNT_VALUE",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -162,7 +241,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 1: B_SALE_ORDER.PRICE_DELIVERY",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -203,7 +282,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 1: B_SALE_ORDER.PRICE_PAYMENT, B_SALE_ORDER.CREATED_BY",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -233,7 +312,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 1: B_SALE_ORDER.BX_USER_ID",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -264,7 +343,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 1: B_SALE_ORDER.USER_DESCRIPTION",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -317,7 +396,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 2: b_sale_order_props_value.VALUE",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -348,7 +427,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 			
 			if ($DB->TableExists("b_sale_order_props"))
 			{
-				if ($DB->Query("SELECT REQUIED FROM b_sale_order_props WHERE 1=0", true))
+				if ($DB->Query("SELECT REQUIED FROM b_sale_order_props WHERE 1=0", true) &&
+					! $DB->Query("SELECT REQUIRED FROM b_sale_order_props WHERE 1=0", true))
 				{
 					if ($DB->type == "MYSQL")
 					{
@@ -372,7 +452,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 3: b_sale_order_props.REQUIED",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -403,7 +483,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 3: b_sale_order_props.DEFAULT_VALUE",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -433,7 +513,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 3: b_sale_order_props.IS_ADDRESS",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -463,7 +543,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 3: b_sale_order_props.SETTINGS",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -598,7 +678,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 4: b_sale_order_change.ENTITY, b_sale_order_change.ENTITY_ID",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -648,7 +728,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 5: B_SALE_USER_TRANSACT.CURRENT_BUDGET",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -696,7 +776,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 5: B_SALE_USER_TRANSACT.PAYMENT_ID",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -745,7 +825,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 6: B_SALE_DISCOUNT_COUPON.DESCRIPTION",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -861,7 +941,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 6: B_SALE_ORDER_DISCOUNT",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -1022,7 +1102,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 6: B_SALE_ORDER_COUPONS",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -1115,7 +1195,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 6: B_SALE_ORDER_RULES",
 							"DESCRIPTION" => $error)
 					);
 				}
@@ -1198,7 +1278,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 6: B_SALE_ORDER_DISCOUNT_DATA",
 							"DESCRIPTION" => $error)
 					);
 				}
@@ -1284,7 +1364,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 6: B_SALE_ORDER_RULES_DESCR",
 							"DESCRIPTION" => $error)
 					);
 				}
@@ -1306,48 +1386,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 			break;
 		case 7:
 			// DELIVERY
-			if ($DB->TableExists("b_sale_order_delivery_old")  && !$DB->Query("select BASE_PRICE_DELIVERY from b_sale_order_delivery WHERE 1=0", true))
-			{
-				if ($DB->type == 'MYSQL')
-				{
-					$DB->Query('DROP TABLE b_sale_order_delivery_old', true);
-					$DB->Query('DROP TABLE b_sale_delivery_old', true);
-					$DB->Query('DROP TABLE b_sale_delivery_handler_old', true);
-				}
 
-				if ($DB->type == 'MSSQL')
-				{
-					$DB->Query('DROP TABLE B_SALE_ORDER_DELIVERY_OLD', true);
-					$DB->Query('DROP TABLE B_SALE_DELIVERY_OLD', true);
-					$DB->Query('DROP TABLE B_SALE_DELIVERY_HANDLER_OLD', true);
-				}
-
-				if ($DB->type == 'ORACLE')
-				{
-					$DB->Query('DROP TABLE B_SALE_ORDER_DELIVERY_OLD CASCADE CONSTRAINTS', true);
-					$DB->Query('DROP TABLE B_SALE_DELIVERY_OLD CASCADE CONSTRAINTS', true);
-					$DB->Query('DROP TABLE B_SALE_DELIVERY_HANDLER_OLD CASCADE CONSTRAINTS', true);
-				}
-			}
-
-			if (($DB->TableExists("b_sale_order_delivery") || $DB->TableExists("B_SALE_ORDER_DELIVERY")) && !$DB->TableExists("b_sale_order_delivery_old") && !$DB->TableExists("B_SALE_ORDER_DELIVERY_OLD"))
+			if (($DB->TableExists("b_sale_order_delivery") || $DB->TableExists("B_SALE_ORDER_DELIVERY")) && !$DB->TableExists("b_sale_order_delivery_req") && !$DB->TableExists("B_SALE_ORDER_DELIVERY_REQ"))
 			{
 				if ($DB->type == "MYSQL")
 				{
-					if (!$DB->Query("ALTER TABLE b_sale_order_delivery RENAME b_sale_order_delivery_old", true))
+					if (!$DB->Query("ALTER TABLE b_sale_order_delivery RENAME b_sale_order_delivery_req", true))
 						$error .= "<br>".$DB->GetErrorMessage();
 				}
 				elseif ($DB->type == "MSSQL")
 				{
-					if (!$DB->Query("sp_rename B_SALE_ORDER_DELIVERY, B_SALE_ORDER_DELIVERY_OLD", true))
+					if (!$DB->Query("sp_rename B_SALE_ORDER_DELIVERY, B_SALE_ORDER_DELIVERY_REQ", true))
 						$error .= "<br>".$DB->GetErrorMessage();
 				}
 				elseif ($DB->type == "ORACLE")
 				{
-					if (!$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY RENAME TO B_SALE_ORDER_DELIVERY_OLD", true))
+					if (!$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY RENAME TO B_SALE_ORDER_DELIVERY_REQ", true))
 						$error .= "<br>".$DB->GetErrorMessage();
 
 					$DB->Query("DROP SEQUENCE SQ_B_SALE_ORDER_DELIVERY", true);
+					$DB->Query("DROP INDEX IX_BSOD_ORDER_ID", true);
+
+					$DB->Query("CREATE SEQUENCE SQ_B_SALE_ORDER_DELIVERY_REQ INCREMENT BY 1 NOMAXVALUE NOCYCLE NOCACHE NOORDER", true);
+					$DB->Query("CREATE INDEX IX_BSODR_ORDER_ID ON B_SALE_ORDER_DELIVERY_REQ(ORDER_ID)", true);
 				}
 
 				if (!empty($error))
@@ -1356,7 +1417,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 7: RENAME B_SALE_ORDER_DELIVERY",
 							"DESCRIPTION" => $error)
 					);
 				}
@@ -1388,7 +1449,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 7: B_SALE_DELIVERY.CONVERTED",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -1421,81 +1482,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
-							"DESCRIPTION" => $error,
-						));
-					}
-				}
-			}
-
-			if ($DB->TableExists("b_sale_delivery2paysystem"))
-			{
-				if (!$DB->Query("SELECT LINK_DIRECTION FROM b_sale_delivery2paysystem WHERE 1=0", true))
-				{
-					if ($DB->type == "MYSQL")
-					{
-						if (!$DB->Query("ALTER TABLE b_sale_delivery2paysystem ADD column LINK_DIRECTION CHAR(1) NOT NULL DEFAULT ''", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-						elseif(! $DB->Query("ALTER TABLE b_sale_delivery2paysystem ADD INDEX IX_LINK_DIRECTION (LINK_DIRECTION)", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-					}
-					elseif ($DB->type == "MSSQL")
-					{
-						if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM ADD LINK_DIRECTION CHAR(1) NOT NULL DEFAULT ''", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-						elseif (!$DB->Query("CREATE INDEX IX_LINK_DIRECTION ON B_SALE_DELIVERY2PAYSYSTEM(LINK_DIRECTION)", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-					}
-					elseif ($DB->type == "ORACLE")
-					{
-						if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM ADD LINK_DIRECTION CHAR(1) DEFAULT '' NOT NULL", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-						elseif (!$DB->Query("CREATE INDEX IX_LINK_DIRECTION ON B_SALE_DELIVERY2PAYSYSTEM(LINK_DIRECTION)", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-					}
-
-					if (!empty($error))
-					{
-						\CEventLog::Add(array(
-							"SEVERITY" => "ERROR",
-							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
-							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
-							"DESCRIPTION" => $error,
-						));
-					}
-				}
-
-				if ($DB->Query("SELECT DELIVERY_ID FROM b_sale_delivery2paysystem WHERE 1=0", true))
-				{
-					if ($DB->type == "MYSQL")
-					{
-						if (!$DB->Query("ALTER TABLE b_sale_delivery2paysystem MODIFY COLUMN DELIVERY_ID INT(11) NOT NULL", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-					}
-					elseif ($DB->type == "MSSQL")
-					{
-						$DB->Query("DROP INDEX IX_DELIVERY ON B_SALE_DELIVERY2PAYSYSTEM", true);
-												
-						if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM ALTER COLUMN DELIVERY_ID INT NOT NULL", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-						
-						$DB->Query("CREATE INDEX IX_DELIVERY ON B_SALE_DELIVERY2PAYSYSTEM(DELIVERY_ID)", true);
-					}
-					elseif ($DB->type == "ORACLE")
-					{
-						if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM MODIFY DELIVERY_ID NUMBER(18)", true))
-							$error .= "<br>".$DB->GetErrorMessage();
-
-					}
-
-					if (!empty($error))
-					{
-						\CEventLog::Add(array(
-							"SEVERITY" => "ERROR",
-							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
-							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 7: RENAME B_SALE_DELIVERY_HANDLER",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -1513,13 +1500,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							PARENT_ID int NULL,
 							NAME varchar(255) NOT NULL,
 							ACTIVE char(1) NOT NULL,
-							DESCRIPTION varchar(255) NULL,
+							DESCRIPTION text NULL,
 							SORT int NOT NULL,
 							LOGOTIP int NULL,
 							CONFIG longtext NULL,
 							CLASS_NAME varchar(255) NOT NULL,
 							CURRENCY char(3) NOT NULL,
-							primary key (ID),
+							TRACKING_PARAMS VARCHAR(255) NULL,
+							primary key (ID),							
 							index IX_BSD_SRV_CODE(CODE),
 							index IX_BSD_SRV_PARENT_ID(PARENT_ID)
 						)", false)
@@ -1535,12 +1523,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							PARENT_ID INT NULL,
 							NAME VARCHAR(255) NOT NULL,
 							ACTIVE CHAR(1) NOT NULL,
-							DESCRIPTION VARCHAR(255) NULL,
+							DESCRIPTION TEXT NULL,
 							SORT INT NOT NULL,
 							LOGOTIP INT NULL,
 							CONFIG TEXT NULL,
 							CLASS_NAME VARCHAR(255) NOT NULL,
-							CURRENCY CHAR(3) NOT NULL
+							CURRENCY CHAR(3) NOT NULL,
+							TRACKING_PARAMS VARCHAR(255) NULL,
 						)", false)
 					)
 					{
@@ -1562,12 +1551,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							PARENT_ID NUMBER(18) NOT NULL,
 							NAME VARCHAR2(255 CHAR) NULL,
 							ACTIVE CHAR(1 CHAR) NOT NULL,
-							DESCRIPTION VARCHAR2(255 CHAR) NULL,
+							DESCRIPTION CLOB NULL,
 							SORT NUMBER(11) DEFAULT 100 NOT NULL,
 							LOGOTIP NUMBER (11) NULL,
 							CONFIG CLOB NULL,
 							CLASS_NAME VARCHAR2(255 CHAR) NULL,
 							CURRENCY CHAR(3 CHAR) NOT NULL,
+							TRACKING_PARAMS VARCHAR(255 CHAR) NULL,
 							PRIMARY KEY (ID)
 						)", false)
 					)
@@ -1597,7 +1587,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 7: B_SALE_DELIVERY_SRV",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -1694,7 +1684,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 7: B_SALE_DELIVERY_ES",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -1707,6 +1697,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					if (!$DB->Query("create table if not exists b_sale_order_delivery (
 								ID INT(11) NOT NULL AUTO_INCREMENT,
 								ORDER_ID INT(11) NOT NULL,
+								ACCOUNT_NUMBER varchar(100) null,
 								DATE_INSERT DATETIME NOT NULL,
 								DATE_REQUEST DATETIME NULL DEFAULT NULL,
 								DATE_UPDATE DATETIME NULL DEFAULT NULL,
@@ -1747,6 +1738,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								DISCOUNT_PRICE DECIMAL(18,4) NULL,
 								COMPANY_ID int(11) DEFAULT NULL,
 								PRIMARY KEY (ID),
+								TRACKING_STATUS INT(11) NULL,
+								TRACKING_DESCRIPTION VARCHAR(255) NULL,
+								TRACKING_LAST_CHECK DATETIME NULL,
+								TRACKING_LAST_CHANGE DATETIME NULL,								
 								INDEX IX_BSOD_ORDER_ID (ORDER_ID)
 							)", false)
 					)
@@ -1759,6 +1754,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					if (!$DB->Query("create table B_SALE_ORDER_DELIVERY(
 								ID INT NOT NULL IDENTITY(1, 1),
 								ORDER_ID INT NOT NULL,
+								ACCOUNT_NUMBER varchar(100) NULL,
 								DATE_INSERT DATETIME NOT NULL,
 								DATE_REQUEST DATETIME NULL,
 								DATE_UPDATE DATETIME NULL,
@@ -1797,7 +1793,11 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								DATE_RESPONSIBLE_ID datetime NULL,
 								COMMENTS text,
 								DISCOUNT_PRICE DECIMAL(18,4) NULL,
-								COMPANY_ID int NULL
+								COMPANY_ID int NULL,
+								TRACKING_STATUS INT NULL,
+								TRACKING_DESCRIPTION VARCHAR(255) NULL,
+								TRACKING_LAST_CHECK DATETIME NULL,
+								TRACKING_LAST_CHANGE DATETIME NULL								
 							)", false)
 					)
 					{
@@ -1805,9 +1805,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					}
 					else
 					{
-						$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY_OLD DROP CONSTRAINT PK_B_SALE_ORDER_DELIVERY", false);
+						if ($DB->TableExists('b_sale_order_delivery_old'))
+							$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY_OLD DROP CONSTRAINT PK_B_SALE_ORDER_DELIVERY", false);
+
+						if ($DB->TableExists('b_sale_order_delivery_req'))
+							$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY_REQ DROP CONSTRAINT PK_B_SALE_ORDER_DELIVERY", false);
+
 						$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY ADD CONSTRAINT PK_B_SALE_ORDER_DELIVERY PRIMARY KEY (ID)", false);
 						$DB->Query("CREATE INDEX IX_BSOD_ORDER_ID ON B_SALE_ORDER_DELIVERY(ORDER_ID)", false);
+						// $DB->Query("CREATE UNIQUE INDEX IXS_DLV_ACCOUNT_NUMBER ON B_SALE_ORDER_DELIVERY(ACCOUNT_NUMBER)", false);
 					}
 				}
 				elseif ($DB->type == "ORACLE")
@@ -1815,6 +1821,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					if (!$DB->Query("create table B_SALE_ORDER_DELIVERY(
 								ID NUMBER(18) NOT NULL,
 								ORDER_ID NUMBER(18) NOT NULL,
+								ACCOUNT_NUMBER VARCHAR2(100 CHAR) NULL,
 								DATE_INSERT DATE NOT NULL,
 								DATE_REQUEST DATE NULL,
 								DATE_UPDATE DATE NULL,
@@ -1854,6 +1861,10 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								COMMENTS CLOB,
 								DISCOUNT_PRICE DECIMAL(18,4) NULL,
 								COMPANY_ID NUMBER(18) NULL,
+								TRACKING_STATUS NUMBER(18) NULL,
+								TRACKING_DESCRIPTION VARCHAR2(255 CHAR) NULL,
+								TRACKING_LAST_CHECK DATE NULL,
+								TRACKING_LAST_CHANGE DATE NULL,								
 								PRIMARY KEY (ID)
 							)", false)
 					)
@@ -1875,6 +1886,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 									END IF;
 								END;'
 						);
+
+						// $DB->Query("CREATE UNIQUE INDEX IXS_DLV_ACCOUNT_NUMBER ON B_SALE_ORDER_DELIVERY(ACCOUNT_NUMBER)", false);
 					}
 				}
 
@@ -1884,7 +1897,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 7: B_SALE_ORDER_DELIVERY",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -1967,7 +1980,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 7: B_SALE_ORDER_DELIVERY_ES",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -1985,7 +1998,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							QUANTITY DECIMAL(18,4) NOT NULL,
 							RESERVED_QUANTITY DECIMAL(18,4) NOT NULL,
 							PRIMARY KEY (ID),
-							INDEX IX_BSODB_ORDER_DELIVERY_ID (ORDER_DELIVERY_ID)
+							INDEX IX_BSODB_ORDER_DELIVERY_ID (ORDER_DELIVERY_ID),
+							INDEX IX_S_O_DB_BASKET_ID (BASKET_ID) 
 						)", false)
 					)
 					{
@@ -2010,6 +2024,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					{
 						$DB->Query("ALTER TABLE B_SALE_ORDER_DLV_BASKET ADD CONSTRAINT PK_B_SALE_ORDER_DLV_BASKET PRIMARY KEY (ID)", false);
 						$DB->Query("CREATE INDEX IX_BSODB_ORDER_DELIVERY_ID ON B_SALE_ORDER_DLV_BASKET(ORDER_DELIVERY_ID)", false);
+						$DB->Query("CREATE INDEX IX_S_O_DB_BASKET_ID ON B_SALE_ORDER_DLV_BASKET(BASKET_ID) ", false);
 					}
 				}
 				elseif ($DB->type == "ORACLE")
@@ -2030,6 +2045,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					else
 					{
 						$DB->Query("CREATE INDEX IX_BSODB_ORDER_DELIVERY_ID ON B_SALE_ORDER_DLV_BASKET(ORDER_DELIVERY_ID)", false);
+						
+						$DB->Query("CREATE INDEX IX_S_O_DB_BASKET_ID ON B_SALE_ORDER_DLV_BASKET(BASKET_ID)", false);
 
 						$DB->Query("CREATE SEQUENCE SQ_B_SALE_ORDER_DLV_BASKET INCREMENT BY 1 NOMAXVALUE NOCYCLE NOCACHE NOORDER", false);
 						$DB->Query("CREATE OR REPLACE TRIGGER B_SALE_ORDER_DLV_BASKET_INSERT
@@ -2051,7 +2068,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 7: B_SALE_ORDER_DLV_BASKET",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2135,7 +2152,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 7: B_SALE_DELIVERY_RSTR",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2201,7 +2218,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 8: B_SALE_STORE_BARCODE.ORDER_DELIVERY_BASKET_ID",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -2214,21 +2231,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 				{
 					if ($DB->type == "MYSQL")
 					{
-						if (!$DB->Query("ALTER TABLE b_sale_status CHANGE ID ID char(2) NOT NULL", true))
+						if (!$DB->Query("ALTER TABLE b_sale_status CHANGE ID ID varchar(2) NOT NULL", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 					}
 					elseif ($DB->type == "MSSQL")
 					{
 						$DB->Query("ALTER TABLE b_sale_status DROP CONSTRAINT PK_B_SALE_STATUS", false);
 
-						if (!$DB->Query("ALTER TABLE B_SALE_STATUS ALTER COLUMN ID CHAR(2) NOT NULL", true))
+						if (!$DB->Query("ALTER TABLE B_SALE_STATUS ALTER COLUMN ID VARCHAR(2) NOT NULL", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+
+						if (!$DB->Query("UPDATE B_SALE_STATUS SET ID = LTRIM(RTRIM(ID))", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 
 						$DB->Query("ALTER TABLE b_sale_status ADD CONSTRAINT PK_B_SALE_STATUS PRIMARY KEY (ID)", false);
 					}
 					elseif ($DB->type == "ORACLE")
 					{
-						if (!$DB->Query("ALTER TABLE B_SALE_STATUS MODIFY ID char(2 char)", true))
+						if (!$DB->Query("ALTER TABLE B_SALE_STATUS MODIFY ID varchar2(2 char)", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+
+						if (!$DB->Query("UPDATE B_SALE_STATUS SET ID = TRIM(ID)", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 					}
 
@@ -2238,7 +2261,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 8: B_SALE_STATUS.ID",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -2268,7 +2291,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 8: B_SALE_STATUS.TYPE",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -2298,7 +2321,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 8: B_SALE_STATUS.NOTIFY",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -2311,21 +2334,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 				{
 					if ($DB->type == "MYSQL")
 					{
-						if (!$DB->Query("ALTER TABLE b_sale_order_history CHANGE STATUS_ID STATUS_ID char(2) not null", true))
+						if (!$DB->Query("ALTER TABLE b_sale_order_history CHANGE STATUS_ID STATUS_ID varchar(2) not null", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 					}
 					elseif ($DB->type == "MSSQL")
 					{
 						$DB->Query("ALTER TABLE b_sale_order_history DROP CONSTRAINT PK_B_SALE_ORDER_HISTORY", false);
 
-						if (!$DB->Query("ALTER TABLE b_sale_order_history ALTER COLUMN STATUS_ID CHAR(2) NOT NULL", true))
+						if (!$DB->Query("ALTER TABLE b_sale_order_history ALTER COLUMN STATUS_ID VARCHAR(2) NOT NULL", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+
+						if (!$DB->Query("UPDATE B_SALE_ORDER_HISTORY SET STATUS_ID = LTRIM(RTRIM(STATUS_ID))", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 
 						$DB->Query("ALTER TABLE b_sale_order_history ADD CONSTRAINT PK_B_SALE_ORDER_HISTORY PRIMARY KEY (ID)", false);
 					}
 					elseif ($DB->type == "ORACLE")
 					{
-						if (!$DB->Query("ALTER TABLE b_sale_order_history MODIFY STATUS_ID CHAR(2 char)", true))
+						if (!$DB->Query("ALTER TABLE b_sale_order_history MODIFY STATUS_ID VARCHAR2(2 char)", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+
+						if (!$DB->Query("UPDATE B_SALE_ORDER_HISTORY SET STATUS_ID = TRIM(STATUS_ID)", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 					}
 
@@ -2335,7 +2364,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 8: B_SALE_ORDER_HISTORY.STATUS_ID",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -2348,21 +2377,27 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 				{
 					if ($DB->type == "MYSQL")
 					{
-						if (!$DB->Query("ALTER TABLE b_sale_status_lang CHANGE STATUS_ID STATUS_ID char(2) not null", true))
+						if (!$DB->Query("ALTER TABLE b_sale_status_lang CHANGE STATUS_ID STATUS_ID varchar(2) not null", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 					}
 					elseif ($DB->type == "MSSQL")
 					{
 						$DB->Query("ALTER TABLE B_SALE_STATUS_LANG DROP CONSTRAINT PK_B_SALE_STATUS_LANG", false);
 
-						if (!$DB->Query("ALTER TABLE B_SALE_STATUS_LANG ALTER COLUMN STATUS_ID CHAR(2) NOT NULL", true))
+						if (!$DB->Query("ALTER TABLE B_SALE_STATUS_LANG ALTER COLUMN STATUS_ID VARCHAR(2) NOT NULL", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+
+						if (!$DB->Query("UPDATE B_SALE_STATUS_LANG SET STATUS_ID = LTRIM(RTRIM(STATUS_ID))", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 
 						$DB->Query("ALTER TABLE B_SALE_STATUS_LANG ADD CONSTRAINT PK_B_SALE_STATUS_LANG PRIMARY KEY (STATUS_ID, LID)", false);
 					}
 					elseif ($DB->type == "ORACLE")
 					{
-						if (!$DB->Query("ALTER TABLE B_SALE_STATUS_LANG MODIFY STATUS_ID CHAR(2 CHAR)", true))
+						if (!$DB->Query("ALTER TABLE B_SALE_STATUS_LANG MODIFY STATUS_ID VARCHAR2(2 CHAR)", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+
+						if (!$DB->Query("UPDATE B_SALE_STATUS_LANG SET STATUS_ID = TRIM(STATUS_ID)", true))
 							$error .= "<br>".$DB->GetErrorMessage();
 					}
 
@@ -2372,7 +2407,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
-							"ITEM_ID" => "-",
+							"ITEM_ID" => "STEP 8: B_SALE_STATUS_LANG.STATUS_ID",
 							"DESCRIPTION" => $error,
 						));
 					}
@@ -2393,7 +2428,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								"SEVERITY" => "ERROR",
 								"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 								"MODULE_ID" => "sale",
-								"ITEM_ID" => "-",
+								"ITEM_ID" => "STEP 8: b_sale_loc_type.DISPLAY_SORT",
 								"DESCRIPTION" => $error,
 							));
 						}
@@ -2415,7 +2450,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								"SEVERITY" => "ERROR",
 								"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 								"MODULE_ID" => "sale",
-								"ITEM_ID" => "-",
+								"ITEM_ID" => "STEP 8: B_SALE_LOC_TYPE.DISPLAY_SORT",
 								"DESCRIPTION" => $error,
 							));
 						}
@@ -2428,7 +2463,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								"SEVERITY" => "ERROR",
 								"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 								"MODULE_ID" => "sale",
-								"ITEM_ID" => "-",
+								"ITEM_ID" => "STEP 8: CONSTRAINT B_SALE_LOC_TYPE",
 								"DESCRIPTION" => $error,
 							));
 						}
@@ -2450,7 +2485,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								"SEVERITY" => "ERROR",
 								"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 								"MODULE_ID" => "sale",
-								"ITEM_ID" => "-",
+								"ITEM_ID" => "STEP 8: B_SALE_LOC_TYPE.DISPLAY_SORT",
 								"DESCRIPTION" => $error,
 							));
 						}
@@ -2469,7 +2504,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 8: DISPLAY_SORT=700",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2481,7 +2516,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 8: DISPLAY_SORT=600",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2494,7 +2529,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 8: DISPLAY_SORT=500",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2507,7 +2542,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 8: DISPLAY_SORT=400",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2520,7 +2555,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 8: DISPLAY_SORT=100",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2533,7 +2568,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 8: DISPLAY_SORT=200",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2546,7 +2581,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 8: DISPLAY_SORT=300",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2600,6 +2635,88 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					);
 
 				}
+			}
+
+			if ($DB->TableExists("B_SALE_ORDER_TAX"))
+			{
+				if ($DB->Query("SELECT VALUE FROM B_SALE_ORDER_TAX WHERE 1=0", true))
+				{
+					if ($DB->type == "MYSQL")
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_TAX CHANGE VALUE VALUE DECIMAL(18,4)", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+					elseif ($DB->type == "MSSQL")
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_TAX ALTER COLUMN VALUE DECIMAL(18,4)", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+					elseif ($DB->type == "ORACLE")
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_TAX MODIFY VALUE NUMBER(18,4)", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+				}
+				
+				if ($DB->Query("SELECT VALUE_MONEY FROM B_SALE_ORDER_TAX WHERE 1=0", true))
+				{
+					if ($DB->type == "MYSQL")
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_TAX CHANGE VALUE_MONEY VALUE_MONEY DECIMAL(18,4) NOT NULL", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+					elseif ($DB->type == "MSSQL")
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_TAX ALTER COLUMN VALUE_MONEY DECIMAL(18,4) NOT NULL", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+					elseif ($DB->type == "ORACLE")
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_TAX MODIFY VALUE_MONEY NUMBER(18,4)", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+						else
+						{
+							if (!$DB->Query("declare
+									  l_nullable varchar2(1);
+									begin
+									  select nullable into l_nullable
+									  from user_tab_columns
+									  where table_name = 'B_SALE_ORDER_TAX'
+									  and   column_name = 'VALUE_MONEY';
+									  if l_nullable = 'Y' then
+										execute immediate 'alter table B_SALE_ORDER_TAX modify (VALUE_MONEY NOT NULL)';
+									  end if;
+									end;", true))
+							{
+								$error .= "<br>".$DB->GetErrorMessage();
+							}
+						}
+					}
+				}
+
+				if (!empty($error))
+				{
+					\CEventLog::Add(array(
+						"SEVERITY" => "ERROR",
+						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
+						"MODULE_ID" => "sale",
+						"ITEM_ID" => "STEP 8: B_SALE_ORDER_TAX",
+						"DESCRIPTION" => $error,
+					));
+				}
+				
 			}
 
 			if (empty($error))
@@ -2697,11 +2814,15 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 9: B_SALE_BIZVAL",
 						"DESCRIPTION" => $error,
 					));
 				}
 			}
+
+			if ($DB->type == "MSSQL")
+				$DB->Query('ALTER TABLE B_SALE_BIZVAL DROP CONSTRAINT PK_B_SALE_BIZVAL', true);
+
 			if (!$DB->TableExists("b_sale_bizval_code"))
 			{
 				if ($DB->type == "MYSQL")
@@ -2780,7 +2901,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 9: B_SALE_BIZVAL_CODE",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2858,7 +2979,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 9: B_SALE_BIZVAL_GROUP",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2934,7 +3055,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 9: B_SALE_BIZVAL_PARENT",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -2991,7 +3112,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 9: B_SALE_BIZVAL_CODEPARENT",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -3047,7 +3168,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 9: B_SALE_BIZVAL_PERSONDOMAIN",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -3121,7 +3242,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 10: b_sale_status_group_task",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -3134,6 +3255,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					if (!$DB->Query("CREATE TABLE b_sale_order_payment(
 							ID INT(11) NOT NULL AUTO_INCREMENT,
 							ORDER_ID INT(11) NOT NULL,
+							ACCOUNT_NUMBER varchar(100) null,
 							PAID CHAR(1) NOT NULL DEFAULT 'N',
 							DATE_PAID DATETIME NULL DEFAULT NULL,
 							EMP_PAID_ID INT(11) NULL DEFAULT NULL,
@@ -3176,6 +3298,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					if (!$DB->Query("CREATE TABLE B_SALE_ORDER_PAYMENT(
 							ID INT NOT NULL IDENTITY(1, 1),
 							ORDER_ID INT NOT NULL,
+							ACCOUNT_NUMBER varchar(100) NULL,
 							PAID CHAR(1) NOT NULL DEFAULT 'N',
 							DATE_PAID DATETIME NULL,
 							EMP_PAID_ID INT NULL,
@@ -3213,6 +3336,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					else
 					{
 						$DB->Query("CREATE INDEX IX_BSOP_ORDER_ID ON B_SALE_ORDER_PAYMENT(ORDER_ID)", false);
+						// $DB->Query("CREATE UNIQUE INDEX IXS_PAY_ACCOUNT_NUMBER ON B_SALE_ORDER_PAYMENT(ACCOUNT_NUMBER)", false);
 					}
 				}
 				elseif ($DB->type == "ORACLE")
@@ -3220,6 +3344,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					if (!$DB->Query("CREATE TABLE B_SALE_ORDER_PAYMENT(
 							ID NUMBER(18) NOT NULL,
 							ORDER_ID NUMBER(18) NOT NULL,
+							ACCOUNT_NUMBER VARCHAR2(100 CHAR) NULL,
 							PAID CHAR(1 CHAR) DEFAULT 'N' NOT NULL,
 							DATE_PAID DATE NULL,
 							EMP_PAID_ID NUMBER(18) NULL,
@@ -3270,6 +3395,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 										END IF;
 									END;'
 						);
+						// $DB->Query("CREATE UNIQUE INDEX IXS_PAY_ACCOUNT_NUMBER ON B_SALE_ORDER_PAYMENT(ACCOUNT_NUMBER)", false);
 					}
 				}
 
@@ -3279,7 +3405,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 10: B_SALE_ORDER_PAYMENT",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -3374,7 +3500,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 10: B_SALE_COMPANY",
 						"DESCRIPTION" => $error,
 					));
 				}
@@ -3414,7 +3540,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					"SEVERITY" => "ERROR",
 					"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 					"MODULE_ID" => "sale",
-					"ITEM_ID" => "-",
+					"ITEM_ID" => "STEP 11: COPY DISTR",
 					"DESCRIPTION" => 'COPY FILES ERROR',
 				));
 			}
@@ -3423,6 +3549,12 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 			break;
 
 		case 12:
+
+			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/internals/input.php");
+			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/delivery/services/table.php");
+			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/delivery/restrictions/table.php");
+			require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/sale/lib/internals/delivery_paysystem.php");
+
 			try
 			{				
 				if($DB->TableExists("b_sale_delivery") && !$DB->TableExists("b_sale_delivery_old"))
@@ -3455,7 +3587,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								"SEVERITY" => "ERROR",
 								"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 								"MODULE_ID" => "sale",
-								"ITEM_ID" => "-",
+								"ITEM_ID" => "STEP 12: RENAME B_SALE_DELIVERY",
 								"DESCRIPTION" => $error,
 							));
 						}
@@ -3504,19 +3636,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 								"SEVERITY" => "ERROR",
 								"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 								"MODULE_ID" => "sale",
-								"ITEM_ID" => "-",
+								"ITEM_ID" => "STEP 12: RENAME B_SALE_DELIVERY_HANDLER",
 								"DESCRIPTION" => $error,
 							));
 						}
 					}
 					else
 					{
+						$error .= implode('\n', $res->getErrorMessages());
 						\CEventLog::Add(array(
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
 							"ITEM_ID" => "b_sale_delivery_handler",
-							"DESCRIPTION" => implode('\n', $res->getErrorMessages()),
+							"DESCRIPTION" => $error,
 						));
 					}
 
@@ -3525,17 +3658,94 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 
 				if($DB->TableExists("b_sale_delivery2paysystem"))
 				{
+					if ($DB->Query("SELECT DELIVERY_PROFILE_ID FROM b_sale_delivery2paysystem WHERE 1=0", true))
+					{
+						$DB->Query("DELETE FROM b_sale_delivery2paysystem WHERE DELIVERY_PROFILE_ID <> '##CONVERTED##' OR DELIVERY_PROFILE_ID IS NULL", true);
+						$DB->Query("UPDATE b_sale_delivery2paysystem SET DELIVERY_PROFILE_ID = ''", true);
+					}
+
+					if (!$DB->Query("SELECT LINK_DIRECTION FROM b_sale_delivery2paysystem WHERE 1=0", true))
+					{
+						if ($DB->type == "MYSQL")
+						{
+							if (!$DB->Query("ALTER TABLE b_sale_delivery2paysystem ADD column LINK_DIRECTION CHAR(1) NOT NULL DEFAULT ''", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+							elseif(! $DB->Query("ALTER TABLE b_sale_delivery2paysystem ADD INDEX IX_LINK_DIRECTION (LINK_DIRECTION)", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+						}
+						elseif ($DB->type == "MSSQL")
+						{
+							if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM ADD LINK_DIRECTION CHAR(1) NOT NULL DEFAULT ''", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+							elseif (!$DB->Query("CREATE INDEX IX_LINK_DIRECTION ON B_SALE_DELIVERY2PAYSYSTEM(LINK_DIRECTION)", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+						}
+						elseif ($DB->type == "ORACLE")
+						{
+							if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM ADD LINK_DIRECTION CHAR(1) DEFAULT '' NOT NULL", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+							elseif (!$DB->Query("CREATE INDEX IX_LINK_DIRECTION ON B_SALE_DELIVERY2PAYSYSTEM(LINK_DIRECTION)", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+						}
+
+						if (!empty($error))
+						{
+							\CEventLog::Add(array(
+									"SEVERITY" => "ERROR",
+									"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
+									"MODULE_ID" => "sale",
+									"ITEM_ID" => "STEP 12: B_SALE_DELIVERY2PAYSYSTEM.LINK_DIRECTION",
+									"DESCRIPTION" => $error,
+							));
+						}
+					}
+
+					if ($DB->Query("SELECT DELIVERY_ID FROM b_sale_delivery2paysystem WHERE 1=0", true))
+					{
+						if ($DB->type == "MYSQL")
+						{
+							if (!$DB->Query("ALTER TABLE b_sale_delivery2paysystem MODIFY COLUMN DELIVERY_ID INT(11) NOT NULL", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+						}
+						elseif ($DB->type == "MSSQL")
+						{
+							$DB->Query("DROP INDEX IX_DELIVERY ON B_SALE_DELIVERY2PAYSYSTEM", true);
+
+							if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM ALTER COLUMN DELIVERY_ID INT NOT NULL", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+
+							$DB->Query("CREATE INDEX IX_DELIVERY ON B_SALE_DELIVERY2PAYSYSTEM(DELIVERY_ID)", true);
+						}
+						elseif ($DB->type == "ORACLE")
+						{
+							if (!$DB->Query("ALTER TABLE B_SALE_DELIVERY2PAYSYSTEM MODIFY DELIVERY_ID NUMBER(18)", true))
+								$error .= "<br>".$DB->GetErrorMessage();
+						}
+
+						if (!empty($error))
+						{
+							\CEventLog::Add(array(
+									"SEVERITY" => "ERROR",
+									"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
+									"MODULE_ID" => "sale",
+									"ITEM_ID" => "STEP 12: B_SALE_DELIVERY2PAYSYSTEM.DELIVERY_ID",
+									"DESCRIPTION" => $error,
+							));
+						}
+					}
+
 					$start = microtime(true);
 					$res = CSaleDelivery::convertPSRelations();
 
 					if(!$res->isSuccess())
 					{
+						$error .= implode('\n', $res->getErrorMessages());
 						\CEventLog::Add(array(
 							"SEVERITY" => "ERROR",
 							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 							"MODULE_ID" => "sale",
 							"ITEM_ID" => "b_sale_delivery2paysystem",
-							"DESCRIPTION" => implode('\n', $res->getErrorMessages()),
+							"DESCRIPTION" => $error,
 						));
 					}
 
@@ -3543,13 +3753,14 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 				}							
 			}
 			catch(Exception $e)
-			{							
+			{
+				$error .= $e->getMessage();
 				\CEventLog::Add(array(
 					"SEVERITY" => "ERROR",
 					"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 					"MODULE_ID" => "sale",
-					"ITEM_ID" => "-",
-					"DESCRIPTION" => $e->getMessage()
+					"ITEM_ID" => "STEP 12: EXCEPTION DELIVERY CONVERT",
+					"DESCRIPTION" => $error
 				));
 			}
 			
@@ -3586,6 +3797,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					"ITEM_ID" => "CSaleStatusAdapter::migrate",
 					"DESCRIPTION" => $e->getMessage()
 				));
+				$error .= $e->getMessage();
 			}
 			
 			try
@@ -3636,6 +3848,72 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					'NOTIFY' => 'Y',
 					'LANG'   => $statusLanguages[$deliveryFinalStatus],
 				));
+
+				call_user_func(function() {
+
+					$operations = array(
+							'sale_status_view'      => '',
+							'sale_status_cancel'    => '',
+							'sale_status_mark'      => '',
+							'sale_status_delivery'  => '',
+							'sale_status_deduction' => '',
+							'sale_status_payment'   => '',
+							'sale_status_to'        => '',
+							'sale_status_update'    => '',
+							'sale_status_delete'    => '',
+							'sale_status_from'      => '',
+					);
+
+					$result = Bitrix\Main\Application::getConnection()->query("SELECT * FROM b_operation WHERE MODULE_ID = 'sale' AND BINDING = 'status'");
+					while ($row = $result->fetch())
+						if (isset($operations[$row['NAME']]))
+							$operations[$row['NAME']] = $row['ID'];
+
+					foreach ($operations as $name => $id)
+						if (! $id)
+						{
+							$result = Bitrix\Main\OperationTable::add(array('MODULE_ID' => 'sale', 'BINDING' => 'status', 'NAME' => $name));
+							if ($result->isSuccess())
+								$operations[$name] = $result->getId();
+						}
+
+					$tasks = array(
+						'sale_status_none' => '',
+						'sale_status_all'  => '',
+					);
+
+					$result = Bitrix\Main\Application::getConnection()->query("SELECT * FROM b_task WHERE MODULE_ID = 'sale' AND BINDING = 'status'");
+					while ($row = $result->fetch())
+						if (isset($tasks[$row['NAME']]))
+							$tasks[$row['NAME']] = $row['ID'];
+
+					if (! $tasks['sale_status_none'])
+					{
+						$result = Bitrix\Main\TaskTable::add(array('MODULE_ID' => 'sale', 'BINDING' => 'status', 'NAME' => 'sale_status_none', 'SYS' => 'Y', 'LETTER' => 'D'));
+						if ($result->isSuccess())
+							$tasks['sale_status_none'] = $result->getId();
+					}
+
+					if (! $tasks['sale_status_all'])
+					{
+						$result = Bitrix\Main\TaskTable::add(array('MODULE_ID' => 'sale', 'BINDING' => 'status', 'NAME' => 'sale_status_all', 'SYS' => 'Y', 'LETTER' => 'X'));
+						if ($result->isSuccess())
+							$tasks['sale_status_all'] = $result->getId();
+					}
+
+					if ($taskId = $tasks['sale_status_all'])
+					{
+						$taskOperations = array();
+						$result = Bitrix\Main\Application::getConnection()->query('SELECT * FROM b_task_operation WHERE TASK_ID = '.$taskId);
+						while ($row = $result->fetch())
+							$taskOperations[$row['OPERATION_ID']] = true;
+						
+						foreach ($operations as $operationId)
+							if ($operationId && ! $taskOperations[$operationId])
+								Bitrix\Main\TaskOperationTable::add(array('TASK_ID' => $taskId, 'OPERATION_ID' => $operationId));
+					}
+
+				});
 			}
 			catch (Exception $e)
 			{
@@ -3646,6 +3924,8 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					"ITEM_ID" => "Status::install",
 					"DESCRIPTION" => $e->getMessage()
 				));
+				
+				$error .= $e->getMessage();
 			}
 			
 			try
@@ -3667,41 +3947,46 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					"ITEM_ID" => "CSaleOrderPropsAdapter::migrate",
 					"DESCRIPTION" => $e->getMessage()
 				));
+
+				$error .= $e->getMessage();
 			}
 			
-			if ($DB->Query('SELECT SIZE1 FROM b_sale_order_props WHERE 1=0', true))
+			if (empty($error))
 			{
-
-				if ($DB->type == "MYSQL")
-				{
-					if (!$DB->Query('ALTER TABLE b_sale_order_props DROP SIZE1, DROP SIZE2', true))
-						$error .= "<br>".$DB->GetErrorMessage();
-
-				}
-				elseif ($DB->type == "MSSQL")
+				if ($DB->Query('SELECT SIZE1 FROM b_sale_order_props WHERE 1=0', true))
 				{
 
-					$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP CONSTRAINT DF_B_SALE_ORDER_PROPS_SIZE1", false);
-					$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP CONSTRAINT DF_B_SALE_ORDER_PROPS_SIZE2", false);
+					if ($DB->type == "MYSQL")
+					{
+						if (!$DB->Query('ALTER TABLE b_sale_order_props DROP SIZE1, DROP SIZE2', true))
+							$error .= "<br>".$DB->GetErrorMessage();
 
-					if (!$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP COLUMN SIZE1, SIZE2", true))
-						$error .= "<br>".$DB->GetErrorMessage();
-				}
-				elseif ($DB->type == "ORACLE")
-				{
-					if (!$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP (SIZE1, SIZE2)", true))
-						$error .= "<br>".$DB->GetErrorMessage();
-				}
+					}
+					elseif ($DB->type == "MSSQL")
+					{
 
-				if (!empty($error))
-				{
-					\CEventLog::Add(array(
-						"SEVERITY" => "ERROR",
-						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
-						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
-						"DESCRIPTION" => $error,
-					));
+						$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP CONSTRAINT DF_B_SALE_ORDER_PROPS_SIZE1", false);
+						$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP CONSTRAINT DF_B_SALE_ORDER_PROPS_SIZE2", false);
+
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP COLUMN SIZE1, SIZE2", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+					}
+					elseif ($DB->type == "ORACLE")
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_ORDER_PROPS DROP (SIZE1, SIZE2)", true))
+							$error .= "<br>".$DB->GetErrorMessage();
+					}
+
+					if (!empty($error))
+					{
+						\CEventLog::Add(array(
+							"SEVERITY" => "ERROR",
+							"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
+							"MODULE_ID" => "sale",
+							"ITEM_ID" => "STEP 13: DROP FIELDS",
+							"DESCRIPTION" => $error,
+						));
+					}
 				}
 			}
 			
@@ -4184,7 +4469,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					"SEVERITY" => "ERROR",
 					"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 					"MODULE_ID" => "sale",
-					"ITEM_ID" => "-",
+					"ITEM_ID" => "STEP 15: COPY FILES",
 					"DESCRIPTION" => 'COPY FILES ERROR',
 				));
 			}
@@ -4204,15 +4489,20 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 
 			if ($res && !$res->Fetch())
 			{
+				$innerId = \Bitrix\Sale\Internals\PaySystemInner::getId();
+				/** @var \Bitrix\Sale\PaySystemService $innerPaySystem */
+				$innerPaySystem = \Bitrix\Sale\PaySystemService::load($innerId);
+
+				$concatAccNum = ($DB->type == "MSSQL") ? "o.ACCOUNT_NUMBER+'/1'" : "CONCAT(o.ACCOUNT_NUMBER, '/1')";
+
 				if (
 					!$DB->Query("
 						INSERT INTO b_sale_order_payment
-							(ORDER_ID, PAID, DATE_PAID, PS_STATUS, PS_STATUS_CODE, PS_STATUS_DESCRIPTION, PS_STATUS_MESSAGE, PS_SUM, PS_CURRENCY, PS_RESPONSE_DATE, SUM, CURRENCY, PAY_SYSTEM_ID, DATE_BILL, PAY_VOUCHER_NUM, PAY_VOUCHER_DATE, DATE_PAY_BEFORE, PAY_SYSTEM_NAME, RESPONSIBLE_ID)
+							(ORDER_ID, PAID, DATE_PAID, PS_STATUS, PS_STATUS_CODE, PS_STATUS_DESCRIPTION, PS_STATUS_MESSAGE, PS_SUM, PS_CURRENCY, PS_RESPONSE_DATE, SUM, CURRENCY, PAY_SYSTEM_ID, DATE_BILL, PAY_VOUCHER_NUM, PAY_VOUCHER_DATE, DATE_PAY_BEFORE, PAY_SYSTEM_NAME, RESPONSIBLE_ID, ACCOUNT_NUMBER)
 					SELECT
-						o.ID, o.PAYED, o.DATE_PAYED, o.PS_STATUS, o.PS_STATUS_CODE, o.PS_STATUS_DESCRIPTION, o.PS_STATUS_MESSAGE, o.PS_SUM, o.PS_CURRENCY, o.PS_RESPONSE_DATE, o.PRICE,	o.CURRENCY, o.PAY_SYSTEM_ID, o.DATE_INSERT, o.PAY_VOUCHER_NUM, o.PAY_VOUCHER_DATE, o.DATE_PAY_BEFORE, b_sale_pay_system.NAME, o.CREATED_BY
+						o.ID, 'Y', o.DATE_PAYED, o.PS_STATUS, o.PS_STATUS_CODE, o.PS_STATUS_DESCRIPTION, o.PS_STATUS_MESSAGE, o.PS_SUM, o.PS_CURRENCY, o.PS_RESPONSE_DATE, o.SUM_PAID,	o.CURRENCY, ".$innerId.", o.DATE_INSERT, o.PAY_VOUCHER_NUM, o.PAY_VOUCHER_DATE, o.DATE_PAY_BEFORE, '".$innerPaySystem->getName()."', o.CREATED_BY, ".$concatAccNum."
 					FROM b_sale_order o
-					INNER JOIN b_sale_pay_system ON b_sale_pay_system.ID=o.PAY_SYSTEM_ID
-					WHERE o.PAY_SYSTEM_ID IS NOT NULL", true
+					WHERE o.PAY_SYSTEM_ID IS NOT NULL AND o.SUM_PAID > 0", true
 					)
 				)
 				{
@@ -4222,7 +4512,31 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 16: INSERT INTO b_sale_order_payment",
+						"DESCRIPTION" => $error
+					));
+				}
+
+				$concatAccNum = ($DB->type == "MSSQL") ? "o.ACCOUNT_NUMBER+'/2'" :"CONCAT(o.ACCOUNT_NUMBER, '/2')";
+				if (
+					!$DB->Query("
+						INSERT INTO b_sale_order_payment
+							(ORDER_ID, PAID, DATE_PAID, PS_STATUS, PS_STATUS_CODE, PS_STATUS_DESCRIPTION, PS_STATUS_MESSAGE, PS_SUM, PS_CURRENCY, PS_RESPONSE_DATE, SUM, CURRENCY, PAY_SYSTEM_ID, DATE_BILL, PAY_VOUCHER_NUM, PAY_VOUCHER_DATE, DATE_PAY_BEFORE, PAY_SYSTEM_NAME, RESPONSIBLE_ID, ACCOUNT_NUMBER)
+					SELECT
+						o.ID, o.PAYED, o.DATE_PAYED, o.PS_STATUS, o.PS_STATUS_CODE, o.PS_STATUS_DESCRIPTION, o.PS_STATUS_MESSAGE, o.PS_SUM, o.PS_CURRENCY, o.PS_RESPONSE_DATE, o.PRICE-o.SUM_PAID,	o.CURRENCY, o.PAY_SYSTEM_ID, o.DATE_INSERT, o.PAY_VOUCHER_NUM, o.PAY_VOUCHER_DATE, o.DATE_PAY_BEFORE, b_sale_pay_system.NAME, o.CREATED_BY, ".$concatAccNum."
+					FROM b_sale_order o
+					INNER JOIN b_sale_pay_system ON b_sale_pay_system.ID=o.PAY_SYSTEM_ID
+					WHERE o.PAY_SYSTEM_ID IS NOT NULL", true
+					)
+				)
+				{
+					$error .= "<br>".$DB->GetErrorMessage();
+
+					\CEventLog::Add(array(
+						"SEVERITY" => "ERROR",
+						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
+						"MODULE_ID" => "sale",
+						"ITEM_ID" => "STEP 16: INSERT INTO b_sale_order_payment 2",
 						"DESCRIPTION" => $error
 					));
 				}
@@ -4230,8 +4544,77 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 			
 			$end = microtime(true);			
 			file_put_contents($_SERVER["DOCUMENT_ROOT"].'/bitrix/modules/sale_convert.txt', 'insert into b_sale_order_payment = '.($end-$start)."\n", FILE_APPEND);
-			
-			
+
+			if ($error === '')
+			{
+				if ($DB->type == 'MYSQL')
+				{
+					$dbRes = $DB->Query("show table status like 'b_sale_order'");
+					$statusOrder = $dbRes->Fetch();
+
+					$dbRes = $DB->Query("show table status like 'b_sale_order_payment'");
+					$statusPayment = $dbRes->Fetch();
+					
+					if ((int)$statusPayment['Auto_increment'] < (int)$statusOrder['Auto_increment'])
+					{
+						if (!$DB->Query('ALTER TABLE b_sale_order_payment AUTO_INCREMENT = '.$statusOrder['Auto_increment'], true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+				}
+
+				if ($DB->type == 'MSSQL')
+				{
+					$dbNextVal = $DB->Query("SELECT IDENT_CURRENT ('B_SALE_ORDER_PAYMENT') AS IDENT");
+					$nextValPayment = $dbNextVal->Fetch();
+					$paymentNextVal = (int)$nextValPayment["IDENT"];
+
+					$dbNextVal = $DB->Query("SELECT IDENT_CURRENT ('B_SALE_ORDER') AS IDENT");
+					$nextValOrder = $dbNextVal->Fetch();
+					$orderNextVal = (int)$nextValOrder["IDENT"];
+
+					if ($orderNextVal > $paymentNextVal)
+					{
+						if (!$DB->Query("DBCC CHECKIDENT ('B_SALE_ORDER_PAYMENT', RESEED, ".$orderNextVal.")", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+				}
+
+				if ($DB->type == 'ORACLE')
+				{
+					$dbNextVal = $DB->Query("SELECT SQ_B_SALE_ORDER_PAYMENT.NEXTVAL FROM DUAL");
+					$nextValPayment = $dbNextVal->Fetch();
+
+					$dbNextVal = $DB->Query("SELECT SQ_SALE_ORDER.NEXTVAL FROM DUAL");
+					$nextValOrder = $dbNextVal->Fetch();
+
+					if (isset($nextValPayment) && isset($nextValOrder))
+					{
+						$orderNextVal = (int)$nextValOrder["NEXTVAL"];
+						$paymentNextVal = (int)$nextValPayment["NEXTVAL"];
+						if ($orderNextVal > $paymentNextVal)
+						{
+							$DB->Query('DROP SEQUENCE SQ_B_SALE_ORDER_PAYMENT');
+
+							$DB->Query('CREATE SEQUENCE SQ_B_SALE_ORDER_PAYMENT START WITH '.$orderNextVal.' INCREMENT BY 1 NOMAXVALUE NOCYCLE NOCACHE NOORDER');
+							$DB->Query('CREATE OR REPLACE TRIGGER B_SALE_ORDER_PAYMENT_INSERT
+										BEFORE INSERT
+										ON B_SALE_ORDER_PAYMENT
+										FOR EACH ROW
+										BEGIN
+											IF :NEW.ID IS NULL THEN
+												SELECT SQ_B_SALE_ORDER_PAYMENT.NEXTVAL INTO :NEW.ID FROM dual;
+											END IF;
+										END;'
+							);
+						}
+					}
+				}
+			}
+
 			if (empty($error))
 			{
 				$message = Loc::getMessage('SALE_CONVERTER_AJAX_STEP_INSERT_SHIPMENT');
@@ -4251,6 +4634,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 			
 			if ($id <= 0)
 			{
+				$fields = array();
 				$fields["NAME"] = Loc::getMessage('SALE_CONVERTER_EMPTY_DELIVERY_SERVICE');
 				$fields["CLASS_NAME"] = '\Bitrix\Sale\Delivery\Services\EmptyDeliveryService';
 				$fields["PARENT_ID"] = 0;
@@ -4303,10 +4687,13 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 
 			if ($res && !$res->Fetch())
 			{
+
+				$concatAccNum = ($DB->type == "MSSQL") ? "o.ACCOUNT_NUMBER+'/1'" : "CONCAT(o.ACCOUNT_NUMBER, '/1')";
+
 				if (
-					!$DB->Query("INSERT INTO b_sale_order_delivery (ORDER_ID, BASE_PRICE_DELIVERY, PRICE_DELIVERY, ALLOW_DELIVERY, DATE_ALLOW_DELIVERY, EMP_ALLOW_DELIVERY_ID, DEDUCTED, DATE_DEDUCTED, EMP_DEDUCTED_ID, REASON_UNDO_DEDUCTED, RESERVED, DELIVERY_ID, DELIVERY_DOC_NUM, DELIVERY_DOC_DATE, TRACKING_NUMBER, CANCELED, DATE_CANCELED, EMP_CANCELED_ID, REASON_CANCELED, MARKED, DATE_MARKED, EMP_MARKED_ID, DATE_INSERT, CURRENCY, SYSTEM, RESPONSIBLE_ID, STATUS_ID, DELIVERY_NAME)
+					!$DB->Query("INSERT INTO b_sale_order_delivery (ORDER_ID, BASE_PRICE_DELIVERY, PRICE_DELIVERY, ALLOW_DELIVERY, DATE_ALLOW_DELIVERY, EMP_ALLOW_DELIVERY_ID, DEDUCTED, DATE_DEDUCTED, EMP_DEDUCTED_ID, REASON_UNDO_DEDUCTED, RESERVED, DELIVERY_ID, DELIVERY_DOC_NUM, DELIVERY_DOC_DATE, TRACKING_NUMBER, CANCELED, DATE_CANCELED, EMP_CANCELED_ID, REASON_CANCELED, MARKED, DATE_MARKED, EMP_MARKED_ID, DATE_INSERT, CURRENCY, SYSTEM, RESPONSIBLE_ID, STATUS_ID, DELIVERY_NAME, ACCOUNT_NUMBER)
 						SELECT
-							o.ID, o.PRICE_DELIVERY, o.PRICE_DELIVERY, o.ALLOW_DELIVERY, o.DATE_ALLOW_DELIVERY, o.EMP_ALLOW_DELIVERY_ID, o.DEDUCTED, o.DATE_DEDUCTED, o.EMP_DEDUCTED_ID, o.REASON_UNDO_DEDUCTED, o.RESERVED, CASE WHEN o.DELIVERY_ID IS NULL THEN ".$id." ELSE ".$orderDeliveryId." END, o.DELIVERY_DOC_NUM, o.DELIVERY_DOC_DATE, o.TRACKING_NUMBER, o.CANCELED, o.DATE_CANCELED, o.EMP_CANCELED_ID, o.REASON_CANCELED, o.MARKED, o.DATE_MARKED, o.EMP_MARKED_ID, o.DATE_INSERT, o.CURRENCY, 'N', o.RESPONSIBLE_ID, CASE o.DEDUCTED WHEN 'Y' THEN 'DF' ELSE 'DN' END, d.NAME
+							o.ID, o.PRICE_DELIVERY, o.PRICE_DELIVERY, o.ALLOW_DELIVERY, o.DATE_ALLOW_DELIVERY, o.EMP_ALLOW_DELIVERY_ID, o.DEDUCTED, o.DATE_DEDUCTED, o.EMP_DEDUCTED_ID, o.REASON_UNDO_DEDUCTED, o.RESERVED, CASE WHEN o.DELIVERY_ID IS NULL THEN ".$id." ELSE ".$orderDeliveryId." END, o.DELIVERY_DOC_NUM, o.DELIVERY_DOC_DATE, o.TRACKING_NUMBER, o.CANCELED, o.DATE_CANCELED, o.EMP_CANCELED_ID, o.REASON_CANCELED, o.MARKED, o.DATE_MARKED, o.EMP_MARKED_ID, o.DATE_INSERT, o.CURRENCY, 'N', o.RESPONSIBLE_ID, CASE o.DEDUCTED WHEN 'Y' THEN 'DF' ELSE 'DN' END, d.NAME, ".$concatAccNum."
 						FROM b_sale_order o
 						LEFT JOIN b_sale_delivery_srv d ON d.ID = (CASE WHEN o.DELIVERY_ID IS NULL THEN ".$id." ELSE ".$orderDeliveryId." END)", true
 					)
@@ -4318,7 +4705,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 17: INSERT INTO b_sale_order_delivery",
 						"DESCRIPTION" => $error
 					));
 				}
@@ -4370,7 +4757,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						"SEVERITY" => "ERROR",
 						"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 						"MODULE_ID" => "sale",
-						"ITEM_ID" => "-",
+						"ITEM_ID" => "STEP 18: INSERT INTO b_sale_order_dlv_basket",
 						"DESCRIPTION" => $error
 					));
 				}
@@ -4419,7 +4806,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					"SEVERITY" => "ERROR",
 					"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 					"MODULE_ID" => "sale",
-					"ITEM_ID" => "-",
+					"ITEM_ID" => "STEP 19: UPDATE b_sale_store_barcode",
 					"DESCRIPTION" => $error
 				));
 			}
@@ -4460,7 +4847,7 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 					"SEVERITY" => "ERROR",
 					"AUDIT_TYPE_ID" => "SALE_CONVERTER_ERROR",
 					"MODULE_ID" => "sale",
-					"ITEM_ID" => "-",
+					"ITEM_ID" => "STEP 19: UPDATE b_sale_order",
 					"DESCRIPTION" => $error
 				));
 			}
@@ -4666,6 +5053,22 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							$error .= $DB->GetErrorMessage();
 					} 
 
+					if ($DB->Query("SELECT VAT_RATE FROM b_sale_basket WHERE 1=0", true))
+					{
+						if (!$DB->Query("ALTER TABLE b_sale_basket CHANGE VAT_RATE VAT_RATE DECIMAL(18,4) DEFAULT '0.0000'", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+					
+					if (!$DB->Query("SELECT SORT FROM b_sale_basket WHERE 1=0", true))
+					{
+						if (!$DB->Query("ALTER TABLE b_sale_basket ADD COLUMN SORT INT DEFAULT '100' NOT NULL", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+
 				}
 				elseif ($DB->type == 'MSSQL')
 				{
@@ -4689,6 +5092,30 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 							$error .= $DB->GetErrorMessage();
 						}
 						
+					}
+
+					if ($DB->Query("SELECT VAT_RATE FROM B_SALE_BASKET WHERE 1=0", true))
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_BASKET ALTER COLUMN VAT_RATE DECIMAL(18,4)", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+						
+						$DB->Query("ALTER TABLE B_SALE_BASKET DROP CONSTRAINT DF_SALE_BASKET_VAT_RATE", false);
+						
+						if (!$DB->Query("ALTER TABLE B_SALE_BASKET ADD CONSTRAINT DF_SALE_BASKET_VAT_RATE DEFAULT '0.00' FOR VAT_RATE", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+						
+					}
+
+					if (!$DB->Query("SELECT SORT FROM B_SALE_BASKET WHERE 1=0", true))
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_BASKET ADD SORT INT DEFAULT '100' NOT NULL", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
 					}
 					
 				}
@@ -4755,11 +5182,29 @@ if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["is_ajax"] == "Y")
 						);
 
 					}
+
+					if ($DB->Query("SELECT VAT_RATE FROM B_SALE_BASKET WHERE 1=0", true))
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_BASKET MODIFY (VAT_RATE NUMBER(20,4) DEFAULT 0.0 NOT NULL)", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+					
+					if (!$DB->Query("SELECT SORT FROM B_SALE_BASKET WHERE 1=0", true))
+					{
+						if (!$DB->Query("ALTER TABLE B_SALE_BASKET ADD SORT INT DEFAULT '100' NOT NULL", true))
+						{
+							$error .= "<br>".$DB->GetErrorMessage();
+						}
+					}
+					
 				}
 			}
 
 			if (empty($error))
 			{
+				Bitrix\Main\Config\Option::set("main", "~sale_converter_start", 'N');
 				$message = Loc::getMessage('SALE_CONVERTER_AJAX_STEP_FINAL');
 				$type = 'OK';
 
@@ -4858,6 +5303,22 @@ require($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_aft
 <?
 $step = 0;
 $select = '';
+$newTables = array(
+	'b_sale_order_discount',
+	'b_sale_order_payment',
+	'b_sale_order_coupons',
+	'b_sale_order_modules',
+	'b_sale_order_rules',
+	'b_sale_order_discount_data',
+	'b_sale_order_rules_descr',
+	'b_sale_delivery_srv',
+	'b_sale_delivery_es',
+	'b_sale_order_delivery_es',
+	'b_sale_order_dlv_basket',
+	'b_sale_delivery_rstr',
+	'b_sale_status_group_task',
+	'b_sale_company'
+);
 if (isset($_GET['step']) && intval($_GET['step']))
 	$step = intval($_GET['step']);
 
@@ -4879,11 +5340,8 @@ switch ($step)
 			"OnSaleCalculateOrder",
 			// "OnBeforeBasketUpdateAfterCheck",
 
-			"OnBasketUpdate",
 			"OnBeforeBasketDeductProduct",
 			// "OnOrderPaySendEmail",
-			"OnBeforeBasketDelete",
-			"OnBasketDelete",
 			"OnBeforeOrderAddHistory",
 			"OnAfterOrderAddHistory",
 			"OnSetCouponList",
@@ -4892,7 +5350,7 @@ switch ($step)
 			// "OnBeforeBasketUpdate",
 			"OnSaleBeforePayOrder",
 			"OnSaleBeforeDeliveryOrder",
-			"OnOrderDeliverSendEmail",
+			// "OnOrderDeliverSendEmail",
 			"OnSaleBeforeDeductOrder",
 			"OnSaleBeforeReserveOrder",
 			"OnSaleReserveOrder",
@@ -4914,7 +5372,7 @@ switch ($step)
 		}
 		else
 		{
-			$step++;
+			$step = 3;
 		}
 	case 3:
 		if (!CSaleLocation::isLocationProMigrated())
@@ -4924,7 +5382,7 @@ switch ($step)
 		}
 		else
 		{
-			$step += 2;
+			$step = 5;
 		}
 	case 4:
 		if(!CSaleLocation::isLocationProMigrated())
@@ -4949,6 +5407,161 @@ switch ($step)
 			break;
 		}
 	case 5:
+		$saleConverted = \Bitrix\Main\Config\Option::get("main", "~sale_converted_15", 'N');
+		$converterStart = \Bitrix\Main\Config\Option::get("main", "~sale_converter_start", 'N');
+		if ($saleConverted == 'N' && $converterStart == 'N')
+		{
+			$isDbIncorrect = false;
+			foreach ($newTables as $table)
+			{
+				if ($DB->TableExists($table))
+				{
+					$isDbIncorrect = true;
+					break;
+				}
+			}
+
+			if ($isDbIncorrect)
+			{
+				echo Loc::getMessage('SALE_CONVERTER_STEP_FIND_GARBAGE');
+				break;
+			}
+			else
+			{
+				$step = 7;
+			}
+		}
+		$step = 7;
+	case 6:
+		$saleConverted = \Bitrix\Main\Config\Option::get("main", "~sale_converted_15", 'N');
+		$converterStart = \Bitrix\Main\Config\Option::get("main", "~sale_converter_start", 'N');
+		if ($saleConverted == 'N' && $converterStart == 'N')
+		{
+			$isDbIncorrect = false;
+
+			foreach ($newTables as $table)
+			{
+				if ($DB->TableExists($table))
+				{
+					$isDbIncorrect = true;
+					if ($DB->type == 'MYSQL')
+						$DB->Query('DROP TABLE '.$table, true);
+
+					if ($DB->type == 'MSSQL')
+					{
+						$DB->Query("ALTER TABLE ".ToUpper($table)." DROP CONSTRAINT PK_".ToUpper($table), true);
+						$DB->Query('DROP TABLE '.ToUpper($table), true);
+					}
+
+					if ($DB->type == 'ORACLE')
+					{
+						$DB->Query('DROP TABLE '.ToUpper($table).' CASCADE CONSTRAINTS', true);
+						$DB->Query('DROP SEQUENCE SQ_'.ToUpper($table), true);
+					}
+				}
+			}
+
+			if ($isDbIncorrect)
+			{
+				if ($DB->TableExists('b_sale_order_delivery_old'))
+				{
+					if ($DB->type == 'MYSQL')
+						$DB->Query('DROP TABLE b_sale_order_delivery_old', true);
+
+					if ($DB->type == 'MSSQL')
+					{
+						$DB->Query('DROP TABLE B_SALE_ORDER_DELIVERY_OLD', true);
+						$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY_OLD DROP CONSTRAINT PK_B_SALE_ORDER_DELIVERY", true);
+					}
+
+					if ($DB->type == 'ORACLE')
+					{
+						$DB->Query('DROP TABLE B_SALE_ORDER_DELIVERY_OLD CASCADE CONSTRAINTS', true);
+						$DB->Query('DROP SEQUENCE SQ_B_SALE_ORDER_DELIVERY', true);
+					}
+				}
+
+				if ($DB->TableExists('b_sale_delivery2location_tmp'))
+				{
+					$DB->Query('DROP TABLE b_sale_delivery2location_tmp', true);
+				}
+
+				if ($DB->TableExists('b_sale_pay_system_map'))
+				{
+					$DB->Query('DROP TABLE b_sale_pay_system_map', true);
+				}
+
+				if ($DB->TableExists('b_sale_delivery_handler_old'))
+				{
+					$DB->Query('DROP TABLE b_sale_delivery_handler_old', true);
+				}
+
+				if ($DB->TableExists('b_sale_delivery_old'))
+				{
+					$DB->Query('DROP TABLE b_sale_delivery_old', true);
+				}
+
+				if ($DB->TableExists('b_sale_order_delivery_req'))
+				{
+					if ($DB->type == 'MYSQL')
+						$DB->Query('DROP TABLE b_sale_order_delivery_req', true);
+
+					if ($DB->type == 'MSSQL')
+					{
+						$DB->Query('DROP TABLE B_SALE_ORDER_DELIVERY_REQ', true);
+						$DB->Query("ALTER TABLE B_SALE_ORDER_DELIVERY_REQ DROP CONSTRAINT PK_B_SALE_ORDER_DELIVERY", true);
+					}
+
+					if ($DB->type == 'ORACLE')
+					{
+						$DB->Query('DROP TABLE B_SALE_ORDER_DELIVERY_REQ CASCADE CONSTRAINTS', true);
+						$DB->Query('DROP SEQUENCE SQ_B_SALE_ORDER_DELIVERY', true);
+					}
+				}
+				
+				if ($DB->type == 'MSSQL')
+				{
+					$DB->Query("DROP INDEX IX_SALE_ORDER_RULES_DS_ORD ON B_SALE_ORDER_RULES_DESCR", true);
+					$DB->Query("DROP INDEX IX_BSDR_DELIVERY_ID ON B_SALE_DELIVERY_RSTR", true);
+					$DB->Query("DROP INDEX IX_BSODB_ORDER_DELIVERY_ID ON B_SALE_ORDER_DLV_BASKET", true);
+					$DB->Query("DROP INDEX IX_BSOD_ES_SHIPMENT_ID ON B_SALE_ORDER_DELIVERY_ES", true);
+					$DB->Query("DROP INDEX IX_BSOD_ES_EXTRA_SERVICE_ID ON B_SALE_ORDER_DELIVERY_ES", true);
+					$DB->Query("DROP INDEX IX_BSD_ES_DELIVERY_ID ON B_SALE_DELIVERY_ES", true);
+					$DB->Query("DROP INDEX IX_BSD_SRV_PARENT_ID ON B_SALE_DELIVERY_SRV", true);
+					$DB->Query("DROP INDEX IX_BSD_SRV_CODE ON B_SALE_DELIVERY_SRV", true);
+					$DB->Query("DROP INDEX IX_SALE_DSC_DATA_CMX ON B_SALE_ORDER_DISCOUNT_DATA", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_RULES_ORD ON B_SALE_ORDER_RULES", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_MDL_DSC ON B_SALE_ORDER_MODULES", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_CPN_ORDER ON B_SALE_ORDER_COUPONS", true);
+					$DB->Query("DROP INDEX IX_BSOD_ORDER_ID ON B_SALE_ORDER_DELIVERY", true);
+					$DB->Query("DROP INDEX IX_BSOP_ORDER_ID ON B_SALE_ORDER_PAYMENT", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_DSC_HASH ON B_SALE_ORDER_DISCOUNT", true);
+				}
+
+				if ($DB->type == 'ORACLE')
+				{
+					$DB->Query("DROP INDEX IX_SALE_ORDER_RULES_DS_ORD", true);
+					$DB->Query("DROP INDEX IX_BSDR_DELIVERY_ID", true);
+					$DB->Query("DROP INDEX IX_BSODB_ORDER_DELIVERY_ID", true);
+					$DB->Query("DROP INDEX IX_BSOD_ES_SHIPMENT_ID", true);
+					$DB->Query("DROP INDEX IX_BSOD_ES_EXTRA_SERVICE_ID", true);
+					$DB->Query("DROP INDEX IX_BSD_ES_DELIVERY_ID", true);
+					$DB->Query("DROP INDEX IX_BSD_SRV_PARENT_ID", true);
+					$DB->Query("DROP INDEX IX_BSD_SRV_CODE", true);
+					$DB->Query("DROP INDEX IX_SALE_DSC_DATA_CMX", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_RULES_ORD", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_MDL_DSC", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_CPN_ORDER", true);
+					$DB->Query("DROP INDEX IX_BSOD_ORDER_ID", true);
+					$DB->Query("DROP INDEX IX_BSOP_ORDER_ID", true);
+					$DB->Query("DROP INDEX IX_SALE_ORDER_DSC_HASH", true);
+				}
+				
+				echo Loc::getMessage('SALE_CONVERTER_STEP_CLEAR_GARBAGE');
+				break;
+			}
+		}
+	case 7:
 		echo Loc::getMessage('SALE_CONVERTER_STEP_6_DETAILS');
 		break;
 	default :

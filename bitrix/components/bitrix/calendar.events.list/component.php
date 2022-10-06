@@ -1,26 +1,17 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-$arParams["CALENDAR_TYPE"] = $arParams["CALENDAR_TYPE"];
 $arParams['B_CUR_USER_LIST'] = $arParams['B_CUR_USER_LIST'] == 'Y';
-$arParams["FUTURE_MONTH_COUNT"] = intVal($arParams["FUTURE_MONTH_COUNT"]);
+$arParams["FUTURE_MONTH_COUNT"] = intval($arParams["FUTURE_MONTH_COUNT"]);
 if ($arParams["FUTURE_MONTH_COUNT"] <= 0)
 	$arParams["FUTURE_MONTH_COUNT"] = 1;
 
 $curUserId = $USER->IsAuthorized() ? $USER->GetID() : '';
 
-if (!function_exists('getTSFormat')) // TODO: clean this function from result_modifier.php in bitrix24 template
-{
-	function getTSFormat()
-	{
-		return CSite::GetDateFormat("FULL");
-	}
-}
-
 if(!CModule::IncludeModule("calendar") || !class_exists("CCalendar"))
 	return ShowError(GetMessage("EC_CALENDAR_MODULE_NOT_INSTALLED"));
 
 // Limits
-if (strlen($arParams["INIT_DATE"]) > 0 && strpos($arParams["INIT_DATE"], '.') !== false)
+if ($arParams["INIT_DATE"] <> '' && mb_strpos($arParams["INIT_DATE"], '.') !== false)
 	$ts = CCalendar::Timestamp($arParams["INIT_DATE"]);
 else
 	$ts = time();
@@ -29,56 +20,61 @@ $fromLimit = CCalendar::Date($ts, false);
 $ts = CCalendar::Timestamp($fromLimit);
 $toLimit = CCalendar::Date(mktime(0, 0, 0, date("m", $ts) + $arParams["FUTURE_MONTH_COUNT"], date("d", $ts), date("Y", $ts)), false);
 
-$arResult['ITEMS'] = array();
-$arEvents = CCalendar::GetNearestEventsList(
-	array(
+$arResult['ITEMS'] = [];
+$eventsList = CCalendar::GetNearestEventsList(
+	[
 		'bCurUserList' => $arParams['B_CUR_USER_LIST'],
 		'fromLimit' => $fromLimit,
 		'toLimit' => $toLimit,
 		'type' => $arParams['CALENDAR_TYPE'],
-		'sectionId' => $arParams['CALENDAR_SECTION_ID']
-	));
+		'sectionId' => $arParams['CALENDAR_SECTION_ID'],
+	]);
 
-if ($arEvents == 'access_denied')
+if ($eventsList == 'access_denied')
 {
 	$arResult['ACCESS_DENIED'] = true;
 }
-elseif ($arEvents == 'inactive_feature')
+elseif ($eventsList == 'inactive_feature')
 {
 	$arResult['INACTIVE_FEATURE'] = true;
 }
-elseif (is_array($arEvents))
+elseif (is_array($eventsList))
 {
-	if (strpos($arParams['DETAIL_URL'], '?') !== FALSE)
-		$arParams['DETAIL_URL'] = substr($arParams['DETAIL_URL'], 0, strpos($arParams['DETAIL_URL'], '?'));
-	$arParams['DETAIL_URL'] = str_replace('#user_id#', $curUserId, strtolower($arParams['DETAIL_URL']));
-
-	for ($i = 0, $l = count($arEvents); $i < $l; $i++)
+	if (mb_strpos($arParams['DETAIL_URL'], '?') !== FALSE)
 	{
-		$arEvents[$i]['_DETAIL_URL'] = $arParams['DETAIL_URL'].'?EVENT_ID='.$arEvents[$i]['ID'].'&EVENT_DATE='.$arEvents[$i]['DATE_FROM'];
-		if ($arEvents[$i]['IS_MEETING'] && $arEvents[$i]['MEETING_STATUS'] == 'Q')
+		$arParams['DETAIL_URL'] = mb_substr($arParams['DETAIL_URL'], 0, mb_strpos($arParams['DETAIL_URL'], '?'));
+	}
+	$arParams['DETAIL_URL'] = str_replace('#user_id#', $curUserId, mb_strtolower($arParams['DETAIL_URL']));
+
+	for ($i = 0, $l = count($eventsList); $i < $l; $i++)
+	{
+		$eventsList[$i]['_DETAIL_URL'] = CHTTP::urlAddParams($arParams['DETAIL_URL'], array(
+			'EVENT_ID' => $eventsList[$i]['ID'],
+			'EVENT_DATE' => CCalendar::Date(CCalendar::Timestamp($eventsList[$i]['DATE_FROM']), false)
+		));
+
+		if ($eventsList[$i]['IS_MEETING'] && $eventsList[$i]['MEETING_STATUS'] == 'Q')
 		{
-			$arEvents[$i]['_ADD_CLASS'] = ' calendar-not-confirmed';
-			$arEvents[$i]['_Q_ICON'] = '<span class="calendar-reminder" title="'.GetMessage('EC_NOT_CONFIRMED').'">[?]</span>';
+			$eventsList[$i]['_ADD_CLASS'] = ' calendar-not-confirmed';
+			$eventsList[$i]['_Q_ICON'] = '<span class="calendar-reminder" title="'.GetMessage('EC_NOT_CONFIRMED').'">[?]</span>';
 		}
 		else
 		{
-			$arEvents[$i]['_ADD_CLASS'] = '';
-			$arEvents[$i]['_Q_ICON'] = '';
+			$eventsList[$i]['_ADD_CLASS'] = '';
+			$eventsList[$i]['_Q_ICON'] = '';
 		}
-		if ($arEvents[$i]['IMPORTANCE'] == 'high')
-			$arEvents[$i]['_ADD_CLASS'] = ' imortant-event';
+		if ($eventsList[$i]['IMPORTANCE'] == 'high')
+			$eventsList[$i]['_ADD_CLASS'] = ' imortant-event';
 
-		$fromTs = CCalendar::Timestamp($arEvents[$i]['DATE_FROM']);
-		$toTs = $fromTs + $arEvents[$i]['DT_LENGTH'];
+		$fromTs = CCalendar::Timestamp($eventsList[$i]['DATE_FROM']);
+		$toTs = $fromTs + $eventsList[$i]['DT_LENGTH'];
 
-		$arEvents[$i]['~FROM_TO_HTML'] = CCalendar::GetFromToHtml($fromTs, $toTs, $arEvents[$i]['DT_SKIP_TIME'] == 'Y', $arEvents[$i]['DT_LENGTH']);
+		$eventsList[$i]['~FROM_TO_HTML'] = CCalendar::GetFromToHtml($fromTs, $toTs, $eventsList[$i]['DT_SKIP_TIME'] == 'Y', $eventsList[$i]['DT_LENGTH']);
 
-		$arResult['ITEMS'][] = $arEvents[$i];
+		$arResult['ITEMS'][] = $eventsList[$i];
 	}
-	array_splice($arResult['ITEMS'], intVal($arParams['EVENTS_COUNT']));
+	array_splice($arResult['ITEMS'], intval($arParams['EVENTS_COUNT']));
 }
-
 
 if ($arParams['RETURN_ARRAY'] == 'Y')
 	return $arResult;

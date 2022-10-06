@@ -1,9 +1,8 @@
 <?
 define("STOP_STATISTICS", true);
-define("BX_SECURITY_SHOW_MESSAGE", true);
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-\Bitrix\Main\Localization\Loc::loadMessages(__FILE__);
+__IncludeLang(dirname(__FILE__).'/lang/'.LANGUAGE_ID.'/'.basename(__FILE__));
 
 if(!CModule::IncludeModule('lists'))
 {
@@ -36,10 +35,7 @@ if($lists_perm < 0)
 		die();
 	}
 }
-elseif(
-	$lists_perm < CListPermissions::CAN_READ
-	&& !CIBlockRights::UserHasRightTo($iblock_id, $iblock_id, "element_read")
-)
+elseif($lists_perm < CListPermissions::CAN_READ)
 {
 	ShowError(GetMessage("CT_BMTS_ACCESS_DENIED"));
 	die();
@@ -60,6 +56,7 @@ if ($_REQUEST['MODE'] == 'section')
 		array(
 			'IBLOCK_ID' => $arIBlock["ID"],
 			'SECTION_ID' => $SECTION_ID,
+			'ACTIVE' => "Y",
 			'CHECK_PERMISSIONS' => $arParams['CAN_EDIT']? 'N': 'Y',
 		),
 		false,
@@ -116,17 +113,17 @@ else
 
 
 $bMultiple = $_GET['multiple'] == 'Y';
-$win_id = preg_replace("/[^a-z0-9_\\[\\]:.,_-]/i", "", $_REQUEST["win_id"]);
+$win_id = CUtil::JSEscape($win_id);
 $arOpenedSections = array();
 $arValues = array();
 
 if(isset($_GET['value']))
 {
-	$arValues = array();
-	foreach(explode(',', $_GET['value']) as $value)
+	$arValues = explode(',', $_GET['value']);
+	foreach($arValues as $value)
 	{
 		$value = intval($value);
-		if($value > 0)
+		if($value)
 			$arValues[$value] = $value;
 	}
 
@@ -169,20 +166,20 @@ document.getElementById('<?echo $win_id?>').__object.InitControl('bx_emp_search_
 
 <div class="mts-section-list" id="mts_search_layout">
 <?
-	function EmployeeDrawStructure($arStructure, $arSections, $key, $win_id)
+	function EmployeeDrawStructure($arStructure, $arSections, $key)
 	{
 		foreach ($arStructure[$key] as $ID)
 		{
 			$arRes = $arSections[$ID];
 
-			echo '<div class="mts-section'.($key == 0 ? '-first' : '').'" style="padding-left: '.(($arRes['DEPTH_LEVEL']-1)*15).'px" onclick="document.getElementById(\''.$win_id.'\').__object.LoadSection(\''.$ID.'\')" id="mts_section_'.$ID.'">';
+			echo '<div class="mts-section'.($key == 0 ? '-first' : '').'" style="padding-left: '.(($arRes['DEPTH_LEVEL']-1)*15).'px" onclick="document.getElementById(\''.htmlspecialcharsex($_REQUEST["win_id"]).'\').__object.LoadSection(\''.$ID.'\')" id="mts_section_'.$ID.'">';
 			echo '<div class="mts-section-name mts-closed">'.$arRes['NAME'].'</div>';
 			echo '</div>';
 
 			echo '<div style="display: none" id="bx_children_'.$arRes['ID'].'">';
 			if (is_array($arStructure[$ID]))
 			{
-				EmployeeDrawStructure($arStructure, $arSections, $ID, $win_id);
+				EmployeeDrawStructure($arStructure, $arSections, $ID);
 			}
 			echo '<div class="mts-list" id="mts_elements_'.$ID.'" style="margin-left: '.($arRes['DEPTH_LEVEL']*15).'px"><i>'.GetMessage('CT_BMTS_WAIT').'</i></div>';
 			echo '</div>';
@@ -208,7 +205,7 @@ document.getElementById('<?echo $win_id?>').__object.InitControl('bx_emp_search_
 		$arSections[$arRes['ID']] = $arRes;
 	}
 
-	EmployeeDrawStructure($arStructure, $arSections, 0, $win_id);
+	EmployeeDrawStructure($arStructure, $arSections, 0);
 
 	echo '<div style="display:none" id="mts_section_0">';
 	echo '<div class="mts-section-name mts-closed"></div>';
@@ -239,7 +236,7 @@ document.getElementById('<?echo $win_id?>').__object.InitControl('bx_emp_search_
 				$arSectionList[] = $opened_section;
 
 ?>
-document.getElementById('<?echo $win_id?>').__object.LoadSection('<?echo intval($opened_section)?>', true);
+document.getElementById('<?echo $win_id?>').__object.LoadSection('<?echo $opened_section?>', true);
 <?
 				$opened_section = $arSections[$opened_section]['IBLOCK_SECTION_ID'];
 			}

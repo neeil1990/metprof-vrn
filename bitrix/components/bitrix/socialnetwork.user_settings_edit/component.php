@@ -18,15 +18,14 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["SET_NAV_CHAIN"] = ($arParams["SET_NAV_CHAIN"] == "N" ? "N" : "Y");
 
 if (strlen($arParams["NAME_TEMPLATE"]) <= 0)		
-	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+	$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 $bUseLogin = $arParams['SHOW_LOGIN'] != "N" ? true : false;
-$bExtranetInstalled = IsModuleInstalled("extranet");
-
+			
 $arResult["FatalError"] = "";
 
 if (!$GLOBALS["USER"]->IsAuthorized())
@@ -53,26 +52,7 @@ else
 
 				global $arSocNetUserOperations;
 				foreach ($arSocNetUserOperations as $feature => $perm)
-				{
-					if (
-						IsModuleInstalled("im") 
-						&& $feature == "message"
-					)
-					{
-						continue;
-					}
-
-					$perm = CSocNetUserPerms::GetOperationPerms($arResult["User"]["ID"], $feature);
-					if (
-						$bExtranetInstalled
-						&& ($perm == SONET_RELATIONS_TYPE_ALL)
-					)
-					{
-						$perm = SONET_RELATIONS_TYPE_AUTHORIZED;
-					}
-
-					$arResult["Features"][$feature] = $perm;
-				}
+					$arResult["Features"][$feature] = CSocNetUserPerms::GetOperationPerms($arResult["User"]["ID"], $feature);
 			}
 			else
 			{
@@ -88,6 +68,7 @@ else
 	if (StrLen($arResult["FatalError"]) <= 0)
 	{
 		$arResult["Urls"]["User"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arResult["User"]["ID"]));
+
 
 		$arTmpUser = array(
 				'NAME' => $arResult["User"]["~NAME"],
@@ -143,14 +124,7 @@ else
 			}
 			else
 			{
-				if ($_REQUEST['backurl'])
-				{
-					LocalRedirect($_REQUEST['backurl']);
-				}
-				else
-				{
-					LocalRedirect($arResult["Urls"]["User"]);
-				}
+				$arResult["ShowForm"] = "Confirm";
 			}
 		}
 
@@ -161,7 +135,9 @@ else
 				$arResult["PermsVar"] = array(
 					SONET_RELATIONS_TYPE_NONE => GetMessage("SONET_C40_NOBODY"),
 					SONET_RELATIONS_TYPE_FRIENDS => GetMessage("SONET_C40_ONLY_FRIENDS"),
+					SONET_RELATIONS_TYPE_FRIENDS2 => GetMessage("SONET_C40_FRIENDS2"),
 					SONET_RELATIONS_TYPE_AUTHORIZED => GetMessage("SONET_C40_AUTHORIZED"),
+					SONET_RELATIONS_TYPE_ALL => GetMessage("SONET_C40_ALL"),
 				);
 			}
 			else
@@ -169,16 +145,11 @@ else
 				$arResult["PermsVar"] = array(
 					SONET_RELATIONS_TYPE_NONE => GetMessage("SONET_C40_NOBODY"),
 					SONET_RELATIONS_TYPE_AUTHORIZED => GetMessage("SONET_C40_AUTHORIZED"),					
+					SONET_RELATIONS_TYPE_ALL => GetMessage("SONET_C40_ALL"),
 				);
-			}
-
-			if (!$bExtranetInstalled)
-			{
-				$arResult["PermsVar"][SONET_RELATIONS_TYPE_ALL] = GetMessage("SONET_C40_ALL");
 			}
 		}
 	}
 }
-
 $this->IncludeComponentTemplate();
 ?>

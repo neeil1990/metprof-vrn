@@ -11,7 +11,6 @@
 	"BASE_URL"	=>	$arResult["VARIABLES"]["BASE_URL"],
 	
 	"SET_TITLE"	=>	$arParams["SET_TITLE"],
-    "SET_NAV_CHAIN" => "Y",
 	"STR_TITLE" => $arResult["VARIABLES"]["STR_TITLE"],
 	"DISPLAY_PANEL"	=>	$arParams["DISPLAY_PANEL"]),
 	$component

@@ -5,6 +5,7 @@ $pageId = "";
 include("util_group_menu.php");
 include("util_group_profile.php");
 ?>
+
 <?
 $APPLICATION->IncludeComponent(
 	"bitrix:socialnetwork.group_request_search", 

@@ -121,7 +121,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 			$arBlock["PICTURE"] = "/bitrix/images/bizproc/vd_bp.jpg";
 
 		$arMessagesTmp = CIBlock::GetMessages($arBlock["ID"]);
-		$arBlock["CreateTitle"] = htmlspecialcharsbx(is_array($arMessagesTmp) && array_key_exists("ELEMENT_ADD", $arMessagesTmp) ? $arMessagesTmp["ELEMENT_ADD"] : "");
+		$arBlock["CreateTitle"] = htmlspecialchars(is_array($arMessagesTmp) && array_key_exists("ELEMENT_ADD", $arMessagesTmp) ? $arMessagesTmp["ELEMENT_ADD"] : "");
 
 		$workflowTemplateId = 0;
 		$db = CBPWorkflowTemplateLoader::GetList(array(), array("DOCUMENT_TYPE" => array("bizproc", "CBPVirtualDocument", "type_".$arBlock["ID"])), false, false, array("ID"));

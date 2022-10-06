@@ -1,14 +1,4 @@
 <?
-/** @var CBitrixComponent $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @var string $componentPath */
-/** @var string $componentName */
-/** @var string $componentTemplate */
-/** @global CDatabase $DB */
-/** @global CUser $USER */
-/** @global CMain $APPLICATION */
-
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 if (!CModule::IncludeModule("socialnetwork"))
@@ -26,33 +16,33 @@ if (strLen($arParams["USER_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_SEARCH"] = trim($arParams["PATH_TO_SEARCH"]);
 if (strlen($arParams["PATH_TO_SEARCH"]) <= 0)
-	$arParams["PATH_TO_SEARCH"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
+	$arParams["PATH_TO_SEARCH"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
 
 $arParams["PATH_TO_SEARCH_INNER"] = trim($arParams["PATH_TO_SEARCH_INNER"]);
 if (strlen($arParams["PATH_TO_SEARCH_INNER"]) <= 0)
-	$arParams["PATH_TO_SEARCH_INNER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
+	$arParams["PATH_TO_SEARCH_INNER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
 
 $arParams["PATH_TO_USER_FRIENDS_ADD"] = trim($arParams["PATH_TO_USER_FRIENDS_ADD"]);
 if(strlen($arParams["PATH_TO_USER_FRIENDS_ADD"])<=0)
-	$arParams["PATH_TO_USER_FRIENDS_ADD"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_friends_add&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER_FRIENDS_ADD"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_friends_add&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM"] = trim($arParams["PATH_TO_MESSAGE_FORM"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGES_CHAT"] = trim($arParams["PATH_TO_MESSAGES_CHAT"]);
 if (strlen($arParams["PATH_TO_MESSAGES_CHAT"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
-
-$arParams["SHOW_USERS_WITHOUT_FILTER_SET"] = ($arParams["SHOW_USERS_WITHOUT_FILTER_SET"] == "Y" ? "Y" : "N");
+	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
+	
+$arParams["SHOW_USERS_WITHOUT_FILTER_SET"] = ($arParams["SHOW_USERS_WITHOUT_FILTER_SET"] == "Y" ? "Y" : "N"); 
 
 if(!isset($arParams["CACHE_TIME"]))
 	$arParams["CACHE_TIME"] = 3600;
-
+	
 if ($arParams['CACHE_TYPE'] == 'A')
 	$arParams['CACHE_TYPE'] = COption::GetOptionString("main", "component_cache_on", "Y");
 
@@ -65,8 +55,8 @@ $arParams['SHOW_YEAR'] = $arParams['SHOW_YEAR'] == 'Y' ? 'Y' : ($arParams['SHOW_
 $arParams["DATE_TIME_FORMAT"] = Trim($arParams["DATE_TIME_FORMAT"]);
 $arParams["DATE_TIME_FORMAT"] = ((StrLen($arParams["DATE_TIME_FORMAT"]) <= 0) ? $DB->DateFormatToPHP(CSite::GetDateFormat("FULL")) : $arParams["DATE_TIME_FORMAT"]);
 
-if (strlen($arParams["NAME_TEMPLATE"]) <= 0)
-	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+if (strlen($arParams["NAME_TEMPLATE"]) <= 0)		
+	$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 $bUseLogin = $arParams['SHOW_LOGIN'] != "N" ? true : false;
 
 
@@ -83,8 +73,6 @@ if (!isset($arParams["USER_FIELDS_LIST"]) || !is_array($arParams["USER_FIELDS_LI
 	$arParams["USER_FIELDS_LIST"] = array();
 if (!isset($arParams["USER_PROPERTY_LIST"]) || !is_array($arParams["USER_PROPERTY_LIST"]))
 	$arParams["USER_PROPERTY_LIST"] = array();
-if (empty($arParams["USER_PROPERTY_LIST"]) && isset($arParams["USER_PROPERTIES_LIST"]) && !empty($arParams["USER_PROPERTIES_LIST"]))
-	$arParams["USER_PROPERTY_LIST"] = $arParams["USER_PROPERTIES_LIST"];
 
 if (!isset($arParams["USER_FIELDS_SEARCHABLE"]) || !is_array($arParams["USER_FIELDS_SEARCHABLE"]))
 	$arParams["USER_FIELDS_SEARCHABLE"] = array();
@@ -118,7 +106,7 @@ if ($arParams["SET_TITLE"] == "Y")
 if ($arParams["SET_NAV_CHAIN"] != "N")
 	$APPLICATION->AddChainItem(GetMessage("SONET_C241_PAGE_TITLE"));
 
-$arResult["Urls"]["UserSearch"] = (\Bitrix\Main\ModuleManager::isModuleInstalled('intranet') ? $APPLICATION->GetCurPage() : CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_SEARCH_INNER"], array()));
+$arResult["Urls"]["UserSearch"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_SEARCH_INNER"], array());
 $arResult["Params"]["UserSearch"] = array();
 if (StrPos($arResult["Urls"]["UserSearch"], "?") !== false)
 {
@@ -129,12 +117,12 @@ if (StrPos($arResult["Urls"]["UserSearch"], "?") !== false)
 		$str = Trim($str);
 		$p = StrPos($str, "=");
 		if (StrLen($str) > 0 && $p !== false)
-			$arResult["Params"]["UserSearch"][htmlspecialcharsbx(SubStr($str, 0, $p))] = htmlspecialcharsbx(SubStr($str, $p + 1));
+			$arResult["Params"]["UserSearch"][HtmlSpecialChars(SubStr($str, 0, $p))] = HtmlSpecialChars(SubStr($str, $p + 1));
 	}
 }
-$arResult["Urls"]["ViewList"] = htmlspecialcharsbx($APPLICATION->GetCurPageParam("current_view=list", array("current_view")));
-$arResult["Urls"]["ViewIcon"] = htmlspecialcharsbx($APPLICATION->GetCurPageParam("current_view=icon", array("current_view")));
-$arResult["Urls"]["ViewBigIcon"] = htmlspecialcharsbx($APPLICATION->GetCurPageParam("current_view=bigicon", array("current_view")));
+$arResult["Urls"]["ViewList"] = htmlspecialchars($APPLICATION->GetCurPageParam("current_view=list", array("current_view")));
+$arResult["Urls"]["ViewIcon"] = htmlspecialchars($APPLICATION->GetCurPageParam("current_view=icon", array("current_view")));
+$arResult["Urls"]["ViewBigIcon"] = htmlspecialchars($APPLICATION->GetCurPageParam("current_view=bigicon", array("current_view")));
 
 $currentFilter = ($_REQUEST['current_filter'] == 'adv' ? 'adv' : 'simple');
 $arResult['CURRENT_FILTER'] = $currentFilter;
@@ -288,8 +276,7 @@ if (count($arParams["USER_FIELDS_SEARCH_SIMPLE"]) > 0 || count($arParams["USER_F
 					$arVal["TYPE"] = "select";
 					$arVal["VALUES"] = array();
 					$arCountriesTmp = GetCountryArray(LANGUAGE_ID);
-					$tmpCnt = count($arCountriesTmp["reference_id"]);
-					for ($i = 0; $i < $tmpCnt; $i++)
+					for ($i = 0; $i < count($arCountriesTmp["reference_id"]); $i++)
 						$arVal["VALUES"][$arCountriesTmp["reference_id"][$i]] = $arCountriesTmp["reference"][$i];
 					break;
 
@@ -344,24 +331,7 @@ foreach ($_REQUEST as $key => $value)
 		$value = array();
 		foreach ($value1 as $val)
 		{
-			if (Is_Array($val))
-			{
-				foreach($val as $tmpkey => $tmpval)
-				{
-					$tmpval = preg_replace('#[\(\)]#', '', $tmpval);
-					$val[$tmpkey] = $tmpval;
-				}
-			}
-			else
-			{
-				$val = preg_replace('#[\(\)]#', '', $val);
-			}
-
-			
-			if (
-				(Is_Array($val) && Count($val) > 0)
-				|| (!Is_Array($val) && StrLen($val) > 0)
-			)
+			if (Is_Array($val) && Count($val) > 0 || !Is_Array($val) && StrLen($val) > 0)
 				$value[] = $val;
 		}
 
@@ -370,7 +340,6 @@ foreach ($_REQUEST as $key => $value)
 	}
 	else
 	{
-		$value = preg_replace('#[\(\)]#', '', $value);
 		if (StrLen($value) <= 0)
 			continue;
 	}
@@ -420,14 +389,12 @@ foreach ($_REQUEST as $key => $value)
 				$arFilter[$keyTmp] = $value;
 
 			$arResult["ShowResults"] = true;
-			$bFilter = true;
+			$bFilter = true;			
 		}
 	}
 }
 
 //*****************************************************************************************************//
-// activation rating
-CRatingsComponentsMain::GetShowRating($arParams);
 
 if ($arResult["ShowResults"])
 {
@@ -439,15 +406,15 @@ if ($arResult["ShowResults"])
 	if ($arResult['CURRENT_VIEW'] == "icon")
 		$iSize = 100;
 
-
-
+		
+		
 	if (!$bFilter)
 	{
 		$cache_id = $this->GetName().'|'.$arParams['ITEMS_COUNT'].'|'.$by.'|'.$order.'|'.$iSize.'|'.$arParams["PATH_TO_USER"].'|'.$arParams["PATH_TO_USER_FRIENDS_ADD"].'|'.$arParams["PATH_TO_MESSAGE_FORM"].'|'.$arParams["PATH_TO_MESSAGES_CHAT"].'|'.$arParams['NAME_TEMPLATE'].'|'.$bUseLogin.'|'.$arParams['SHOW_YEAR'].'|'.implode(';', $arParams['USER_FIELDS_LIST']).'|'.implode(';', $arParams['USER_PROPERTY_LIST']).CDBResult::NavStringForCache($arParams['ITEMS_COUNT'], false);
 		$obCache = new CPHPCache();
 	}
 
-	if ($arParams["SHOW_RATING"] == 'Y' && array_key_exists("RATING_ID", $arParams) && intval($arParams["RATING_ID"]) > 0)
+	if ($arParams["SHOW_RATING"] == 'Y' && array_key_exists("RATING_ID", $arParams) && intval($arParams["RATING_ID"]) > 0) 
 	{
 		$db_rating = CRatings::GetByID($arParams["RATING_ID"]);
 		if ($arRating = $db_rating->GetNext())
@@ -464,16 +431,8 @@ if ($arResult["ShowResults"])
 		foreach($arResult['SEARCH_RESULT'] as $i => $arUser)
 		{
 			$arUser["SHOW_PROFILE_LINK"] = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
-			$arUser["CAN_MESSAGE"] = (
-				$GLOBALS["USER"]->IsAuthorized() 
-				&& ($GLOBALS["USER"]->GetID() != $arUser["ID"]) 
-				&& ($arUser["ACTIVE"] != "N")				
-				&& (
-					IsModuleInstalled("im") 
-					|| CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin())
-				)
-			);
-			$arUser["IS_ONLINE"] = ($arUser["IS_ONLINE"] == "Y");
+			$arUser["CAN_MESSAGE"] = ($GLOBALS["USER"]->IsAuthorized() && ($GLOBALS["USER"]->GetID() != $arUser["ID"]) && CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin()));
+			$arUser["IS_ONLINE"] = CSocNetUser::IsOnLine($arUser["ID"]);
 
 			if ($GLOBALS["USER"]->IsAuthorized() && ($GLOBALS["USER"]->GetID() != $arUser["ID"]) && CSocNetUser::IsFriendsAllowed())
 			{
@@ -482,7 +441,7 @@ if ($arResult["ShowResults"])
 			}
 			else
 				$arUser["CAN_ADD2FRIENDS"] = false;
-
+			
 			$arResult['SEARCH_RESULT'][$i] = $arUser;
 		}
 
@@ -492,12 +451,12 @@ if ($arResult["ShowResults"])
 		$arListParam = array(
 			"NAV_PARAMS" => $arNavParams,
 		);
-		if ($arParams["ALLOW_RATING_SORT"] == 'Y')
+		if ($arParams["ALLOW_RATING_SORT"] == 'Y') 
 			$by="RATING_".$arParams["RATING_ID"];
-
-		if ($arParams["SHOW_RATING"] == 'Y')
+			
+		if ($arParams["SHOW_RATING"] == 'Y') 
 			$arListParam["SELECT"][]="RATING_".$arParams["RATING_ID"];
-
+		
 		$dbUsers = CUser::GetList(
 			$by,
 			$order="desc",
@@ -510,7 +469,7 @@ if ($arResult["ShowResults"])
 			$arUser["URL"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUser["ID"]));
 
 			$arUser["SHOW_PROFILE_LINK"] = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
-			$arUser["CAN_MESSAGE"] = ($GLOBALS["USER"]->IsAuthorized() && ($GLOBALS["USER"]->GetID() != $arUser["ID"]) && (IsModuleInstalled("im") || CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin())));
+			$arUser["CAN_MESSAGE"] = ($GLOBALS["USER"]->IsAuthorized() && ($GLOBALS["USER"]->GetID() != $arUser["ID"]) && CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin()));
 
 			if (intval($arUser["PERSONAL_PHOTO"]) <= 0)
 			{
@@ -534,7 +493,7 @@ if ($arResult["ShowResults"])
 
 			$arUser["NAME_FORMATED"] = CUser::FormatName($arParams['NAME_TEMPLATE'], $arUser, $bUseLogin);
 
-			$arUser["IS_ONLINE"] = ($arUser["IS_ONLINE"] == "Y");
+			$arUser["IS_ONLINE"] = CSocNetUser::IsOnLine($arUser["ID"]);
 
 			if ($GLOBALS["USER"]->IsAuthorized() && ($GLOBALS["USER"]->GetID() != $arUser["ID"]) && CSocNetUser::IsFriendsAllowed())
 			{
@@ -598,7 +557,7 @@ if ($arResult["ShowResults"])
 									$val = '<a href="callto:'.$valEncoded.'">'.$val.'</a>';
 								}
 								break;
-
+							
 							case 'PERSONAL_GENDER':
 								$val = (($val == 'F') ? GetMessage("SONET_C241_FEMALE") : (($val == 'M') ? GetMessage("SONET_C241_MALE") : ""));
 								break;
@@ -610,7 +569,7 @@ if ($arResult["ShowResults"])
 									$val = $arBirthdayTmp["DATE"];
 								}
 								break;
-
+							
 
 							default:
 								break;
@@ -646,7 +605,7 @@ if ($arResult["ShowResults"])
 		}
 
 		$arResult["NAV_STRING"] = $dbUsers->GetPageNavStringEx($navComponentObject, GetMessage("SONET_C241_NAV"), "", false);
-
+		
 		if (!$bFilter)
 		{
 			$obCache->StartDataCache();

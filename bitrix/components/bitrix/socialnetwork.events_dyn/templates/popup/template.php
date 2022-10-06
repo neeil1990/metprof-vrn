@@ -1,6 +1,6 @@
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 <?
-$GLOBALS["APPLICATION"]->AddHeadScript("/bitrix/js/main/utils.js");
+$GLOBALS['APPLICATION']->AddHeadString('<script src="/bitrix/js/main/utils.js"></script>', true);
 
 CAjax::Init();
 if (!array_key_exists("USE_TOOLTIP", $arResult) || $arResult["USE_TOOLTIP"])
@@ -185,7 +185,8 @@ $ajax_page = $APPLICATION->GetCurPageParam("", array("bxajaxid", "logout"));
 								<input type="button" id="sonet_events_ms_answer" name="do_message_answer" value="<?= GetMessage("SONET_C2_ANSWER") ?>">
 							</td>
 							<td>
-								<input type="button" id="sonet_events_ms_close" name="do_message_close" value="<?=GetMessage("SONET_C2_CLOSE") ?>">
+								<input type="button" id="sonet_events_ms_close" name="do_message_close" value="<?=
+ GetMessage("SONET_C2_CLOSE") ?>">
 							</td>
 						</tr>
 						</table>

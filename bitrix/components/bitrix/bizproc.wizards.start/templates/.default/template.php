@@ -11,7 +11,7 @@ else
 	if (strlen($arResult["ErrorMessage"]) > 0)
 	{
 		?>
-		<font class='errortext'><?= $arResult["ErrorMessage"] ?></font><br /><br />
+		<span class='errortext'><?= $arResult["ErrorMessage"] ?></span><br /><br />
 		<?
 	}
 
@@ -49,7 +49,7 @@ else
 		<br>
 
 		<form method="post" name="start_workflow_form1" action="<?= POST_FORM_ACTION_URI ?>" enctype="multipart/form-data">
-			<input type="hidden" name="back_url" value="<?= htmlspecialcharsbx($arResult["BackUrl"]) ?>">
+			<input type="hidden" name="back_url" value="<?= htmlspecialchars($arResult["BackUrl"]) ?>">
 			<?= bitrix_sessid_post() ?>
 			<table class="bpwiz1-view-form data-table" cellpadding="0" cellspacing="0">
 			<tr>
@@ -76,15 +76,15 @@ else
 					continue;
 				?>
 				<tr>
-					<td align="right" width="40%" valign="top"><?= $arParameter["Required"] ? "<span style=\"color:red\">*</span> " : ""?><?= htmlspecialcharsbx($arParameter["Name"]) ?>:<?if (strlen($arParameter["Description"]) > 0) echo "<br /><small>".htmlspecialcharsbx($arParameter["Description"])."</small><br />";?></td>
+					<td align="right" width="40%" valign="top"><?= $arParameter["Required"] ? "<span style=\"color:red\">*</span> " : ""?><?= htmlspecialchars($arParameter["Name"]) ?>:<?if (strlen($arParameter["Description"]) > 0) echo "<br /><small>".htmlspecialchars($arParameter["Description"])."</small><br />";?></td>
 					<td width="60%" valign="top"><?
-						echo $arResult["DocumentService"]->GetFieldInputControl(
+						echo $arResult["DocumentService"]->GetGUIFieldEdit(
 							array("bizproc", "CBPVirtualDocument", "type_".$arParams["BLOCK_ID"]),
-							$arParameter,
-							array("Form" => "start_workflow_form1", "Field" => $parameterKey),
+							"start_workflow_form1",
+							$parameterKey,
 							$arResult["ParametersValues"][$parameterKey],
-							false,
-							true
+							$arParameter,
+							false
 						);
 					?></td>
 				</tr>

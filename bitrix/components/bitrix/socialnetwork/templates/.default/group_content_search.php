@@ -1,4 +1,5 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
+
 <?
 $pageId = "group_content_search";
 include("util_group_menu.php");
@@ -13,10 +14,7 @@ if (!CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_
 }
 ?>
 <?
-if(
-	isset($arGroupFields["NAME"])
-	&& strlen(trim($arGroupFields["NAME"])) > 0
-)
+if(is_array($arGroupFields) && array_key_exists("NAME", $arGroupFields) && strlen(trim($arGroupFields["NAME"])) > 0)
 {
 	$feature = "search";
 	$arEntityActiveFeatures = CSocNetFeatures::GetActiveFeaturesNames(SONET_ENTITY_GROUP, $arResult["VARIABLES"]["group_id"]);		
@@ -26,8 +24,7 @@ if(
 }
 ?>
 <?$APPLICATION->IncludeComponent("bitrix:search.page", "tags_icons", array(
-	"RESTART" => $arParams["SEARCH_RESTART"],
-	"USE_LANGUAGE_GUESS" => $arParams["SEARCH_USE_LANGUAGE_GUESS"],
+	"RESTART" => "N",
 	"CHECK_DATES" => "N",
 	"USE_TITLE_RANK" => "N",
 	"FILTER_NAME" => $arParams["SEARCH_FILTER_NAME"],
@@ -72,9 +69,6 @@ if(
 	"COLOR_TYPE" => "Y",
 	"WIDTH" => "100%",
 	"AJAX_OPTION_ADDITIONAL" => "",
-	"SHOW_RATING" => $arParams["SHOW_RATING"],
-	"RATING_TYPE" => $arParams["RATING_TYPE"],
-	"PATH_TO_USER" => $arResult["PATH_TO_USER"],
 	"PATH_TO_GROUP_BLOG" => $arResult["PATH_TO_GROUP_BLOG"],
 	"PATH_TO_GROUP_FORUM" => $arResult["PATH_TO_GROUP_FORUM"],
 	"PATH_TO_GROUP_FILES" => $arResult["PATH_TO_GROUP_FILES"],
@@ -87,6 +81,7 @@ if(
 	"SOCNET_GROUP_ID" => $arResult["VARIABLES"]["group_id"],
 	"FILES_GROUP_IBLOCK_ID" => $arParams["FILES_GROUP_IBLOCK_ID"],
 	"CALENDAR_GROUP_IBLOCK_ID" => $arParams["CALENDAR_GROUP_IBLOCK_ID"],
+	"TASKS_GROUP_IBLOCK_ID" => $arParams["TASK_IBLOCK_ID"],
 	"PHOTO_GROUP_IBLOCK_ID" => $arParams["PHOTO_GROUP_IBLOCK_ID"],	),
 	$component
 );?>

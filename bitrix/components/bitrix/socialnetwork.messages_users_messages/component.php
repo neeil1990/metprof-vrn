@@ -1,9 +1,6 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
-if (IsModuleInstalled("im"))
-	LocalRedirect('/?IM_HISTORY='.IntVal($arParams["USER_ID"]), false, "301 Moved permanently");
-
 if (!CModule::IncludeModule("socialnetwork"))
 {
 	ShowError(GetMessage("SONET_MODULE_NOT_INSTALL"));
@@ -23,27 +20,27 @@ if (strLen($arParams["MESSAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM"] = trim($arParams["PATH_TO_MESSAGE_FORM"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM_MESS"] = trim($arParams["PATH_TO_MESSAGE_FORM_MESS"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM_MESS"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM_MESS"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form_mess&".$arParams["USER_VAR"]."=#user_id#&".$arParams["MESSAGE_VAR"]."=#message_id#");
+	$arParams["PATH_TO_MESSAGE_FORM_MESS"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form_mess&".$arParams["USER_VAR"]."=#user_id#&".$arParams["MESSAGE_VAR"]."=#message_id#");
 
 $arParams["PATH_TO_MESSAGES_CHAT"] = trim($arParams["PATH_TO_MESSAGES_CHAT"]);
 if (strlen($arParams["PATH_TO_MESSAGES_CHAT"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGES_USERS"] = trim($arParams["PATH_TO_MESSAGES_USERS"]);
 if (strlen($arParams["PATH_TO_MESSAGES_USERS"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_USERS"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users");
+	$arParams["PATH_TO_MESSAGES_USERS"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users");
 
 $arParams["PATH_TO_MESSAGES_USERS_MESSAGES"] = trim($arParams["PATH_TO_MESSAGES_USERS_MESSAGES"]);
 if (strlen($arParams["PATH_TO_MESSAGES_USERS_MESSAGES"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_USERS_MESSAGES"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users_messages&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGES_USERS_MESSAGES"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users_messages&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
@@ -161,7 +158,7 @@ else
 		/*********************  END ACTIONS  *****************************/
 
 		if (strlen($arParams["NAME_TEMPLATE"]) <= 0)		
-			$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+			$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 		$bUseLogin = $arParams['SHOW_LOGIN'] != "N" ? true : false;
 
 		$arTmpUser = array(
@@ -196,16 +193,13 @@ else
 			$APPLICATION->AddChainItem(GetMessage("SONET_C31_PAGE_TITLE"));
 		}
 
-		$arResult["IS_ONLINE"] = ($arResult["User"]["IS_ONLINE"] == "Y");
+		$arResult["IS_ONLINE"] = CSocNetUser::IsOnLine($arResult["User"]["ID"]);
 
 		$arResult["CanViewProfile"] = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
-		$arResult["CanMessage"] = (
-			($arResult["User"]["ACTIVE"] != "N")
-			&& (IsModuleInstalled("im") || CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin()))
-		);
+		$arResult["CanMessage"] = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin());
 		$arResult["UsersRelation"] = CSocNetUserRelations::GetRelation($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"]);
 
-		$arResult["Urls"]["BanLink"] = htmlspecialcharsbx($APPLICATION->GetCurUri("userID=".$arResult["User"]["ID"]."&action=ban&".bitrix_sessid_get().""));
+		$arResult["Urls"]["BanLink"] = htmlspecialchars($APPLICATION->GetCurUri("userID=".$arResult["User"]["ID"]."&action=ban&".bitrix_sessid_get().""));
 		$arResult["ShowBanLink"] = (!CSocNetUser::IsUserModuleAdmin($arResult["User"]["ID"]) && $arResult["User"]["ID"] != $GLOBALS["USER"]->GetID() && (!$arResult["UsersRelation"] || $arResult["UsersRelation"] != SONET_RELATIONS_BAN));
 
 		if (intval($arResult["User"]["PERSONAL_PHOTO"]) <= 0)
@@ -247,8 +241,8 @@ else
 				"DATE_CREATE_FMT" => $arMessages["DATE_CREATE_FMT"],
 				"DATE_CREATE_FORMAT" => $arMessages["DATE_CREATE_FORMAT"],
 				"IS_READ" => (StrLen($arMessages["DATE_VIEW"]) > 0 || $arMessages["WHO"] == "OUT"),
-				"READ_LINK" => htmlspecialcharsbx($APPLICATION->GetCurUri("eventID=".$arMessages["ID"]."&action=close&".bitrix_sessid_get()."")),
-				"DELETE_LINK" => htmlspecialcharsbx($APPLICATION->GetCurUri("eventID=".$arMessages["ID"]."&action=delete&".bitrix_sessid_get()."")),
+				"READ_LINK" => htmlspecialchars($APPLICATION->GetCurUri("eventID=".$arMessages["ID"]."&action=close&".bitrix_sessid_get()."")),
+				"DELETE_LINK" => htmlspecialchars($APPLICATION->GetCurUri("eventID=".$arMessages["ID"]."&action=delete&".bitrix_sessid_get()."")),
 				"MESSAGE" => $parser->convert(
 					$arMessages["~MESSAGE"],
 					false,

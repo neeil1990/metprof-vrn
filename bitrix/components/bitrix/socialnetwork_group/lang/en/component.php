@@ -1,6 +1,5 @@
 <?
 $MESS["SONET_MODULE_NOT_INSTALL"] = "The Social Network module is not installed.";
-$MESS["SONET_WORKGROUPS_FEATURE_DISABLED"] = "The workgroup feature is disabled.";
 $MESS["SONET_LOADING"] = "Loading...";
 $MESS["FL_FORUM_CHAIN"] = "Forum";
 $MESS["FL_FORUM_USER_CHAIN"] = "Forum";
@@ -12,7 +11,8 @@ Author: #TITLE# (#URL#).";
 $MESS["SONET_LOG_TEMPLATE_AUTHOR"] = "
 Author: <a href=\"#URL#\">#TITLE#</a>.";
 $MESS["SONET_LOG_TEMPLATE_GUEST"] = "
-Author: #AUTHOR_NAME#.";
+Author: Guest.";
+$MESS["SONET_ACCESS_DENIED"] = "Access denied.";
 $MESS["SONET_CREATE_WEBDAV"] = "Create Library";
 $MESS["IBLOCK_DEFAULT_UF"] = "Default Gallery";
 $MESS["SONET_FILES"] = "Files";
@@ -30,6 +30,14 @@ $MESS["SONET_IB_MODULE_IS_NOT_INSTALLED"] = "The Information Blocks module is no
 $MESS["SONET_P_MODULE_IS_NOT_INSTALLED"] = "The Photo Gallery module is not installed.";
 $MESS["SONET_GALLERIES_IS_NOT_ACTIVE"] = "Your photo galleries are currently inactive. Please contact the administrator.";
 $MESS["SONET_GALLERY_IS_NOT_ACTIVE"] = "Your photo gallery is currently inactive. Please contact the administrator.";
+$MESS["SONET_FILES_LOG"] = "#AUTHOR_NAME# added a file #TITLE#.";
+$MESS["SONET_FILES_LOG_TEXT"] = "New file #TITLE# at #URL#.";
+$MESS["SONET_PHOTO_LOG_1"] = "#AUTHOR_NAME# added a file #TITLE#";
+$MESS["SONET_PHOTO_LOG_2"] = "Photos (#COUNT#)";
+$MESS["SONET_PHOTO_LOG_TEXT"] = "New photos: <div class=\"notificationlog\">#LINKS#</div> <a href=\"#HREF#\">Open album</a>.";
+$MESS["SONET_PHOTO_LOG_MAIL_TEXT"] = "New photos: #LINKS# and other.";
+$MESS["SONET_LOG_GUEST"] = "Guest";
 $MESS["SONET_NAME_TEMPLATE_DEFAULT"] = "#NOBR##NAME# #LAST_NAME##/NOBR#";
 $MESS["SONET_CONTENT_SEARCH_CHAIN"] = "Search";
+$MESS["SONET_WORKGROUPS_FEATURE_DISABLED"] = "The workgroup feature is disabled.";
 ?>

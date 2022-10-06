@@ -1,114 +1,549 @@
-<? if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+<?
+if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)
+	die();
 
-CJSCore::Init(array('window', 'lists'));
+CUtil::InitJSCore(array("window"));
 
-$jsClass = 'ListsElementEditClass_'.$arResult['RAND_STRING'];
-$urlTabBp = CHTTP::urlAddParams(
-	$APPLICATION->GetCurPageParam("", array($arResult["FORM_ID"]."_active_tab")),
-	array($arResult["FORM_ID"]."_active_tab" => "tab_bp")
-);
-$socnetGroupId = $arParams["SOCNET_GROUP_ID"] ? $arParams["SOCNET_GROUP_ID"] : 0;
-$sectionId = $arResult["SECTION_ID"] ? $arResult["SECTION_ID"] : 0;
+$arToolbar = array();
 
-$listAction = array();
-if (isset($arResult["LIST_COPY_ELEMENT_URL"]))
+if($arResult["IBLOCK_PERM"] >= "W")
 {
-	if($arResult["CAN_ADD_ELEMENT"])
+	if($arResult["ELEMENT_ID"])
 	{
-		$listAction[] = array(
-			"id" => "copyElement",
-			"text" => GetMessage("CT_BLEE_TOOLBAR_COPY_ELEMENT"),
-			"url" => $arResult["LIST_COPY_ELEMENT_URL"],
-			"action" => 'document.location.href="'.$arResult["LIST_COPY_ELEMENT_URL"].'"',
+		$arToolbar[] = array(
+			"TEXT"=>$arResult["IBLOCK"]["ELEMENT_DELETE"],
+			"TITLE"=>GetMessage("CT_BLEE_TOOLBAR_DELETE_TITLE"),
+			"LINK"=>"javascript:jsDelete('form_".$arResult["FORM_ID"]."', '".GetMessage("CT_BLEE_TOOLBAR_DELETE_WARNING")."')",
+			"ICON"=>"btn-delete-element",
 		);
 	}
 }
 
-if($arResult["CAN_DELETE_ELEMENT"])
-{
-	$listAction[] = array(
-		"id" => "deleteElement",
-		"text" => $arResult["IBLOCK"]["ELEMENT_DELETE"],
-		"action" => "BX.Lists['".$jsClass."'].elementDelete('form_".$arResult["FORM_ID"]."',
-			'".GetMessage("CT_BLEE_TOOLBAR_DELETE_WARNING")."')",
+if(count($arToolbar))
+	$arToolbar[] = array(
+		"SEPARATOR"=>"Y",
 	);
-}
 
-$isBitrix24Template = (SITE_TEMPLATE_ID == "bitrix24");
-$pagetitleAlignRightContainer = "lists-align-right-container";
-if($isBitrix24Template)
-{
-	$this->SetViewTarget("pagetitle", 100);
-	$pagetitleAlignRightContainer = "";
-}
-elseif(!IsModuleInstalled("intranet"))
-{
-	$APPLICATION->SetAdditionalCSS("/bitrix/js/lists/css/intranet-common.css");
-}
-?>
-<div class="pagetitle-container pagetitle-align-right-container <?=$pagetitleAlignRightContainer?>">
-	<a href="<?=$arResult["LIST_SECTION_URL"]?>" class="lists-list-back">
-		<?=GetMessage("CT_BLEE_TOOLBAR_RETURN_LIST_ELEMENT")?>
-	</a>
-	<?if($listAction):?>
-	<span id="lists-title-action" class="webform-small-button webform-small-button-transparent bx-filter-button">
-		<span class="webform-small-button-text"><?=GetMessage("CT_BLEE_TOOLBAR_ACTION")?></span>
-		<span id="lists-title-action-icon" class="webform-small-button-icon"></span>
-	</span>
-	<?endif;?>
-</div>
-<?
-if($isBitrix24Template)
-{
-	$this->EndViewTarget();
-}
+$arToolbar[] = array(
+	"TEXT"=>$arResult["IBLOCK"]["ELEMENTS_NAME"],
+	"TITLE"=>GetMessage("CT_BLEE_TOOLBAR_LIST_TITLE"),
+	"LINK"=>$arResult["LIST_SECTION_URL"],
+	"ICON"=>"btn-view-elements",
+);
 
-$tabElement = array();
-$cuctomHtml = "";
-foreach($arResult["FIELDS"] as $fieldId => $field)
+$APPLICATION->IncludeComponent(
+	"bitrix:main.interface.toolbar",
+	"",
+	array(
+		"BUTTONS"=>$arToolbar,
+	),
+	$component, array("HIDE_ICONS" => "Y")
+);
+
+$arTabElement = array();
+
+foreach($arResult["FIELDS"] as $FIELD_ID => $arField)
 {
-	$field["LIST_SECTIONS_URL"] = $arParams["~LIST_SECTIONS_URL"];
-	$field["SOCNET_GROUP_ID"] = $socnetGroupId;
-	$field["LIST_ELEMENT_URL"] = $arParams["~LIST_ELEMENT_URL"];
-	$field["LIST_FILE_URL"] = $arParams["~LIST_FILE_URL"];
-	$field["IBLOCK_ID"] = $arResult["IBLOCK_ID"];
-	$field["SECTION_ID"] = intval($arParams["~SECTION_ID"]);
-	$field["ELEMENT_ID"] = $arResult["ELEMENT_ID"];
-	$field["FIELD_ID"] = $fieldId;
-	$field["VALUE"] = $arResult["FORM_DATA"]["~".$fieldId];
-	$field["COPY_ID"] = $arResult["COPY_ID"];
-	$preparedData = \Bitrix\Lists\Field::prepareFieldDataForEditForm($field);
-	if($preparedData)
+	if($FIELD_ID == "ACTIVE_FROM" || $FIELD_ID == "ACTIVE_TO")
 	{
-		$tabElement[] = $preparedData;
-		if(!empty($preparedData["customHtml"]))
+		$arTabElement[] = array(
+			"id" => $FIELD_ID,
+			"name" => $arField["NAME"],
+			"required" => $arField["IS_REQUIRED"]=="Y"? true: false,
+			"type" => "date",
+		);
+	}
+	elseif($FIELD_ID == "PREVIEW_PICTURE" || $FIELD_ID == "DETAIL_PICTURE")
+	{
+		$obFile = new CListFile(
+			$arResult["IBLOCK_ID"],
+			$arResult["ELEMENT_FIELDS"]["IBLOCK_SECTION_ID"],
+			$arResult["ELEMENT_ID"],
+			$FIELD_ID,
+			$arResult["FORM_DATA"][$FIELD_ID]
+		);
+		$obFile->SetSocnetGroup($arParams["SOCNET_GROUP_ID"]);
+
+		$obFileControl = new CListFileControl($obFile, $FIELD_ID);
+
+		$html = $obFileControl->GetHTML(array(
+			'max_size' => 102400,
+			'max_width' => 150,
+			'max_height' => 150,
+			'url_template' => $arParams["~LIST_FILE_URL"],
+			'a_title' => GetMessage("CT_BLEE_ENLARGE"),
+			'download_text' => GetMessage("CT_BLEE_DOWNLOAD"),
+		));
+
+		$arTabElement[] = array(
+			"id" => $FIELD_ID,
+			"name" => $arField["NAME"],
+			"required" => $arField["IS_REQUIRED"]=="Y"? true: false,
+			"type" => "custom",
+			"value" => $html,
+		);
+	}
+	elseif($FIELD_ID == "PREVIEW_TEXT" || $FIELD_ID == "DETAIL_TEXT")
+	{
+		if($arField["SETTINGS"]["USE_EDITOR"] == "Y")
 		{
-			$cuctomHtml .= $preparedData["customHtml"];
+			$params = array(
+				"width" => "100%",
+				"height" => "200px",
+			);
+			if(preg_match('/\s*(\d+)\s*(px|%|)/', $arField["SETTINGS"]["WIDTH"], $match) && ($match[1] > 0))
+			{
+				$params["width"] = $match[1].$match[2];
+			}
+			if(preg_match('/\s*(\d+)\s*(px|%|)/', $arField["SETTINGS"]["HEIGHT"], $match) && ($match[1] > 0))
+			{
+				$params["height"] = $match[1].$match[2];
+			}
+
+			ob_start();
+			$LHE = new CLightHTMLEditor;
+			$LHE->Show(array(
+				'id' => preg_replace("/[^a-z0-9]/i", '', "PROPERTY[".$propertyID."][0]"),
+				'width' => $params["width"],
+				'height' => $params["height"],
+				'inputName' => $FIELD_ID,
+				'content' => $arResult["FORM_DATA"]["~".$FIELD_ID],
+				'bUseFileDialogs' => false,
+				'bFloatingToolbar' => false,
+				'bArisingToolbar' => false,
+				'toolbarConfig' => array(
+					'Bold', 'Italic', 'Underline', 'RemoveFormat',
+					'CreateLink', 'DeleteLink', 'Image', 'Video',
+					'BackColor', 'ForeColor',
+					'JustifyLeft', 'JustifyCenter', 'JustifyRight', 'JustifyFull',
+					'InsertOrderedList', 'InsertUnorderedList', 'Outdent', 'Indent',
+					'StyleList', 'HeaderList',
+					'FontList', 'FontSizeList',
+				),
+			));
+			$html = ob_get_contents();
+			ob_end_clean();
+
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type" => "custom",
+				"value" => $html,
+
+			);
+
 		}
+		else
+		{
+			$params = array(
+				"style" => "",
+			);
+			if(preg_match('/\s*(\d+)\s*(px|%|)/', $arField["SETTINGS"]["WIDTH"], $match) && ($match[1] > 0))
+			{
+				if($match[2] == "")
+					$params["cols"] = $match[1];
+				else
+					$params["style"] .= "width:".$match[1].$match[2].";";
+			}
+			if(preg_match('/\s*(\d+)\s*(px|%|)/', $arField["SETTINGS"]["HEIGHT"], $match) && ($match[1] > 0))
+			{
+				if($match[2] == "")
+					$params["rows"] = $match[1];
+				else
+					$params["style"] .= "height:".$match[1].$match[2].";";
+			}
+
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type" => "textarea",
+				"params" => $params,
+
+			);
+		}
+	}
+	elseif($FIELD_ID == "DATE_CREATE" || $FIELD_ID == "TIMESTAMP_X")
+	{
+		if($arResult["ELEMENT_FIELDS"][$FIELD_ID])
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type" => "custom",
+				"value" => $arResult["ELEMENT_FIELDS"][$FIELD_ID],
+			);
+	}
+	elseif($FIELD_ID == "CREATED_BY")
+	{
+		if($arResult["ELEMENT_FIELDS"]["CREATED_BY"])
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type" => "custom",
+				"value" => "[".$arResult["ELEMENT_FIELDS"]["CREATED_BY"]."] ".$arResult["ELEMENT_FIELDS"]["CREATED_USER_NAME"],
+			);
+	}
+	elseif($FIELD_ID == "MODIFIED_BY")
+	{
+		if($arResult["ELEMENT_FIELDS"]["MODIFIED_BY"])
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type" => "custom",
+				"value" => "[".$arResult["ELEMENT_FIELDS"]["MODIFIED_BY"]."] ".$arResult["ELEMENT_FIELDS"]["USER_NAME"],
+			);
+	}
+	elseif(is_array($arField["PROPERTY_USER_TYPE"]) && array_key_exists("GetPublicEditHTML", $arField["PROPERTY_USER_TYPE"]))
+	{
+		if($arField["MULTIPLE"] == "Y")
+		{
+			$html = '<table id="tbl'.$FIELD_ID.'"><tr><td>';
+			foreach($arResult["FORM_DATA"]["~".$FIELD_ID] as $key => $value)
+			{
+				$html .= '<tr><td>'.call_user_func_array($arField["PROPERTY_USER_TYPE"]["GetPublicEditHTML"],
+					array(
+						$arField,
+						$value,
+						array(
+							"VALUE"=>$FIELD_ID."[".$key."][VALUE]",
+							"DESCRIPTION"=>'',
+							"FORM_NAME"=>"form_".$arResult["FORM_ID"],
+							"MODE"=>"FORM_FILL",
+						),
+				)).'</td></tr>';
+			}
+			$html .= '</td></tr></table>';
+			$html .= '<input type="button" onclick="addNewTableRow(\'tbl'.$FIELD_ID.'\', 1, /'.$FIELD_ID.'\[(n)([0-9]*)\]/g, 2)" value="'.GetMessage("CT_BLEE_ADD_BUTTON").'">';
+
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type"=>"custom",
+				"value"=>$html,
+			);
+		}
+		else
+		{
+			foreach($arResult["FORM_DATA"]["~".$FIELD_ID] as $key => $value)
+			{
+				$html = call_user_func_array($arField["PROPERTY_USER_TYPE"]["GetPublicEditHTML"],
+					array(
+						$arField,
+						$value,
+						array(
+							"VALUE"=>$FIELD_ID."[".$key."][VALUE]",
+							"DESCRIPTION"=>'',
+							"FORM_NAME"=>"form_".$arResult["FORM_ID"],
+							"MODE"=>"FORM_FILL",
+						),
+				));
+				break;
+			}
+
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type"=>"custom",
+				"value"=>$html,
+			);
+		}
+	}
+	elseif($arField["PROPERTY_TYPE"] == "S" || $arField["PROPERTY_TYPE"] == "N")
+	{
+		if($arField["MULTIPLE"] == "Y")
+		{
+			$html = '<table id="tbl'.$FIELD_ID.'"><tr><td>';
+			foreach($arResult["FORM_DATA"][$FIELD_ID] as $key => $value)
+				$html .= '<tr><td><input type="text" name="'.$FIELD_ID.'['.$key.'][VALUE]" value="'.$value["VALUE"].'"></td></tr>';
+			$html .= '</td></tr></table>';
+			$html .= '<input type="button" onclick="addNewTableRow(\'tbl'.$FIELD_ID.'\', 1, /'.$FIELD_ID.'\[(n)([0-9]*)\]/g, 2)" value="'.GetMessage("CT_BLEE_ADD_BUTTON").'">';
+		}
+		else
+		{
+			foreach($arResult["FORM_DATA"][$FIELD_ID] as $key => $value)
+				$html = '<input type="text" name="'.$FIELD_ID.'['.$key.'][VALUE]" value="'.$value["VALUE"].'">';
+		}
+
+		$arTabElement[] = array(
+			"id"=>$FIELD_ID,
+			"name"=>$arField["NAME"],
+			"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+			"type"=>"custom",
+			"value"=>$html,
+		);
+	}
+	elseif($arField["PROPERTY_TYPE"] == "L")
+	{
+		if($arField["IS_REQUIRED"]=="Y")
+			$items = array();
+		else
+			$items = array("" => GetMessage("CT_BLEE_NO_VALUE"));
+
+		$prop_enums = CIBlockProperty::GetPropertyEnum($arField["ID"]);
+		while($ar_enum = $prop_enums->Fetch())
+			$items[$ar_enum["ID"]] = $ar_enum["VALUE"];
+
+		if($arField["MULTIPLE"] == "Y")
+		{
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID.'[]',
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type"=>'list',
+				"items"=>$items,
+				"value"=>$arResult["FORM_DATA"][$FIELD_ID],
+				"params" => array("size"=>5, "multiple"=>"multiple"),
+			);
+		}
+		else
+		{
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type"=>'list',
+				"items"=>$items,
+				"value"=>$arResult["FORM_DATA"][$FIELD_ID],
+			);
+		}
+	}
+	elseif($arField["PROPERTY_TYPE"] == "F")
+	{
+		if($arField["MULTIPLE"] == "Y")
+		{
+			$html = '<table id="tbl'.$FIELD_ID.'"><tr><td>';
+			foreach($arResult["FORM_DATA"][$FIELD_ID] as $key => $value)
+			{
+				$html .= '<tr><td>';
+
+				$obFile = new CListFile(
+					$arResult["IBLOCK_ID"],
+					$arResult["ELEMENT_FIELDS"]["IBLOCK_SECTION_ID"],
+					$arResult["ELEMENT_ID"],
+					$FIELD_ID,
+					$value["VALUE"]
+				);
+				$obFile->SetSocnetGroup($arParams["SOCNET_GROUP_ID"]);
+
+				$obFileControl = new CListFileControl($obFile, $FIELD_ID.'['.$key.'][VALUE]');
+
+				$html .= $obFileControl->GetHTML(array(
+					'max_size' => 102400,
+					'max_width' => 150,
+					'max_height' => 150,
+					'url_template' => $arParams["~LIST_FILE_URL"],
+					'a_title' => GetMessage("CT_BLEE_ENLARGE"),
+					'download_text' => GetMessage("CT_BLEE_DOWNLOAD"),
+				));
+
+				$html .= '</td></tr>';
+			}
+			$html .= '</td></tr></table>';
+			$html .= '<input type="button" onclick="addNewTableRow(\'tbl'.$FIELD_ID.'\', 1, /'.$FIELD_ID.'\[(n)([0-9]*)\]/g, 2)" value="'.GetMessage("CT_BLEE_ADD_BUTTON").'">';
+
+			$arTabElement[] = array(
+				"id"=>$FIELD_ID,
+				"name"=>$arField["NAME"],
+				"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+				"type"=>"custom",
+				"value"=>$html,
+			);
+		}
+		else
+		{
+			foreach($arResult["FORM_DATA"][$FIELD_ID] as $key => $value)
+			{
+				$obFile = new CListFile(
+					$arResult["IBLOCK_ID"],
+					$arResult["ELEMENT_FIELDS"]["IBLOCK_SECTION_ID"],
+					$arResult["ELEMENT_ID"],
+					$FIELD_ID,
+					$value["VALUE"]
+				);
+				$obFile->SetSocnetGroup($arParams["SOCNET_GROUP_ID"]);
+
+				$obFileControl = new CListFileControl($obFile, $FIELD_ID.'['.$key.'][VALUE]');
+
+				$html = $obFileControl->GetHTML(array(
+					'max_size' => 102400,
+					'max_width' => 150,
+					'max_height' => 150,
+					'url_template' => $arParams["~LIST_FILE_URL"],
+					'a_title' => GetMessage("CT_BLEE_ENLARGE"),
+					'download_text' => GetMessage("CT_BLEE_DOWNLOAD"),
+				));
+
+
+				$arTabElement[] = array(
+					"id"=>$FIELD_ID.'['.$key.'][VALUE]',
+					"name"=>$arField["NAME"],
+					"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+					"type"=>"custom",
+					"value"=>$html,
+				);
+			}
+		}
+	}
+	elseif($arField["PROPERTY_TYPE"] == "G")
+	{
+		if($arField["IS_REQUIRED"]=="Y")
+			$items = array();
+		else
+			$items = array("" => GetMessage("CT_BLEE_NO_VALUE"));
+
+		$rsSections = CIBlockSection::GetTreeList(Array("IBLOCK_ID"=>$arField["LINK_IBLOCK_ID"]));
+		while($ar = $rsSections->GetNext())
+			$items[$ar["ID"]] = str_repeat(" . ", $ar["DEPTH_LEVEL"]).$ar["~NAME"];
+
+		if($arField["MULTIPLE"] == "Y")
+			$params = array("size"=>5, "multiple"=>"multiple");
+		else
+			$params = array();
+
+		$arTabElement[] = array(
+			"id"=>$FIELD_ID.'[]',
+			"name"=>$arField["NAME"],
+			"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+			"type"=>'list',
+			"items"=>$items,
+			"value"=>$arResult["FORM_DATA"][$FIELD_ID],
+			"params" => $params,
+		);
+	}
+	elseif($arField["PROPERTY_TYPE"] == "E")
+	{
+		if($arField["IS_REQUIRED"]=="Y")
+			$items = array();
+		else
+			$items = array("" => GetMessage("CT_BLEE_NO_VALUE"));
+
+		$rsElements = CIBlockElement::GetList(array("NAME"=>"ASC"), array("IBLOCK_ID"=>$arField["LINK_IBLOCK_ID"]), false, false, array("ID", "NAME"));
+		while($ar = $rsElements->Fetch())
+			$items[$ar["ID"]] = $ar["NAME"];
+
+		ob_start();
+
+		$arValues = array();
+		if(is_array($arResult["FORM_DATA"][$FIELD_ID]))
+		{
+			foreach($arResult["FORM_DATA"][$FIELD_ID] as $element_id)
+				if($element_id > 0 && array_key_exists($element_id, $items))
+					$arValues[] = $items[$element_id]." [".$element_id."]";
+		}
+		?><input type="hidden" name="<?echo $FIELD_ID?>[]" value=""><? //This will emulate empty input
+		$control_id = $APPLICATION->IncludeComponent(
+			"bitrix:main.lookup.input",
+			"elements",
+			array(
+				"INPUT_NAME" => $FIELD_ID,
+				"INPUT_NAME_STRING" => "inp_".$FIELD_ID,
+				"INPUT_VALUE_STRING" => implode("\n", $arValues),
+				"START_TEXT" => GetMessage("CT_BLEE_START_TEXT"),
+				"MULTIPLE" => $arField["MULTIPLE"],
+				//These params will go throught ajax call to ajax.php in template
+				"IBLOCK_TYPE_ID" => $arParams["~IBLOCK_TYPE_ID"],
+				"IBLOCK_ID" => $arField["LINK_IBLOCK_ID"],
+				"SOCNET_GROUP_ID" => $arParams["SOCNET_GROUP_ID"],
+			), $component, array("HIDE_ICONS" => "Y")
+		);
+
+		$name = $APPLICATION->IncludeComponent(
+			'bitrix:main.tree.selector',
+			'elements',
+			array(
+				"INPUT_NAME" => $FIELD_ID,
+				'ONSELECT' => 'jsMLI_'.$control_id.'.AddValue',
+				'MULTIPLE' => $arField["MULTIPLE"],
+				'SHOW_INPUT' => 'N',
+				'SHOW_BUTTON' => 'N',
+				'GET_FULL_INFO' => 'Y',
+				"START_TEXT" => GetMessage("CT_BLEE_START_TEXT"),
+				"NO_SEARCH_RESULT_TEXT" => GetMessage("CT_BLEE_NO_SEARCH_RESULT_TEXT"),
+				//These params will go throught ajax call to ajax.php in template
+				"IBLOCK_TYPE_ID" => $arParams["~IBLOCK_TYPE_ID"],
+				"IBLOCK_ID" => $arField["LINK_IBLOCK_ID"],
+				"SOCNET_GROUP_ID" => $arParams["SOCNET_GROUP_ID"],
+			), $component, array("HIDE_ICONS" => "Y")
+		);
+		?><a href="javascript:void(0)" onclick="<?=$name?>.SetValue([]); <?=$name?>.Show()"><?echo GetMessage('CT_BLEE_CHOOSE_ELEMENT')?></a><?
+
+		$html = ob_get_contents();
+		ob_end_clean();
+		$arTabElement[] = array(
+			"id"=>$FIELD_ID,
+			"name"=>$arField["NAME"],
+			"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+			"type"=>'custom',
+			"value"=>$html,
+		);
+
+	}
+	elseif($arField["MULTIPLE"] == "Y")
+	{
+		$html = '<table id="tbl'.$FIELD_ID.'"><tr><td>';
+		foreach($arResult["FORM_DATA"][$FIELD_ID] as $key => $value)
+			$html .= '<tr><td><input type="text" name="'.$FIELD_ID.'['.$key.'][VALUE]" value="'.$value["VALUE"].'"></td></tr>';
+		$html .= '</td></tr></table>';
+		$html .= '<input type="button" onclick="addNewTableRow(\'tbl'.$FIELD_ID.'\', 1, /'.$FIELD_ID.'\[(n)([0-9]*)\]/g, 2)" value="'.GetMessage("CT_BLEE_ADD_BUTTON").'">';
+
+		$arTabElement[] = array(
+			"id"=>$FIELD_ID,
+			"name"=>$arField["NAME"],
+			"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+			"type"=>"custom",
+			"value"=>$html,
+		);
+	}
+	elseif(is_array($arResult["FORM_DATA"][$FIELD_ID]) && array_key_exists("VALUE", $arResult["FORM_DATA"][$FIELD_ID]))
+	{
+		$arTabElement[] = array(
+			"id"=>$FIELD_ID.'[VALUE]',
+			"name"=>$arField["NAME"],
+			"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+			"type" => "text",
+			"value" => $arResult["FORM_DATA"][$FIELD_ID]["VALUE"],
+		);
+	}
+	else
+	{
+		$arTabElement[] = array(
+			"id"=>$FIELD_ID,
+			"name"=>$arField["NAME"],
+			"required"=>$arField["IS_REQUIRED"]=="Y"? true: false,
+			"type" => "text",
+		);
 	}
 }
 
-$tabSection = array(
+$arTabSection = array(
 	array(
-		"id" => "IBLOCK_SECTION_ID",
-		"name" => $arResult["IBLOCK"]["SECTIONS_NAME"],
-		"type" => "list",
-		"items" => $arResult["LIST_SECTIONS"],
-		"params" => array("size" => 15),
+		"id"=>"IBLOCK_SECTION_ID",
+		"name"=>$arResult["IBLOCK"]["SECTIONS_NAME"],
+		"type"=>'list',
+		"items"=>$arResult["LIST_SECTIONS"],
+		"params"=>array("size"=>15),
 	),
 );
 
 $arTabs = array(
-	array("id" => "tab_el", "name" => $arResult["IBLOCK"]["ELEMENT_NAME"], "icon" => "", "fields" => $tabElement),
-	array("id" => "tab_se", "name" => $arResult["IBLOCK"]["SECTION_NAME"], "icon" => "", "fields" => $tabSection)
+	array("id"=>"tab_el", "name"=>$arResult["IBLOCK"]["ELEMENT_NAME"], "icon"=>"", "fields"=>$arTabElement),
+	array("id"=>"tab_se", "name"=>$arResult["IBLOCK"]["SECTION_NAME"], "icon"=>"", "fields"=>$arTabSection),
 );
 
-if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arResult["IBLOCK"]["BIZPROC"] != "N")
+$custom_html = "";
+
+if(CModule::IncludeModule("bizproc") && ($arResult["IBLOCK"]["BIZPROC"] != "N"))
 {
 	$arCurrentUserGroups = $GLOBALS["USER"]->GetUserGroupArray();
 	if(!$arResult["ELEMENT_FIELDS"] || $arResult["ELEMENT_FIELDS"]["CREATED_BY"] == $GLOBALS["USER"]->GetID())
 	{
-		$arCurrentUserGroups[] = "author";
+			$arCurrentUserGroups[] = "Author";
 	}
 
 	$DOCUMENT_TYPE = "iblock_".$arResult["IBLOCK_ID"];
@@ -124,55 +559,23 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 
 	$bizProcIndex = 0;
 	$arDocumentStates = CBPDocument::GetDocumentStates(
-		BizProcDocument::generateDocumentComplexType($arParams["IBLOCK_TYPE_ID"], $arResult["IBLOCK_ID"]),
-		($arResult["ELEMENT_ID"] > 0) ? BizProcDocument::getDocumentComplexId(
-			$arParams["IBLOCK_TYPE_ID"], $arResult["ELEMENT_ID"]) : null,
+		array("iblock", "CIBlockDocument", $DOCUMENT_TYPE),
+		($arResult["ELEMENT_ID"] > 0) ? array("iblock", "CIBlockDocument", $arResult["ELEMENT_ID"]) : null,
 		"Y"
 	);
 
-	$cuctomHtml .= '<input type="hidden" name="stop_bizproc" id="stop_bizproc" value="">';
-
-	$runtime = CBPRuntime::GetRuntime();
-	$runtime->StartRuntime();
-	$documentService = $runtime->GetService("DocumentService");
+	$custom_html .= '<input type="hidden" name="stop_bizproc" id="stop_bizproc" value="">';
 
 	foreach ($arDocumentStates as $arDocumentState)
 	{
-		$templateId = intval($arDocumentState["TEMPLATE_ID"]);
-		$templateConstants = CBPWorkflowTemplateLoader::getTemplateConstants($templateId);
-
-		if(
-			empty($arDocumentState["TEMPLATE_PARAMETERS"]) &&
-			empty($arDocumentState["ID"]) &&
-			empty($templateConstants) &&
-			!CIBlockRights::UserHasRightTo($arResult["IBLOCK_ID"], $arResult["IBLOCK_ID"], 'iblock_edit')
-		)
-		{
-			continue;
-		}
-
 		$bizProcIndex++;
 
-		if ($arResult["ELEMENT_ID"] > 0)
-		{
-			$canViewWorkflow = CBPDocument::CanUserOperateDocument(
-				CBPCanUserOperateOperation::ViewWorkflow,
-				$GLOBALS["USER"]->GetID(),
-				BizProcDocument::getDocumentComplexId($arParams["IBLOCK_TYPE_ID"], $arResult["ELEMENT_ID"]),
-				array("AllUserGroups" => $arCurrentUserGroups, "DocumentStates" => $arDocumentStates,
-					"WorkflowId" => $arDocumentState["ID"])
-			);
-		}
-		else
-		{
-			$canViewWorkflow = CBPDocument::CanUserOperateDocumentType(
-				CBPCanUserOperateOperation::StartWorkflow,
-				$GLOBALS["USER"]->GetID(),
-				BizProcDocument::generateDocumentComplexType($arParams["IBLOCK_TYPE_ID"], $arResult["IBLOCK_ID"]),
-				array("sectionId"=> intval($arResult["SECTION_ID"]), "AllUserGroups" => $arCurrentUserGroups,
-					"DocumentStates" => $arDocumentStates, "WorkflowId" => $arDocumentState["ID"])
-			);
-		}
+		$canViewWorkflow = CBPDocument::CanUserOperateDocument(
+			IBLOCK_DOCUMENT_OPERATION_VIEW_WORKFLOW,
+			$GLOBALS["USER"]->GetID(),
+			array("iblock", "CIBlockDocument", $arResult["ELEMENT_ID"]),
+			array("IBlockPermission" => $arResult["IBLOCK_PERM"], "AllUserGroups" => $arCurrentUserGroups, "DocumentStates" => $arDocumentStates, "WorkflowId" => $arDocumentState["ID"] > 0 ? $arDocumentState["ID"] : $arDocumentState["TEMPLATE_ID"])
+		);
 
 		if($canViewWorkflow)
 		{
@@ -182,98 +585,65 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 				"type" => "section",
 			);
 
-			if(strlen($arDocumentState["ID"]) && CIBlockElementRights::UserHasRightTo($arResult["IBLOCK_ID"],
-					$arResult["ELEMENT_ID"], "element_edit") && strlen($arDocumentState["WORKFLOW_STATUS"]))
+			if(strlen($arDocumentState["ID"]) && strlen($arDocumentState["WORKFLOW_STATUS"]))
 			{
 				$arTab2Fields[] = array(
 					"id" => "BIZPROC_STOP".$bizProcIndex,
 					"name" => GetMessage("CT_BLEE_BIZPROC_STOP_LABEL"),
 					"type" => "label",
-					"value" => '<a href="javascript:void(0)"
-						onclick="BX.Lists[\''.$jsClass.'\'].completeWorkflow(\''.$arDocumentState["ID"].'\',
-						\'stop\')">'.GetMessage("CT_BLEE_BIZPROC_STOP").'</a>'
+					"value" => '<a href="javascript:jsStopBP(\''.CUtil::JSEscape('form_'.$arResult["FORM_ID"]).'\', \''.CUtil::JSEscape($arDocumentState["ID"]).'\');">'.GetMessage("CT_BLEE_BIZPROC_STOP").'</a>',
 				);
 			}
 
 			$arTab2Fields[] = array(
-				"id" => "BIZPROC_NAME".$bizProcIndex,
+				"id" => "BIZPROC_NAME",
 				"name" => GetMessage("CT_BLEE_BIZPROC_NAME"),
 				"type" => "label",
-				"value" => htmlspecialcharsbx($arDocumentState["TEMPLATE_NAME"]),
+				"value" => $arDocumentState["TEMPLATE_NAME"],
 			);
 
 			if($arDocumentState["TEMPLATE_DESCRIPTION"]!='')
 				$arTab2Fields[] = array(
-					"id" => "BIZPROC_DESC".$bizProcIndex,
+					"id" => "BIZPROC_DESC",
 					"name" => GetMessage("CT_BLEE_BIZPROC_DESC"),
 					"type" => "label",
-					"value" => htmlspecialcharsbx($arDocumentState["TEMPLATE_DESCRIPTION"]),
+					"value" => $arDocumentState["TEMPLATE_DESCRIPTION"],
 				);
 
 			if(strlen($arDocumentState["STATE_MODIFIED"]))
 				$arTab2Fields[] = array(
-					"id" => "BIZPROC_DATE".$bizProcIndex,
+					"id" => "BIZPROC_DATE",
 					"name" => GetMessage("CT_BLEE_BIZPROC_DATE"),
 					"type" => "label",
-					"value" => htmlspecialcharsbx($arDocumentState["STATE_MODIFIED"]),
+					"value" => $arDocumentState["STATE_MODIFIED"],
 				);
 
 			if(strlen($arDocumentState["STATE_NAME"]))
 			{
-				$backUrl = CHTTP::urlAddParams(
-					$APPLICATION->GetCurPageParam("", array($arResult["FORM_ID"]."_active_tab")),
-					array($arResult["FORM_ID"]."_active_tab" => "tab_bp")
-				);
-				$url = CHTTP::urlAddParams(str_replace(
+				$url = str_replace(
 					array("#list_id#", "#document_state_id#", "#group_id#"),
 					array($arResult["IBLOCK_ID"], $arDocumentState["ID"], $arParams["SOCNET_GROUP_ID"]),
 					$arParams["~BIZPROC_LOG_URL"]
-				),
-					array("back_url" => $backUrl),
-					array("skip_empty" => true, "encode" => true)
 				);
 
 				if(strlen($arDocumentState["ID"]))
-				{
 					$arTab2Fields[] = array(
-						"id" => "BIZPROC_STATE".$bizProcIndex,
+						"id" => "BIZPROC_STATE",
 						"name" => GetMessage("CT_BLEE_BIZPROC_STATE"),
 						"type" => "label",
-						"value" => '<a href="'.htmlspecialcharsbx($url).'">'.(strlen($arDocumentState["STATE_TITLE"])?
-								$arDocumentState["STATE_TITLE"] : $arDocumentState["STATE_NAME"]).'</a>',
+						"value" => '<a href="'.htmlspecialchars($url).'">'.(strlen($arDocumentState["STATE_TITLE"])? $arDocumentState["STATE_TITLE"] : $arDocumentState["STATE_NAME"]).'</a>',
 					);
-
-					$canDeleteWorkflow = CBPDocument::CanUserOperateDocumentType(
-						CBPCanUserOperateOperation::CreateWorkflow,
-						$GLOBALS["USER"]->GetID(),
-						BizProcDocument::getDocumentComplexId($arParams["IBLOCK_TYPE_ID"], $arResult["IBLOCK_ID"]),
-						array("UserGroups" => $arCurrentUserGroups)
-					);
-
-					if ($canDeleteWorkflow)
-					{
-						$arTab2Fields[] = array(
-							"id" => "BIZPROC_DELETE".$bizProcIndex,
-							"name" => GetMessage("CT_BLEE_BIZPROC_DELETE_LABEL"),
-							"type" => "label",
-							"value" => '<a href="javascript:void(0)"
-								onclick="BX.Lists[\''.$jsClass.'\'].completeWorkflow(\''.$arDocumentState["ID"].'\',
-								\'delete\')">'.GetMessage("CT_BLEE_BIZPROC_DELETE").'</a>'
-						);
-					}
-				}
 				else
-				{
 					$arTab2Fields[] = array(
-						"id" => "BIZPROC_STATE".$bizProcIndex,
+						"id" => "BIZPROC_STATE",
 						"name" => GetMessage("CT_BLEE_BIZPROC_STATE"),
 						"type" => "label",
-						"value" => (strlen($arDocumentState["STATE_TITLE"]) ?
-							$arDocumentState["STATE_TITLE"] : $arDocumentState["STATE_NAME"]),
+						"value" => (strlen($arDocumentState["STATE_TITLE"])? $arDocumentState["STATE_TITLE"] : $arDocumentState["STATE_NAME"]),
 					);
-				}
 			}
 
+			//CBPDocument::StartWorkflowParametersShow($templateId, $arWorkflowParameters, $formName, $bVarsFromForm)
+			$templateId = intval($arDocumentState["TEMPLATE_ID"]);
 			$arWorkflowParameters = $arDocumentState["TEMPLATE_PARAMETERS"];
 			if(!is_array($arWorkflowParameters))
 				$arWorkflowParameters = array();
@@ -285,19 +655,16 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 				$keys = array_keys($arWorkflowParameters);
 				foreach ($keys as $key)
 				{
-					$v = ($bVarsFromForm ? $_REQUEST["bizproc".$templateId."_".$key] :
-						$arWorkflowParameters[$key]["Default"]);
+					$v = ($bVarsFromForm ? $_REQUEST["bizproc".$templateId."_".$key] : $arWorkflowParameters[$key]["Default"]);
 					if (!is_array($v))
 					{
-						$arParametersValues[$key] = $v;
+						$arParametersValues[$key] = htmlspecialchars($v);
 					}
 					else
 					{
 						$keys1 = array_keys($v);
 						foreach ($keys1 as $key1)
-						{
-							$arParametersValues[$key][$key1] = $v[$key1];
-						}
+							$arParametersValues[$key][$key1] = htmlspecialchars($v[$key1]);
 					}
 				}
 
@@ -305,38 +672,61 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 				{
 					$parameterKeyExt = "bizproc".$templateId."_".$parameterKey;
 
-					$html = $documentService->GetFieldInputControl(
-						BizProcDocument::generateDocumentComplexType($arParams["IBLOCK_TYPE_ID"],$arResult["IBLOCK_ID"]),
-						$arParameter,
-						array("Form" => "start_workflow_form1", "Field" => $parameterKeyExt),
-						$arParametersValues[$parameterKey],
-						false,
-						true
-					);
+					$name = $arParameter["Name"];
+					if(strlen($arParameter["Description"]))
+						$name .= "<br /><small>".$arParameter["Description"]."</small><br />";
+
+					ob_start();
+					switch ($arParameter["Type"])
+					{
+						case "int":
+						case "double":
+							?><input type="text" name="<?= $parameterKeyExt ?>" size="10" value="<?= $arParametersValues[$parameterKey] ?>" /><?
+							break;
+						case "string":
+							?><input type="text" name="<?= $parameterKeyExt ?>" size="50" value="<?= $arParametersValues[$parameterKey] ?>" /><?
+							break;
+						case "text":
+							?><textarea name="<?= $parameterKeyExt ?>" rows="5" cols="40"><?= $arParametersValues[$parameterKey] ?></textarea><?
+							break;
+						case "select":
+							?><select name="<?= $parameterKeyExt ?><?= $arParameter["Multiple"] ? "[]\" size='5' multiple" : "\"" ?>>
+							<?
+							if (is_array($arParameter["Options"]) && count($arParameter["Options"]) > 0)
+							{
+								foreach ($arParameter["Options"] as $key => $value)
+								{
+									?><option value="<?= $key ?>"<?= (!$arParameter["Multiple"] && $key == $arParametersValues[$parameterKey] || $arParameter["Multiple"] && is_array($arParametersValues[$parameterKey]) && in_array($key, $arParametersValues[$parameterKey])) ? " selected" : "" ?>><?= $value ?></option><?
+								}
+							}
+							?>
+							</select><?
+							break;
+						case "bool":
+							?><select name="<?= $parameterKeyExt ?>">
+								<option value="Y"<?= ($arParametersValues[$parameterKey] == "Y") ? " selected" : "" ?>><?= GetMessage("MAIN_YES") ?></option>
+								<option value="N"<?= ($arParametersValues[$parameterKey] == "N") ? " selected" : "" ?>><?= GetMessage("MAIN_NO") ?></option>
+							</select><?
+							break;
+						case "date":
+						case "datetime":
+							echo CAdminCalendar::CalendarDate($parameterKeyExt, $arParametersValues[$parameterKey], 19, ($arParameter["Type"] == "date"));
+							break;
+						case "user":
+							?><textarea name="<?= $parameterKeyExt ?>" id="id_<?= $parameterKeyExt ?>" rows="3" cols="40"><?= $arParametersValues[$parameterKey] ?></textarea><input type="button" value="..." onclick="BPAShowSelector('id_<?= $parameterKeyExt ?>', 'user');" /><?
+							break;
+						default:
+							echo GetMessage("CT_BLEE_INVALID_TYPE");
+					}
+					$html = ob_get_contents();
+					ob_end_clean();
 
 					$arTab2Fields[] = array(
-						"id" => $parameterKeyExt.$bizProcIndex,
+						"id" => $parameterKeyExt,
 						"required" => $arParameter["Required"],
-						"name" => $arParameter["Name"],
-						"title" => $arParameter["Description"],
+						"name" => $name,
 						"type" => "label",
 						"value" => $html,
-					);
-				}
-
-				if(!empty($templateConstants) &&
-					CIBlockRights::UserHasRightTo($arResult["IBLOCK_ID"], $arResult["IBLOCK_ID"], 'iblock_edit'))
-				{
-					$listTemplateId = array();
-					$listTemplateId[$templateId]['ID'] = $templateId;
-					$listTemplateId[$templateId]['NAME'] = $arDocumentState["TEMPLATE_NAME"];
-					$arTab2Fields[] = array(
-						"id" => "BIZPROC_CONSTANTS".$bizProcIndex,
-						"name" => GetMessage("CT_BLEE_BIZPROC_CONSTANTS_LABLE"),
-						"type" => "label",
-						"value" => '<a href="javascript:void(0)" id="lists-fill-constants-'.$bizProcIndex.'"
-							onclick="BX.Lists[\''.$jsClass.'\'].fillConstants('.CUtil::PhpToJSObject($listTemplateId).');">'.
-							GetMessage("CT_BLEE_BIZPROC_CONSTANTS_FILL").'</a>',
 					);
 				}
 			}
@@ -346,19 +736,17 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 			{
 				$html = '';
 				$html .= '<input type="hidden" name="bizproc_id_'.$bizProcIndex.'" value="'.$arDocumentState["ID"].'">';
-				$html .= '<input type="hidden" name="bizproc_template_id_'.$bizProcIndex.'" value="'.
-					$arDocumentState["TEMPLATE_ID"].'">';
+				$html .= '<input type="hidden" name="bizproc_template_id_'.$bizProcIndex.'" value="'.$arDocumentState["TEMPLATE_ID"].'">';
 				$html .= '<select name="bizproc_event_'.$bizProcIndex.'">';
 				$html .= '<option value="">'.GetMessage("CT_BLEE_BIZPROC_RUN_CMD_NO").'</option>';
 				foreach ($arEvents as $e)
 				{
-					$html .= '<option value="'.htmlspecialcharsbx($e["NAME"]).'"'.($_REQUEST["bizproc_event_".
-						$bizProcIndex] == $e["NAME"]? " selected": "").'>'.htmlspecialcharsbx($e["TITLE"]).'</option>';
+					$html .= '<option value="'.htmlspecialchars($e["NAME"]).'"'.($_REQUEST["bizproc_event_".$bizProcIndex] == $e["NAME"]? " selected": "").'>'.htmlspecialchars($e["TITLE"]).'</option>';
 				}
 				$html .='</select>';
 
 				$arTab2Fields[] = array(
-					"id" => "BIZPROC_RUN_CMD".$bizProcIndex,
+					"id" => "BIZPROC_RUN_CMD",
 					"name" => GetMessage("CT_BLEE_BIZPROC_RUN_CMD"),
 					"type" => "label",
 					"value" => $html,
@@ -373,27 +761,25 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 					$html = '';
 					foreach($arTasks as $arTask)
 					{
-						$backUrl = CHTTP::urlAddParams(
-							$APPLICATION->GetCurPageParam("", array($arResult["FORM_ID"]."_active_tab")),
-							array($arResult["FORM_ID"]."_active_tab" => "tab_bp")
+						$back_url = CHTTP::urlAddParams(
+							$APPLICATION->GetCurPageParam("", array("lists_element_edit_active_tab")),
+							array("lists_element_edit_active_tab" => "tab_bp")
 						);
 
 						$url = CHTTP::urlAddParams(str_replace(
 								array("#list_id#", "#section_id#", "#element_id#", "#task_id#", "#group_id#"),
-								array($arResult["IBLOCK_ID"], intval($arResult["SECTION_ID"]),
-									$arResult["ELEMENT_ID"], $arTask["ID"], $arParams["SOCNET_GROUP_ID"]),
+								array($arResult["IBLOCK_ID"], intval($arResult["SECTION_ID"]), $arResult["ELEMENT_ID"], $arTask["ID"], $arParams["SOCNET_GROUP_ID"]),
 								$arParams["~BIZPROC_TASK_URL"]
 							),
-							array("back_url" => $backUrl),
+							array("back_url" => $back_url),
 							array("skip_empty" => true, "encode" => true)
 						);
 
-						$html .= '<a href="'.htmlspecialcharsbx($url).'" title="'.strip_tags(
-								$arTask["DESCRIPTION"]).'">'.$arTask["NAME"].'</a><br />';
+						$html .= '<a href="'.htmlspecialchars($url).'" title="'.htmlspecialchars($arTask["DESCRIPTION"]).'">'.$arTask["NAME"].'</a><br />';
 					}
 
 					$arTab2Fields[] = array(
-						"id" => "BIZPROC_TASKS".$bizProcIndex,
+						"id" => "BIZPROC_TASKS",
 						"name" => GetMessage("CT_BLEE_BIZPROC_TASKS"),
 						"type" => "label",
 						"value" => $html,
@@ -404,25 +790,22 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 	}
 
 	if(!$bizProcIndex)
-	{
 		$arTab2Fields[] = array(
 			"id" => "BIZPROC_NO",
 			"name" => GetMessage("CT_BLEE_BIZPROC_NA_LABEL"),
 			"type" => "label",
 			"value" => GetMessage("CT_BLEE_BIZPROC_NA")
 		);
-	}
 
-	$cuctomHtml .= '<input type="hidden" name="bizproc_index" value="'.$bizProcIndex.'">';
+	$custom_html .= '<input type="hidden" name="bizproc_index" value="'.$bizProcIndex.'">';
 
 	if($arResult["ELEMENT_ID"])
 	{
 		$bStartWorkflowPermission = CBPDocument::CanUserOperateDocument(
-			CBPCanUserOperateOperation::StartWorkflow,
+			IBLOCK_DOCUMENT_OPERATION_START_WORKFLOW,
 			$USER->GetID(),
-			BizProcDocument::getDocumentComplexId($arParams["IBLOCK_TYPE_ID"], $arResult["ELEMENT_ID"]),
-			array("AllUserGroups" => $arCurrentUserGroups, "DocumentStates" => $arDocumentStates,
-				"WorkflowId" => $arDocumentState["TEMPLATE_ID"])
+			array("iblock", "CIBlockDocument", $arResult["ELEMENT_ID"]),
+			array("IBlockPermission" => $arResult["IBLOCK_PERM"], "AllUserGroups" => $arCurrentUserGroups, "DocumentStates" => $arDocumentStates, "WorkflowId" => $arDocumentState["TEMPLATE_ID"])
 		);
 		if($bStartWorkflowPermission)
 		{
@@ -432,18 +815,17 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 				"type" => "section",
 			);
 
-			$backUrl = CHTTP::urlAddParams(
-				$APPLICATION->GetCurPageParam("", array($arResult["FORM_ID"]."_active_tab")),
-				array($arResult["FORM_ID"]."_active_tab" => "tab_bp")
+			$back_url = CHTTP::urlAddParams(
+				$APPLICATION->GetCurPageParam("", array("lists_element_edit_active_tab")),
+				array("lists_element_edit_active_tab" => "tab_bp")
 			);
 
 			$url = CHTTP::urlAddParams(str_replace(
 					array("#list_id#", "#section_id#", "#element_id#", "#group_id#"),
-					array($arResult["IBLOCK_ID"], intval($arResult["SECTION_ID"]), $arResult["ELEMENT_ID"],
-						$arParams["SOCNET_GROUP_ID"]),
+					array($arResult["IBLOCK_ID"], intval($arResult["SECTION_ID"]), $arResult["ELEMENT_ID"], $arParams["SOCNET_GROUP_ID"]),
 					$arParams["~BIZPROC_WORKFLOW_START_URL"]
 				),
-				array("back_url" => $backUrl, "sessid" => bitrix_sessid()),
+				array("back_url" => $back_url),
 				array("skip_empty" => true, "encode" => true)
 			);
 
@@ -452,7 +834,7 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 				"name" => GetMessage("CT_BLEE_BIZPROC_START"),
 				"type" => "custom",
 				"colspan" => true,
-				"value" => '<a href="'.htmlspecialcharsbx($url).'">'.GetMessage("CT_BLEE_BIZPROC_START").'</a>',
+				"value" => '<a href="'.htmlspecialchars($url).'">'.GetMessage("CT_BLEE_BIZPROC_START").'</a>',
 			);
 		}
 	}
@@ -460,45 +842,10 @@ if(CModule::IncludeModule("bizproc") && CBPRuntime::isFeatureEnabled() && $arRes
 	$arTabs[] = array("id"=>"tab_bp", "name"=>GetMessage("CT_BLEE_BIZPROC_TAB"), "icon"=>"", "fields"=>$arTab2Fields);
 }
 
-if(isset($arResult["RIGHTS"]))
-{
-	ob_start();
-	IBlockShowRights(
-		/*$entity_type=*/'element',
-		/*$iblock_id=*/$arResult["IBLOCK_ID"],
-		/*$id=*/$arResult["ELEMENT_ID"],
-		/*$section_title=*/"",
-		/*$variable_name=*/"RIGHTS",
-		/*$arPossibleRights=*/$arResult["TASKS"],
-		/*$arActualRights=*/$arResult["RIGHTS"],
-		/*$bDefault=*/true,
-		/*$bForceInherited=*/$arResult["ELEMENT_ID"] <= 0
-	);
-	$rights_html = ob_get_contents();
-	ob_end_clean();
 
-	$rights_fields = array(
-		array(
-			"id"=>"RIGHTS",
-			"name"=>GetMessage("CT_BLEE_ACCESS_RIGHTS"),
-			"type"=>"custom",
-			"colspan"=>true,
-			"value"=>$rights_html,
-		),
-	);
-	$arTabs[] = array(
-		"id"=>"tab_rights",
-		"name"=>GetMessage("CT_BLEE_TAB_ACCESS"),
-		"icon"=>"",
-		"fields"=>$rights_fields,
-	);
-}
-
-$cuctomHtml .= '<input type="hidden" name="action" id="action" value="">';
-if(!$arParams["CAN_EDIT"])
-	$cuctomHtml .= '<input type="button" value="'.GetMessage("CT_BLEE_FORM_CANCEL").
-		'" name="cancel" onclick="window.location=\''.htmlspecialcharsbx(CUtil::addslashes(
-				$arResult["~LIST_SECTION_URL"])).'\'" title="'.GetMessage("CT_BLEE_FORM_CANCEL_TITLE").'" />';
+$custom_html .= '<input type="hidden" name="action" id="action" value="">';
+if($arResult["IBLOCK_PERM"] < "W")
+	$custom_html .= '<input type="button" value="'.GetMessage("CT_BLEE_FORM_CANCEL").'" name="cancel" onclick="window.location=\''.htmlspecialchars(CUtil::addslashes($arResult["~LIST_SECTION_URL"])).'\'" title="'.GetMessage("CT_BLEE_FORM_CANCEL_TITLE").'" />';
 
 
 $APPLICATION->IncludeComponent(
@@ -508,9 +855,9 @@ $APPLICATION->IncludeComponent(
 		"FORM_ID"=>$arResult["FORM_ID"],
 		"TABS"=>$arTabs,
 		"BUTTONS"=>array(
-			"standard_buttons" => $arParams["CAN_EDIT"],
-			"back_url"=>$arResult["BACK_URL"],
-			"custom_html"=>$cuctomHtml,
+			"standard_buttons" => $arResult["IBLOCK_PERM"] >= "W",
+			"back_url"=>$arResult["~LIST_SECTION_URL"],
+			"custom_html"=>$custom_html,
 		),
 		"DATA"=>$arResult["FORM_DATA"],
 		"SHOW_SETTINGS"=>"N",
@@ -519,50 +866,3 @@ $APPLICATION->IncludeComponent(
 	$component, array("HIDE_ICONS" => "Y")
 );
 ?>
-
-<div id="lists-notify-admin-popup" style="display:none;">
-	<div id="lists-notify-admin-popup-content" class="lists-notify-admin-popup-content">
-	</div>
-</div>
-
-<script type="text/javascript">
-	BX.ready(function () {
-		BX.Lists['<?=$jsClass?>'] = new BX.Lists.ListsElementEditClass({
-			randomString: '<?=$arResult['RAND_STRING']?>',
-			urlTabBp: '<?=$urlTabBp?>',
-			iblockTypeId: '<?=$arParams["IBLOCK_TYPE_ID"]?>',
-			iblockId: '<?=$arResult["IBLOCK_ID"]?>',
-			elementId: '<?=$arResult["ELEMENT_ID"]?>',
-			socnetGroupId: '<?=$socnetGroupId?>',
-			sectionId: '<?= $sectionId ?>',
-			isConstantsTuned: <?= $arResult["isConstantsTuned"] ? 'true' : 'false' ?>,
-			elementUrl: '<?= $arResult["ELEMENT_URL"] ?>',
-			listAction: <?=\Bitrix\Main\Web\Json::encode($listAction)?>
-		});
-
-		BX.message({
-			CT_BLEE_BIZPROC_SAVE_BUTTON: '<?=GetMessageJS("CT_BLEE_BIZPROC_SAVE_BUTTON")?>',
-			CT_BLEE_BIZPROC_CANCEL_BUTTON: '<?=GetMessageJS("CT_BLEE_BIZPROC_CANCEL_BUTTON")?>',
-			CT_BLEE_BIZPROC_CONSTANTS_FILL_TITLE: '<?=GetMessageJS("CT_BLEE_BIZPROC_CONSTANTS_FILL_TITLE")?>',
-			CT_BLEE_BIZPROC_NOTIFY_TITLE: '<?=GetMessageJS("CT_BLEE_BIZPROC_NOTIFY_TITLE")?>',
-			CT_BLEE_BIZPROC_SELECT_STAFF_SET_RESPONSIBLE: '<?=GetMessageJS("CT_BLEE_BIZPROC_SELECT_STAFF_SET_RESPONSIBLE")?>',
-			CT_BLEE_BIZPROC_NOTIFY_ADMIN_TEXT_ONE: '<?=GetMessageJS("CT_BLEE_BIZPROC_NOTIFY_ADMIN_TEXT_ONE")?>',
-			CT_BLEE_BIZPROC_NOTIFY_ADMIN_TEXT_TWO: '<?=GetMessageJS("CT_BLEE_BIZPROC_NOTIFY_ADMIN_TEXT_TWO")?>',
-			CT_BLEE_BIZPROC_NOTIFY_ADMIN_MESSAGE: '<?=GetMessageJS("CT_BLEE_BIZPROC_NOTIFY_ADMIN_MESSAGE")?>',
-			CT_BLEE_BIZPROC_NOTIFY_ADMIN_MESSAGE_BUTTON: '<?=GetMessageJS("CT_BLEE_BIZPROC_NOTIFY_ADMIN_MESSAGE_BUTTON")?>',
-			CT_BLEE_BIZPROC_NOTIFY_ADMIN_BUTTON_CLOSE: '<?=GetMessageJS("CT_BLEE_BIZPROC_NOTIFY_ADMIN_BUTTON_CLOSE")?>',
-			CT_BLEE_DELETE_POPUP_TITLE: '<?=GetMessageJS("CT_BLEE_DELETE_POPUP_TITLE")?>',
-			CT_BLEE_DELETE_POPUP_ACCEPT_BUTTON: '<?=GetMessageJS("CT_BLEE_DELETE_POPUP_ACCEPT_BUTTON")?>',
-			CT_BLEE_DELETE_POPUP_CANCEL_BUTTON: '<?=GetMessageJS("CT_BLEE_DELETE_POPUP_CANCEL_BUTTON")?>'
-		});
-
-		if(BX["viewElementBind"])
-		{
-			BX.viewElementBind(
-				'form_<?=$arResult["FORM_ID"]?>',
-				{showTitle: true},
-				{attr: 'data-bx-viewer'}
-			);
-		}
-	});
-</script>

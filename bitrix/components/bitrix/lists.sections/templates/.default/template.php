@@ -13,7 +13,7 @@ if($arResult["SECTION_ID"])
 	);
 }
 
-if($arResult["CAN_ADD_SECTION"])
+if($arResult["IBLOCK_PERM"] >= "W")
 {
 	$arToolbar[] = array(
 		"TEXT"=>$arResult["IBLOCK"]["SECTION_ADD"],
@@ -64,19 +64,6 @@ else
 {
 	$arActions = false;
 	$bEditable = false;
-	$found = false;
-	foreach ($arResult["SECTIONS_ROWS"] as $i => $aRow)
-	{
-		if ($aRow["canDelete"])
-		{
-			$arResult["SECTIONS_ROWS"][$i]["columns"]["NAME"] .= '<div style="display:none"><input type="checkbox" name="ID[]" id="ID_'.$aRow["id"].'" value="'.$aRow["id"].'"></div>';
-			if (!$found)
-			{
-				$found = true;
-				$arResult["SECTIONS_ROWS"][$i]["columns"]["NAME"] .= '<input type="hidden" value="" name="action_button_'.$arResult["GRID_ID"].'">';
-			}
-		}
-	}
 }
 
 $APPLICATION->IncludeComponent(
@@ -95,3 +82,4 @@ $APPLICATION->IncludeComponent(
 );
 
 ?>
+

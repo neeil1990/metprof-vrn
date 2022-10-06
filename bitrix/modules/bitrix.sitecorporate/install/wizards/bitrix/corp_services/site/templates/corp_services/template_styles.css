@@ -133,7 +133,7 @@ ul.left-menu .selected a { text-decoration: none; }
 
 ul.left-menu ul a { font-size: 0.85em !important; text-decoration: underline !important; outline: none; vertical-align:top; }
 
-ul.left-menu li.current { overflow: hidden; zoom:1; display: block; margin-top: 0.3em;}
+ul.left-menu li.current { padding: 0; overflow: hidden; zoom:1; display: block; margin-top: 0.3em;}
 ul.left-menu .current i  
 {
 	padding: 1px 10px 2px 13px; 

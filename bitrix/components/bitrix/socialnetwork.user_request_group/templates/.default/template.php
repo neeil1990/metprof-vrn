@@ -52,7 +52,6 @@ else
 	elseif(is_array($arResult["Events"]) && count($arResult["Events"]) > 0)
 	{
 		?>
-		<div class="sonet-cntnr-user-request-group">
 		<table width="100%" class="sonet-user-profile-friends data-table">
 			<tr>
 				<th width="10%"><?= GetMessage("SONET_C39_T_SENDER") ?></th>
@@ -120,7 +119,6 @@ else
 				</tr>
 			<?endforeach;?>
 		</table>
-		</div>
 		<br /><br />
 		<?
 	}	

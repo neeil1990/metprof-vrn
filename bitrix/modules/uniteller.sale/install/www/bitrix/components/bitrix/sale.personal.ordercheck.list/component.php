@@ -1,4 +1,4 @@
-<?
+п»ї<?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 if (!CModule::IncludeModule("sale"))
@@ -233,7 +233,7 @@ $arResult["ORDERS"] = Array();
 while($arOrder = $dbOrder->GetNext())
 {
 // UnitellerPlugin add
-	// Определяет ID обработчика платёжной системы Uniteller
+	// РћРїСЂРµРґРµР»СЏРµС‚ ID РѕР±СЂР°Р±РѕС‚С‡РёРєР° РїР»Р°С‚С‘Р¶РЅРѕР№ СЃРёСЃС‚РµРјС‹ Uniteller
 	if (!isset($uniteller_payment_id)) {
 		$uniteller_payment_id = -1;
 		$dbPaySystem = CSalePaySystem::GetList();

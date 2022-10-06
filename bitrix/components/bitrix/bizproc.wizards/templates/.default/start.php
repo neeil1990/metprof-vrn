@@ -2,7 +2,7 @@
 <?
 $APPLICATION->IncludeComponent(
 	"bitrix:bizproc.wizards.start",
-	isset($arResult["COMPONENT_TEMPLATES"]["Start"]) ? $arResult["COMPONENT_TEMPLATES"]["Start"] : "",
+	"",
 	array(
 		"PAGE_VAR" => $arResult["ALIASES"]["page"],
 		"TASK_VAR" => $arResult["ALIASES"]["task_id"],

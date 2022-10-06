@@ -18,8 +18,6 @@ if (strlen($arParams["IBLOCK_TYPE"]) <= 0)
 	return;
 }
 
-$arParams['NAME_TEMPLATE'] = empty($arParams['NAME_TEMPLATE']) ? COption::GetOptionString("bizproc", "name_template", CSite::GetNameFormat(false), SITE_ID) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $arParams["NAME_TEMPLATE"]);
-
 $arDefaultUrlTemplates404 = array(
 	"index" => "index.php",
 	"new" => "new.php",
@@ -31,7 +29,6 @@ $arDefaultUrlTemplates404 = array(
 	"bp" => "#block_id#/bp.php",
 	"setvar" => "#block_id#/setvar.php",
 	"log" => "#block_id#/log-#bp_id#.php",
-	'instances' => 'instances.php'
 );
 $arDefaultUrlTemplatesN404 = array(
 	"index" => "page=index",
@@ -44,7 +41,6 @@ $arDefaultUrlTemplatesN404 = array(
 	"bp" => "page=bp&block_id=#block_id#",
 	"setvar" => "page=setvar&block_id=#block_id#",
 	"log" => "page=log&block_id=#block_id#&bp_id=#bp_id#",
-	'instances' => 'page=instances'
 );
 $arDefaultVariableAliases404 = array();
 $arDefaultVariableAliases = array();
@@ -116,44 +112,9 @@ $arResult = array_merge(
 		"SET_TITLE" => $arParams["SET_TITLE"],
 		"SET_NAV_CHAIN" => $arParams["SET_NAV_CHAIN"],
 		"ADMIN_ACCESS" => $arParams["ADMIN_ACCESS"],
-		"COMPONENT_TEMPLATES" => array(),
 	),
 	$arResult
 );
-
-if (isset($arResult["VARIABLES"]["block_id"]))
-{
-	global $CACHE_MANAGER;
-
-	$cacheTag = 'component_bizproc_wizards_templates_'.$arParams["IBLOCK_TYPE"];
-
-	if ($CACHE_MANAGER->Read(86400, $cacheTag))
-	{
-		$arComponentTemplates = $CACHE_MANAGER->Get($cacheTag);
-	}
-	else
-	{
-		$arComponentTemplates = array();
-
-		$dbIBlock = CIBlock::GetList(
-			array(),
-			array("TYPE" => $arParams["IBLOCK_TYPE"], "ACTIVE" => "Y", "CHECK_PERMISSIONS" => "N")
-		);
-		while ($arIBlock = $dbIBlock->Fetch())
-		{
-			if (strlen($arIBlock["DESCRIPTION"]) > 0 && substr($arIBlock["DESCRIPTION"], 0, strlen("v2:")) == "v2:")
-			{
-				$v1 = @unserialize(substr($arIBlock["DESCRIPTION"], 3));
-				if (is_array($v1))
-					$arComponentTemplates[$arIBlock["ID"]] = $v1["COMPONENT_TEMPLATES"];
-			}
-		}
-
-		$CACHE_MANAGER->Set($cacheTag, $arComponentTemplates);
-	}
-
-	$arResult["COMPONENT_TEMPLATES"] = (array_key_exists($arResult["VARIABLES"]["block_id"], $arComponentTemplates) ? $arComponentTemplates[$arResult["VARIABLES"]["block_id"]] : array());
-}
 
 $arParams["ERROR_MESSAGE"] = "";
 $arParams["NOTE_MESSAGE"] = "";

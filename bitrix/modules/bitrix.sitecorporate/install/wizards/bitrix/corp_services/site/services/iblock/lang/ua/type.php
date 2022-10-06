@@ -1,8 +1,8 @@
 <?
-$MESS["NEWS_TYPE_NAME"] = "ÐÐ¾Ð²Ð¸Ð½Ð¸";
-$MESS["NEWS_ELEMENT_NAME"] = "ÐÐ¾Ð²Ð¸Ð½Ð¸";
-$MESS["NEWS_SECTION_NAME"] = "Ð Ð¾Ð·Ð´Ñ–Ð»Ð¸";
-$MESS["VACANCIES_TYPE_NAME"] = "Ð’Ð°ÐºÐ°Ð½ÑÑ–Ñ—";
-$MESS["VACANCIES_ELEMENT_NAME"] = "Ð’Ð°ÐºÐ°Ð½ÑÑ–Ñ—";
-$MESS["VACANCIES_SECTION_NAME"] = "Ð Ð¾Ð·Ð´Ñ–Ð»Ð¸";
+$MESS["NEWS_TYPE_NAME"] = "Íîâèíè";
+$MESS["NEWS_ELEMENT_NAME"] = "Íîâèíè";
+$MESS["NEWS_SECTION_NAME"] = "Ðîçä³ëè";
+$MESS["VACANCIES_TYPE_NAME"] = "Âàêàíñ³¿";
+$MESS["VACANCIES_ELEMENT_NAME"] = "Âàêàíñ³¿";
+$MESS["VACANCIES_SECTION_NAME"] = "Ðîçä³ëè";
 ?>

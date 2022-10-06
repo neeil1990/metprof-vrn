@@ -92,7 +92,7 @@ $arComponentParameters = array(
 			"PARENT" => "ADDITIONAL_SETTINGS",
 			"NAME" => GetMessage("F_PAGE_NAVIGATION_SHOW_ALL"),
 			"TYPE" => "CHECKBOX",
-			"DEFAULT" => "N"),
+			"DEFAULT" => "N"), 
 			
 		"PATH_TO_SMILE" => Array(
 			"PARENT" => "ADDITIONAL_SETTINGS",
@@ -122,19 +122,13 @@ $arComponentParameters = array(
 	)
 );
 $arComponentParameters["PARAMETERS"]["SHOW_RATING"] = array(
-	"NAME" => GetMessage("SHOW_RATING"),
-	"TYPE" => "LIST",
-	"VALUES" => Array(
-		"" => GetMessage("SHOW_RATING_CONFIG"),
-		"Y" => GetMessage("MAIN_YES"),
-		"N" => GetMessage("MAIN_NO"),
-	),
-	"MULTIPLE" => "N",
-	"DEFAULT" => "",
 	"PARENT" => "ADDITIONAL_SETTINGS",
+	"NAME" => GetMessage("F_SHOW_RATING"),
+	"TYPE" => "CHECKBOX",
+	"DEFAULT" => "N", 
 	"REFRESH" => "Y"
 );
-if ($arCurrentValues["SHOW_RATING"] != "N")
+if ($arCurrentValues["SHOW_RATING"] == "Y")
 {
 	$arRatingsList = array();
 	$db_res = CRatings::GetList($aSort = array("ID" => "ASC"), array("ACTIVE" => "Y", "ENTITY_ID" => "USER"));
@@ -147,21 +141,7 @@ if ($arCurrentValues["SHOW_RATING"] != "N")
 		"TYPE" => "LIST",
 		"VALUES" => $arRatingsList,
 		"DEFAULT" => "",
-		"REFRESH" => "N"
+		"REFRESH" => "Y"
 	);
-	$arComponentParameters["PARAMETERS"]["RATING_TYPE"] = Array(
-		"NAME" => GetMessage("RATING_TYPE"),
-		"TYPE" => "LIST",
-		"VALUES" => Array(
-			"" => GetMessage("RATING_TYPE_CONFIG"),
-			"like" => GetMessage("RATING_TYPE_LIKE_TEXT"),
-			"like_graphic" => GetMessage("RATING_TYPE_LIKE_GRAPHIC"),
-			"standart_text" => GetMessage("RATING_TYPE_STANDART_TEXT"),
-			"standart" => GetMessage("RATING_TYPE_STANDART_GRAPHIC"),
-		),
-		"MULTIPLE" => "N",
-		"DEFAULT" => "",
-		"PARENT" => "ADDITIONAL_SETTINGS",
-	);	
 }
 ?>

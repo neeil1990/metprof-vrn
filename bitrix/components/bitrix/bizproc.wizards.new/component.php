@@ -25,29 +25,29 @@ if (strLen($arParams["BLOCK_VAR"]) <= 0)
 
 $arParams["PATH_TO_NEW"] = trim($arParams["PATH_TO_NEW"]);
 if (strlen($arParams["PATH_TO_NEW"]) <= 0)
-	$arParams["PATH_TO_NEW"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=new");
+	$arParams["PATH_TO_NEW"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=new");
 
 $arParams["PATH_TO_LIST"] = trim($arParams["PATH_TO_LIST"]);
 if (strlen($arParams["PATH_TO_LIST"]) <= 0)
-	$arParams["PATH_TO_LIST"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=list&".$arParams["BLOCK_VAR"]."=#block_id#");
+	$arParams["PATH_TO_LIST"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=list&".$arParams["BLOCK_VAR"]."=#block_id#");
 
 $arParams["PATH_TO_INDEX"] = trim($arParams["PATH_TO_INDEX"]);
 if (strlen($arParams["PATH_TO_INDEX"]) <= 0)
-	$arParams["PATH_TO_INDEX"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=index");
+	$arParams["PATH_TO_INDEX"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=index");
 
 $arParams["PATH_TO_TASK"] = trim($arParams["PATH_TO_TASK"]);
 if (strlen($arParams["PATH_TO_TASK"]) <= 0)
-	$arParams["PATH_TO_TASK"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=task&".$arParams["TASK_VAR"]."=#task_id#");
+	$arParams["PATH_TO_TASK"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=task&".$arParams["TASK_VAR"]."=#task_id#");
 $arParams["PATH_TO_TASK"] = $arParams["PATH_TO_TASK"].((strpos($arParams["PATH_TO_TASK"], "?") === false) ? "?" : "&").bitrix_sessid_get();
 
 $arParams["PATH_TO_BP"] = trim($arParams["PATH_TO_BP"]);
 if (strlen($arParams["PATH_TO_BP"]) <= 0)
-	$arParams["PATH_TO_BP"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=bp&".$arParams["BLOCK_VAR"]."=#block_id#");
+	$arParams["PATH_TO_BP"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=bp&".$arParams["BLOCK_VAR"]."=#block_id#");
 $arParams["PATH_TO_BP"] = $arParams["PATH_TO_BP"].((strpos($arParams["PATH_TO_BP"], "?") === false) ? "?" : "&").bitrix_sessid_get();
 
 $arResult["BackUrl"] = urlencode(strlen($_REQUEST["back_url"]) <= 0 ? $APPLICATION->GetCurPageParam() : $_REQUEST["back_url"]);
 
-$arResult["PATH_TO_INDEX"] = htmlspecialcharsbx(CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_INDEX"], array()));
+$arResult["PATH_TO_INDEX"] = htmlspecialchars(CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_INDEX"], array()));
 
 $arResult["FatalErrorMessage"] = "";
 $arResult["ErrorMessage"] = "";
@@ -102,7 +102,6 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 		"UserGroups" => array(2),
 		"Template" => "",
 		"TemplateVariables" => array(),
-		"ComponentTemplates" => array(),
 	);
 	if ($arParams["BLOCK_ID"] > 0)
 	{
@@ -122,16 +121,14 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 			$v1 = $ar["DESCRIPTION"];
 			$v2 = array();
 			$v3 = array();
-			$v5 = array();
 			if (strlen($ar["DESCRIPTION"]) > 0 && substr($ar["DESCRIPTION"], 0, strlen("v2:")) == "v2:")
 			{
 				$v4 = @unserialize(substr($ar["DESCRIPTION"], 3));
 				if (is_array($v4))
 				{
 					$v1 = $v4["DESCRIPTION"];
-					$v2 = is_array($v4["FILTERABLE_FIELDS"]) ? $v4["FILTERABLE_FIELDS"] : (strlen($v4["FILTERABLE_FIELDS"]) > 0 ? array($v4["FILTERABLE_FIELDS"]) : array());
-					$v3 = is_array($v4["VISIBLE_FIELDS"]) ? $v4["VISIBLE_FIELDS"] : (strlen($v4["VISIBLE_FIELDS"]) > 0 ? array($v4["VISIBLE_FIELDS"]) : array());
-					$v5 = is_array($v4["COMPONENT_TEMPLATES"]) ? $v4["COMPONENT_TEMPLATES"] : (strlen($v4["COMPONENT_TEMPLATES"]) > 0 ? array($v4["COMPONENT_TEMPLATES"]) : array());
+					$v2 = $v4["FILTERABLE_FIELDS"];
+					$v3 = $v4["VISIBLE_FIELDS"];
 				}
 			}
 
@@ -140,7 +137,6 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 				"Description" => $v1,
 				"FilterableFields" => $v2,
 				"VisibleFields" => $v3,
-				"ComponentTemplates" => $v5,
 				"Sort" => $ar["SORT"],
 				"Image" => $ar["PICTURE"],
 				"ElementAdd" => is_array($arMessagesTmp) && array_key_exists("ELEMENT_ADD", $arMessagesTmp) ? $arMessagesTmp["ELEMENT_ADD"] : GetMessage("BPWC_WNC_PNADD"),
@@ -158,7 +154,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 		$errorMessageTmp = "";
 
 		if (array_key_exists("bp_image", $_FILES))
-			$imageId = CFile::SaveFile($_FILES["bp_image"], "bizproc_wf", true);
+			$imageId = CFile::SaveFile($_FILES["bp_image"], "bizproc_wf", true, true);
 		else
 			$imageId = intval($_REQUEST["bp_image"]);
 
@@ -181,13 +177,8 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 			"ElementAdd" => trim($_REQUEST["bp_element_add"]),
 			"UserGroups" => is_array($_REQUEST["bp_user_groups"]) ? $_REQUEST["bp_user_groups"] : array(),
 			"Template" => preg_replace("/[^a-zA-Z0-9_.-]+/i", "", $_REQUEST["bp_template"]),
-			"FilterableFields" => is_array($_REQUEST["bp_filterablefields"]) ? $_REQUEST["bp_filterablefields"] : (strlen($_REQUEST["bp_filterablefields"]) > 0 ? array($_REQUEST["bp_filterablefields"]) : array()),
-			"VisibleFields" => is_array($_REQUEST["bp_visiblefields"]) ? $_REQUEST["bp_visiblefields"] : (strlen($_REQUEST["bp_visiblefields"]) > 0 ? array($_REQUEST["bp_visiblefields"]) : array()),
-			"ComponentTemplates" => array(
-				"Start" => trim($_REQUEST["bp_start_tpl"]),
-				"List" => trim($_REQUEST["bp_list_tpl"]),
-				"View" => trim($_REQUEST["bp_view_tpl"])
-			),
+			"FilterableFields" => $_REQUEST["bp_filterablefields"],
+			"VisibleFields" => $_REQUEST["bp_visiblefields"],
 		);
 
 		if (strlen($arResult["Data"]["Name"]) <= 0)
@@ -272,12 +263,12 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 				{
 					$arErrorsTmp = array();
 
-					$arResult["Data"]["TemplateVariables"][$variableKey] = $arResult["DocumentService"]->GetFieldInputValue(
+					$arResult["Data"]["TemplateVariables"][$variableKey] = $arResult["DocumentService"]->SetGUIFieldEdit(
 						array("bizproc", "CBPVirtualDocument", "type_0"),
-						$arVariable,
 						$variableKey,
 						$arRequest,
-						$arErrorsTmp
+						$arErrorsTmp,
+						$arVariable
 					);
 
 					if (count($arErrorsTmp) > 0)
@@ -312,14 +303,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 	{
 		$ib = new CIBlock();
 
-		$v1 = "v2:".serialize(
-			array(
-				"DESCRIPTION" => $arResult["Data"]["Description"],
-				"FILTERABLE_FIELDS" => $arResult["Data"]["FilterableFields"],
-				"VISIBLE_FIELDS" => $arResult["Data"]["VisibleFields"],
-				"COMPONENT_TEMPLATES" => $arResult["Data"]["ComponentTemplates"]
-			)
-		);
+		$v1 = "v2:".serialize(array("DESCRIPTION" => $arResult["Data"]["Description"], "FILTERABLE_FIELDS" => $arResult["Data"]["FilterableFields"], "VISIBLE_FIELDS" => $arResult["Data"]["VisibleFields"]));
 
 		$arFields = array(
 			"IBLOCK_TYPE_ID" => $arParams["IBLOCK_TYPE"],
@@ -340,76 +324,65 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 
 		if ($arParams["BLOCK_ID"] <= 0)
 		{
-			$opRes = $iblockId = $ib->Add($arFields);
+			$iblockId = $ib->Add($arFields);
 		}
 		else
 		{
-			$opRes = $ib->Update($arParams["BLOCK_ID"], $arFields);
+			$ib->Update($arParams["BLOCK_ID"], $arFields);
 			$iblockId = $arParams["BLOCK_ID"];
 		}
 
-		if ($opRes)
+		if (intval($arResult["Data"]["Image"]) > 0)
+			CFile::Delete($arResult["Data"]["Image"]);
+
+		if ($arParams["BLOCK_ID"] <= 0 && strlen($arResult["Data"]["Template"]) > 0)
 		{
-			global $CACHE_MANAGER;
-			$CACHE_MANAGER->Clean("component_bizproc_wizards_templates");
-
-			if (intval($arResult["Data"]["Image"]) > 0)
-				CFile::Delete($arResult["Data"]["Image"]);
-
-			if ($arParams["BLOCK_ID"] <= 0 && strlen($arResult["Data"]["Template"]) > 0)
+			$arVariables = false;
+			if (method_exists($bpTemplateObject, "GetVariables"))
 			{
-				$arVariables = false;
-				if (method_exists($bpTemplateObject, "GetVariables"))
+				$arVariables = $bpTemplateObject->GetVariables();
+				$ks = array_keys($arVariables);
+				foreach ($ks as $k)
+					$arVariables[$k]["Default"] = $arResult["Data"]["TemplateVariables"][$k];
+			}
+
+			$arFieldsT = array(
+				"DOCUMENT_TYPE" => array("bizproc", "CBPVirtualDocument", "type_".$iblockId),
+				"AUTO_EXECUTE" => CBPDocumentEventType::Create,
+				"NAME" => $arResult["Data"]["Name"],
+				"DESCRIPTION" => $arResult["Data"]["Description"],
+				"TEMPLATE" => $bpTemplateObject->GetTemplate(),
+				"PARAMETERS" => $bpTemplateObject->GetParameters(),
+				"VARIABLES" => $arVariables,
+				"USER_ID" => $GLOBALS["USER"]->GetID(),
+				"ACTIVE" => 'Y',
+				"MODIFIER_USER" => new CBPWorkflowTemplateUser(CBPWorkflowTemplateUser::CurrentUser),
+			);
+			CBPWorkflowTemplateLoader::Add($arFieldsT);
+
+			if (method_exists($bpTemplateObject, "GetDocumentFields"))
+			{
+				$runtime = CBPRuntime::GetRuntime();
+				$runtime->StartRuntime();
+				$arResult["DocumentService"] = $runtime->GetService("DocumentService");
+
+				$arDocumentFields = $bpTemplateObject->GetDocumentFields();
+				if ($arDocumentFields && is_array($arDocumentFields) && count($arDocumentFields) > 0)
 				{
-					$arVariables = $bpTemplateObject->GetVariables();
-					$ks = array_keys($arVariables);
-					foreach ($ks as $k)
-						$arVariables[$k]["Default"] = $arResult["Data"]["TemplateVariables"][$k];
-				}
-
-				$arFieldsT = array(
-					"DOCUMENT_TYPE" => array("bizproc", "CBPVirtualDocument", "type_".$iblockId),
-					"AUTO_EXECUTE" => CBPDocumentEventType::Create,
-					"NAME" => $arResult["Data"]["Name"],
-					"DESCRIPTION" => $arResult["Data"]["Description"],
-					"TEMPLATE" => $bpTemplateObject->GetTemplate(),
-					"PARAMETERS" => $bpTemplateObject->GetParameters(),
-					"VARIABLES" => $arVariables,
-					"USER_ID" => $GLOBALS["USER"]->GetID(),
-					"ACTIVE" => 'Y',
-					"MODIFIER_USER" => new CBPWorkflowTemplateUser(CBPWorkflowTemplateUser::CurrentUser),
-				);
-				CBPWorkflowTemplateLoader::Add($arFieldsT);
-
-				if (method_exists($bpTemplateObject, "GetDocumentFields"))
-				{
-					$runtime = CBPRuntime::GetRuntime();
-					$runtime->StartRuntime();
-					$arResult["DocumentService"] = $runtime->GetService("DocumentService");
-
-					$arDocumentFields = $bpTemplateObject->GetDocumentFields();
-					if ($arDocumentFields && is_array($arDocumentFields) && count($arDocumentFields) > 0)
+					foreach ($arDocumentFields as $f)
 					{
-						foreach ($arDocumentFields as $f)
-						{
-							$arResult["DocumentService"]->AddDocumentField(
-								array("bizproc", "CBPVirtualDocument", "type_".$iblockId),
-								$f
-							);
-						}
+						$arResult["DocumentService"]->AddDocumentField(
+							array("bizproc", "CBPVirtualDocument", "type_".$iblockId),
+							$f
+						);
 					}
 				}
 			}
+		}
 
-			$redirectPath = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_LIST"], array("block_id" => $iblockId));
-			$redirectPath .= ((strpos($redirectPath, "?") !== false) ? "&" : "?")."template_type=".$arResult["NewTemplateType"];
-			LocalRedirect($redirectPath);
-		}
-		else
-		{
-			$arResult["ErrorMessage"] .= $ib->LAST_ERROR;
-			$arResult["Step"] = 1;
-		}
+		$redirectPath = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_LIST"], array("block_id" => $iblockId));
+		$redirectPath .= ((strpos($redirectPath, "?") !== false) ? "&" : "?")."template_type=".$arResult["NewTemplateType"];
+		LocalRedirect($redirectPath);
 	}
 }
 
@@ -443,12 +416,6 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 			}
 			@closedir($handle);
 		}
-
-		$arResult["ComponentTemplates"] = array(
-			"Start" => CComponentUtil::GetTemplatesList("bitrix:bizproc.wizards.start"),
-			"List" => CComponentUtil::GetTemplatesList("bitrix:bizproc.wizards.list"),
-			"View" => CComponentUtil::GetTemplatesList("bitrix:bizproc.wizards.view"),
-		);
 	}
 	elseif ($arResult["Step"] == 2)
 	{

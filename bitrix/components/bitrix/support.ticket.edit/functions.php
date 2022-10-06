@@ -21,9 +21,9 @@ function _GetDictionaryInfoEx($arDictionary)
 			if (array_key_exists($ar["C_TYPE"], $arDictionary))
 			{
 				$dic = $arDictionary[$ar["C_TYPE"]][0];
-				$arReturn[$dic."_NAME"] = htmlspecialcharsbx($ar["NAME"]);
-				$arReturn[$dic."_DESC"] = htmlspecialcharsbx($ar["DESCR"]);
-				$arReturn[$dic."_SID"] = htmlspecialcharsbx($ar["SID"]);
+				$arReturn[$dic."_NAME"] = htmlspecialchars($ar["NAME"]);
+				$arReturn[$dic."_DESC"] = htmlspecialchars($ar["DESCR"]);
+				$arReturn[$dic."_SID"] = htmlspecialchars($ar["SID"]);
 			}
 		}
 	}
@@ -39,7 +39,7 @@ function _GetDropDownDictionary($TYPE, &$TICKET_DICTIONARY)
 	{
 		foreach ($TICKET_DICTIONARY[$TYPE] as $key => $value)
 		{
-			$arReturn[$key] = htmlspecialcharsbx($value["NAME"]);
+			$arReturn[$key] = htmlspecialchars($value["NAME"]);
 		}
 	}
 

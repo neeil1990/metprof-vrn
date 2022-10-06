@@ -34,7 +34,7 @@ else
 				<a href="<?= $arResult["Urls"]["User"] ?>"><?= GetMessage("SONET_C31_T_PROFILE") ?></a><br><br>
 			<?endif;?>
 			<?if ($arResult["CanMessage"]):?>
-				<a href="<?= $arResult["Urls"]["Chat"] ?>" onclick="if (typeof(BX) != 'undefined' && BX.IM) { BXIM.openMessenger(<?=$arUser['ID']?>); return false; } else { window.open('<?= $arResult["Urls"]["Chat"] ?>', '', 'location=yes,status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false; }"><?= GetMessage("SONET_C31_T_WRITE_MESSAGE") ?></a><br><br>
+				<a href="<?= $arResult["Urls"]["Chat"] ?>" onclick="window.open('<?= $arResult["Urls"]["Chat"] ?>', '', 'location=yes,status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false;"><?= GetMessage("SONET_C31_T_WRITE_MESSAGE") ?></a><br><br>
 			<?endif;?>
 			<?if ($arResult["ShowBanLink"]):?>
 				<a href="<?= $arResult["Urls"]["BanLink"] ?>"><?= GetMessage("SONET_C31_T_BAN") ?></a>
@@ -71,11 +71,22 @@ else
 	</script>
 
 	<form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
-	<input type="hidden" name="do_delete_all_flag" value="">
+		<input type="hidden" name="do_delete_all_flag" value="">
+		<table width="100%" cellspacing="0" cellpadding="0" border="0">
+		<tr>
+			<td width="100%" align="left">
+			<input type="submit" name="do_read" value="<?= GetMessage("SONET_C31_T_DO_READ") ?>">
+			<input type="submit" name="do_delete" value="<?= GetMessage("SONET_C31_T_DO_DEL") ?>">
+			</td>
+			<td width="0%" align="right">
+			<input type="button" name="do_delete_all" value="<?= GetMessage("SONET_C31_T_DO_DEL_ALL") ?>" onClick="javascript:if(confirm('<?= GetMessage("SONET_C31_T_DO_DEL_ALL_CONFIRM") ?>')) { document.form1.do_delete_all_flag.value = 'Y';  document.form1.submit(); }">
+			</td>
+		</tr>
+		</table>
+		<br><br>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>
-	<div class="sonet-cntnr-messages-users-messages">
 	<table width="100%" class="sonet-user-profile-friends data-table">
 		<tr>
 			<th width="0%"><input type="checkbox" id="check_all" value="" title="<?= GetMessage("SONET_C31_T_SELECT_ALL") ?>" onclick="SelectAllRows(this);"></th>
@@ -110,7 +121,7 @@ else
 			</tr>
 		<?endif;?>
 	</table>
-	</div>	
+	<br />
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<?=$arResult["NAV_STRING"]?>
 		<br /><br />

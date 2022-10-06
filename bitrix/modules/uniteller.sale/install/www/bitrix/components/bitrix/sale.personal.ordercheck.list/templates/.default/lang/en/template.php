@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS ['SPOL_T_F_FILTER'] = "Filter";
 $MESS ['SPOL_T_F_ID'] = "Order ID";
 $MESS ['SPOL_T_F_DATE'] = "Order date";

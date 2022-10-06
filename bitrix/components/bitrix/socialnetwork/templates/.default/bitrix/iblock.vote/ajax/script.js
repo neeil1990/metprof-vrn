@@ -48,10 +48,8 @@ var voteScript = {
 		arParams['vote_id'] = vote_id;
 		arParams['rating'] = vote_value;
 
-		BX.ajax.post(
-			'/bitrix/components/bitrix/iblock.vote/component.php',
-			arParams,
-			__handler
-		);
+		var TID = jsAjax.InitThread();
+		jsAjax.AddAction(TID, __handler);
+		jsAjax.Post(TID, url, arParams);
 	}
 }

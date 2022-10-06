@@ -1,44 +1,54 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-
-$sTplDir = trim(preg_replace("'[\\\\/]+'", "/", (dirname(__FILE__)."/user_files_")));
-if (empty($arParams["FORM_ID"]))
-    $arParams["FORM_ID"] = "webdavForm".$arParams["FILES_GROUP_IBLOCK_ID"];
-
-$arInfo = include($sTplDir."tab_edit.php");
-
-if (!is_array($arInfo)) return; // error already shown
-
-if ($arParams["WORKFLOW"] == "bizproc")
-{ 
-    include($sTplDir."tab_bizproc_history.php");
-    //include($sTplDir."tab_bizproc_document.php");
-    include($sTplDir."tab_bizproc_log.php");
-    include($sTplDir."tab_versions.php");
-}
-elseif ($arParams["WORKFLOW"] == "workflow")
+$db_res = $arParams["OBJECT"]->_get_mixed_list(null, $arParams + array("SHOW_VERSION" => "Y"), $arResult["VARIABLES"]["ELEMENT_ID"]); 
+if (!($db_res && $arResult["ELEMENT"] = $db_res->GetNext()))
 {
-    include($sTplDir."tab_workflow_history.php");
+	if ($arParams["SET_STATUS_404"] == "Y"):
+		CHTTP::SetStatus("404 Not Found");
+	endif;
+	return 0;
 }
-else
+elseif ($arParams["OBJECT"]->permission < "W")
 {
-    include($sTplDir."tab_bizproc_history.php");
+	return 0;
 }
 
-include($sTplDir."tab_comments.php");
+if ($arParams["SET_NAV_CHAIN"] != "N")
+{
+	$arResult["NAV_CHAIN"] = $arParams["OBJECT"]->GetNavChain(array("element_id" => ($arResult["ELEMENT"]["WF_PARENT_ELEMENT_ID"] > 0 ? 
+		$arResult["ELEMENT"]["WF_PARENT_ELEMENT_ID"] : $arResult["ELEMENT"]["ID"])), "array");
 
-if (!isset($_GET[$arParams["FORM_ID"].'_active_tab']))
-    $_REQUEST[$arParams["FORM_ID"].'_active_tab'] = "tab_bizproc_view";
-
-if (!$arParams["FORM_ID"]) $arParams["FORM_ID"] = "element";
-$APPLICATION->IncludeComponent(
-    "bitrix:main.interface.form",
-    "",
-    array(
-        "FORM_ID" => $arParams["FORM_ID"],
-        "TABS" => $this->__component->arResult['TABS'],
-        "DATA" => $this->__component->arResult['DATA'],
-    ),
-    ($this->__component->__parent ? $this->__component->__parent : $component)
-); 
+	$arNavChain = array(); 
+	foreach ($arResult["NAV_CHAIN"] as $res)
+	{
+		$arNavChain[] = $res["URL"];
+		if (count($arNavChain) >= count($arResult["NAV_CHAIN"]))
+			break; 
+		$url = CComponentEngine::MakePathFromTemplate($arResult["~PATH_TO_USER_FILES_ELEMENT_EDIT"], 
+			array("PATH" => implode("/", $arNavChain), "SECTION_ID" => $res["ID"], "ELEMENT_ID" => "files"));
+		$GLOBALS["APPLICATION"]->AddChainItem(htmlspecialcharsEx($res["NAME"]), $url);
+	}
+	
+	if ($arResult["ELEMENT"]["WF_PARENT_ELEMENT_ID"] > 0)
+	{
+		$GLOBALS["APPLICATION"]->AddChainItem(GetMessage("WD_ORIGINAL").": ".htmlspecialcharsEx($res["NAME"]), 
+			CComponentEngine::MakePathFromTemplate($arResult["~PATH_TO_USER_FILES_ELEMENT_VERSIONS"], 
+				array("SECTION_ID" => $res["IBLOCK_SECTION_ID"], "ELEMENT_ID" => $res["ID"])));
+	}
+	$GLOBALS["APPLICATION"]->AddChainItem(htmlspecialcharsEx($arResult["ELEMENT"]["NAME"]));
+}
+?><?$APPLICATION->IncludeComponent("bitrix:bizproc.log", "webdav.bizproc.log", Array(
+	"MODULE_ID" => $arResult["VARIABLES"]["MODULE_ID"], 
+	"ENTITY" => $arResult["VARIABLES"]["ENTITY"], 
+	"DOCUMENT_TYPE" => $arResult["VARIABLES"]["DOCUMENT_TYPE"], 
+	"DOCUMENT_ID" => $arResult["VARIABLES"]["ELEMENT_ID"], 
+	"ID" => $arResult["VARIABLES"]["ID"],
+	"DOCUMENT_URL" => str_replace(
+		array("#ELEMENT_ID#", "#WORKFLOW_ID#", "#ELEMENT_NAME#"), 
+		array($arResult["VARIABLES"]["ELEMENT_ID"], "#WORKFLOW_ID#", "#NAME#"), $arResult["~PATH_TO_USER_FILES_WEBDAV_BIZPROC_HISTORY_GET"]),
+	"SET_TITLE"	=>	$arParams["SET_TITLE"], 
+	
+	"USER_VIEW_URL" => $arResult["~PATH_TO_USER"]),
+	$component,
+	array("HIDE_ICONS" => "Y")
+);
 ?>
-

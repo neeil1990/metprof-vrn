@@ -2,19 +2,10 @@
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 include_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/components/bitrix/socialnetwork.menu/include.php');
-
-if (!CModule::IncludeModule("socialnetwork"))
-{
-	ShowError(GetMessage("SONET_MODULE_NOT_INSTALL"));
-	return;
-}
-
 if(!class_exists('CUserOptions'))
-{
 	include_once($_SERVER['DOCUMENT_ROOT']."/bitrix/modules/main/classes/".$GLOBALS['DBType']."/favorites.php");
-}
 
-$arSocNetFeaturesSettings = CSocNetAllowed::GetAllowedFeatures();
+global $arSocNetFeaturesSettings;
 
 $arStaticTabs = array("general", "friends", "groups", "users", "messages_users", "messages_input", "messages_output", "user_ban", "log", "subscribe", "bizproc");
 
@@ -49,58 +40,27 @@ if (count($parts) == 2)
 	$arParams["UPD_URL"] = $arResult["UPD_URL"] = $string;
 }
 
-$arParams["LogName"] = (strlen($arParams["LogName"]) > 0 ? $arParams["LogName"] : GetMessage("SONET_SM_M_LOG"));
-if (in_array($arParams["ENTITY_TYPE"], array(SONET_ENTITY_GROUP, SONET_ENTITY_USER)))
-	$arParams["GeneralName"] = (strlen($arParams["GeneralName"]) > 0 ? $arParams["GeneralName"] : GetMessage("SONET_SM_GENERAL_".$arParams["ENTITY_TYPE"]));
+
+$arParams["GeneralName"] = (strlen($arParams["GeneralName"]) > 0 ? $arParams["GeneralName"] : GetMessage("SONET_SM_GENERAL"));
 $arParams["FriendsName"] = (strlen($arParams["FriendsName"]) > 0 ? $arParams["FriendsName"] : GetMessage("SONET_SM_U_FRIENDS"));
 $arParams["GroupsName"] = (strlen($arParams["GroupsName"]) > 0 ? $arParams["GroupsName"] : GetMessage("SONET_SM_U_GROUPS"));
 $arParams["UsersName"] = (strlen($arParams["UsersName"]) > 0 ? $arParams["UsersName"] : GetMessage("SONET_SM_G_USERS"));
 
-if (
-	isset($arParams["arResult"])
-	&& isset($arParams["arResult"]["Urls"])
-	&& isset($arParams["arResult"]["Urls"]["content_search"])
-)
-{
+if (array_key_exists("Urls", $arParams["arResult"]) && array_key_exists("content_search", $arParams["arResult"]["Urls"]))
 	$arParams["arResult"]["Urls"]["search"] = $arParams["arResult"]["Urls"]["content_search"];
-}
-
-if (
-	isset($arParams["arResult"])
-	&& isset($arParams["arResult"]["CanView"])
-	&& isset($arParams["arResult"]["CanView"]["content_search"])
-)
-{
+if (array_key_exists("CanView", $arParams["arResult"]) && array_key_exists("content_search", $arParams["arResult"]["CanView"]))
 	$arParams["arResult"]["CanView"]["search"] = $arParams["arResult"]["CanView"]["content_search"];
-}
-
-if (
-	isset($arParams["arResult"])
-	&& isset($arParams["arResult"]["Title"])
-	&& isset($arParams["arResult"]["Title"]["content_search"])
-)
-{
+if (array_key_exists("Title", $arParams["arResult"]) && array_key_exists("content_search", $arParams["arResult"]["Title"]))
 	$arParams["arResult"]["Title"]["search"] = $arParams["arResult"]["Title"]["content_search"];
-}
-
 if ($arParams["PAGE_ID"] == "group_content_search")
-{
 	$arParams["PAGE_ID"] = "group_search";
-}
 elseif ($arParams["PAGE_ID"] == "user_content_search")
-{
 	$arParams["PAGE_ID"] = "user_search";
-}
 	
 $arParams["USE_MAIN_MENU"] = (isset($arParams["USE_MAIN_MENU"]) ? $arParams["USE_MAIN_MENU"] : false);
 
-if (
-	$arParams["USE_MAIN_MENU"] == "Y" 
-	&& !array_key_exists("MAIN_MENU_TYPE", $arParams)
-)
-{
+if ($arParams["USE_MAIN_MENU"] == "Y" && !array_key_exists("MAIN_MENU_TYPE", $arParams))
 	$arParams["MAIN_MENU_TYPE"] = "left";
-}
 
 $arResult["ID"] = $arParams["ID"];
 
@@ -117,11 +77,7 @@ if (!$errorMessage)
 		if (!$arGroup)
 			$errorMessage = GetMessage("SONET_SM_ENTITY_ID_INCORRECT");
 	}
-	elseif (
-		!array_key_exists("arResult", $arParams) 
-		|| !array_key_exists("User", $arParams["arResult"]) 
-		|| !is_array($arParams["arResult"]["User"])
-	)
+	else
 	{
 		$rsUser = CUser::GetByID($arParams["ENTITY_ID"]);
 		$arUser = $rsUser->Fetch();
@@ -174,13 +130,9 @@ if(!$errorMessage && $USER->IsAuthorized() && $arResult["PERMISSION"] > "R")
 	)
 	{
 		if (!array_key_exists($_REQUEST["feature"], $arSocNetFeaturesSettings))
-		{
 			$errorMessage = GetMessage("SONET_SM_FEATURE_INCORRECT");
-		}
 		elseif (!in_array($arParams["ENTITY_TYPE"], $arSocNetFeaturesSettings[$_REQUEST["feature"]]["allowed"]))
-		{
 			$errorMessage = GetMessage("SONET_SM_FEATURE_INACTIVE");
-		}
 	}
 
 	if($_SERVER['REQUEST_METHOD'] == 'POST' 
@@ -193,21 +145,21 @@ if(!$errorMessage && $USER->IsAuthorized() && $arResult["PERMISSION"] > "R")
 		if (!$errorMessage)
 		{
 			CUtil::JSPostUnescape();		
-
+			
 			$idTmp = CSocNetFeatures::SetFeature(
-				$arParams["ENTITY_TYPE"],
-				$arParams["ENTITY_ID"],
-				$_REQUEST["feature"],
-				true,
-				(StrLen($_REQUEST[$_REQUEST["feature"]."_name"]) > 0) ? $_REQUEST[$_REQUEST["feature"]."_name"] : false
-			);
+						$arParams["ENTITY_TYPE"],
+						$arParams["ENTITY_ID"],
+						$_REQUEST["feature"],
+						true,
+						(StrLen($_REQUEST[$_REQUEST["feature"]."_name"]) > 0) ? $_REQUEST[$_REQUEST["feature"]."_name"] : false
+					);
 			if ($idTmp && (!array_key_exists("hide_operations_settings", $arSocNetFeaturesSettings[$_REQUEST["feature"]]) || !$arSocNetFeaturesSettings[$_REQUEST["feature"]]["hide_operations_settings"]))
 			{
 				foreach ($arSocNetFeaturesSettings[$_REQUEST["feature"]]["operations"] as $operation => $perm)
 				{
 					if (
-						!array_key_exists("restricted", $arSocNetFeaturesSettings[$_REQUEST["feature"]]["operations"][$operation]) 
-						|| !in_array($key, $arSocNetFeaturesSettings[$_REQUEST["feature"]]["operations"][$operation]["restricted"][$arParams["ENTITY_TYPE"]])
+						!array_key_exists("restricted", $GLOBALS["arSocNetFeaturesSettings"][$_REQUEST["feature"]]["operations"][$operation]) 
+						|| !in_array($key, $GLOBALS["arSocNetFeaturesSettings"][$_REQUEST["feature"]]["operations"][$operation]["restricted"][$arParams["ENTITY_TYPE"]])
 					):
 						$id1Tmp = CSocNetFeaturesPerms::SetPerm(
 									$idTmp,
@@ -222,11 +174,11 @@ if(!$errorMessage && $USER->IsAuthorized() && $arResult["PERMISSION"] > "R")
 			elseif ($e = $APPLICATION->GetException())
 				$errorMessage = $e->GetString();
 		}
-
+		
 		$APPLICATION->RestartBuffer();
 		require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/interface/admin_lib.php');
 		$obJSPopup = new CJSPopup();
-
+		
 		if(!$errorMessage)
 			$obJSPopup->Close();
 		else
@@ -367,12 +319,12 @@ if(!$errorMessage && $USER->IsAuthorized() && $arResult["PERMISSION"] > "R")
 
 			if ($arResultTmp)
 				CSocNetFeatures::SetFeature(
-					($arParams['ENTITY_TYPE'] == SONET_ENTITY_GROUP) ? SONET_ENTITY_GROUP : SONET_ENTITY_USER,
-					$arParams['ENTITY_ID'],
-					$_REQUEST["feature"],
-					true,
-					$arResultTmp["FEATURE_NAME"]
-				);
+						($arParams['ENTITY_TYPE'] == SONET_ENTITY_GROUP) ? SONET_ENTITY_GROUP : SONET_ENTITY_USER,
+						$arParams['ENTITY_ID'],
+						$_REQUEST["feature"],
+						true,
+						$arResultTmp["FEATURE_NAME"]
+					);
 
 			$arUserOptions = CUserOptions::GetOption("socialnetwork", "~menu_".$arParams["ENTITY_TYPE"]."_".$arParams["ENTITY_ID"], false, 0);
 
@@ -398,6 +350,7 @@ if(!$errorMessage && $USER->IsAuthorized() && $arResult["PERMISSION"] > "R")
 			die();
 		}
 	}
+
 }
 
 if(!$errorMessage && $_REQUEST['menu_ajax'] == $arParams["ID"])
@@ -477,6 +430,7 @@ if(!$errorMessage && $_REQUEST['menu_ajax'] == $arParams["ID"])
 								$arFeatureTmp["PermsVar"] = array(
 									SONET_RELATIONS_TYPE_NONE => GetMessage("SONET_SM_PVU_NONE"),
 									SONET_RELATIONS_TYPE_FRIENDS => GetMessage("SONET_SM_PVU_FR"),
+									SONET_RELATIONS_TYPE_FRIENDS2 => GetMessage("SONET_SM_PVU_FR2"),
 									SONET_RELATIONS_TYPE_AUTHORIZED => GetMessage("SONET_SM_PVU_AUTHORIZED"),
 									SONET_RELATIONS_TYPE_ALL => GetMessage("SONET_SM_PVU_ALL"),
 								);
@@ -495,17 +449,13 @@ if(!$errorMessage && $_REQUEST['menu_ajax'] == $arParams["ID"])
 							$strResult .= '<td valign="top" width="50%">';
 							$strResult .= '<select name="'.$_REQUEST['feature'].'_'.$operation.'_perm">';
 									
-							foreach ($arFeatureTmp["PermsVar"] as $key => $value)
-							{
+							foreach ($arFeatureTmp["PermsVar"] as $key => $value):
 								if (
-									!array_key_exists("restricted", $arSocNetFeaturesSettings[$_REQUEST["feature"]]["operations"][$operation]) 
-									|| !isset($arSocNetFeaturesSettings[$_REQUEST["feature"]]["operations"][$operation]["restricted"][$arParams["ENTITY_TYPE"]])
-									|| !in_array($key, $arSocNetFeaturesSettings[$_REQUEST["feature"]]["operations"][$operation]["restricted"][$arParams["ENTITY_TYPE"]])
+									!array_key_exists("restricted", $GLOBALS["arSocNetFeaturesSettings"][$_REQUEST["feature"]]["operations"][$operation]) 
+									|| !in_array($key, $GLOBALS["arSocNetFeaturesSettings"][$_REQUEST["feature"]]["operations"][$operation]["restricted"][$arParams["ENTITY_TYPE"]])
 								)
-								{
 									$strResult .= '<option value="'.$key.'"'.(($key == $perm) ? ' selected' : '').'>'.$value.'</option>';
-								}
-							}
+							endforeach;
 									
 							$strResult .= '</select>';
 							$strResult .= '</td>';						
@@ -529,12 +479,11 @@ if(!$errorMessage && $_REQUEST['menu_ajax'] == $arParams["ID"])
 			case 'get_menu_settings':
 
 				$arUserOptions = CUserOptions::GetOption("socialnetwork", "~menu_".$arParams["ENTITY_TYPE"]."_".$arParams["ENTITY_ID"], false, 0);
-				$MaxItems = (
-					isset($arUserOptions["MAX_ITEMS"])
-					&& intval($arUserOptions["MAX_ITEMS"]) > 0
-						? intval($arUserOptions["MAX_ITEMS"])
-						: $arParams["MAX_ITEMS"]
-				);
+				
+				if (is_array($arUserOptions) && array_key_exists("MAX_ITEMS", $arUserOptions) && intval($arUserOptions["MAX_ITEMS"]) > 0)
+					$MaxItems = intval($arUserOptions["MAX_ITEMS"]);
+				else
+					$MaxItems = $arParams["MAX_ITEMS"];
 
 				$strResult = '<input type="hidden" name="sm_action" value="update_menu" id="bx_sm_menusettings_action">';
 				$strResult .= '<table cellspacing="0" cellpadding="2">';
@@ -598,14 +547,8 @@ if (is_object($parent) && strlen($parent->__name) > 0)
 {
 	$parent = & $parent->GetParent();
 
-	if (
-		is_object($parent)
-		&& isset($parent->arParams["SM_THEME"])
-		&& strlen($parent->arParams["SM_THEME"]) > 0
-	)
-	{
+	if (is_object($parent) && is_array($parent->arParams) && array_key_exists("SM_THEME", $parent->arParams) && strlen($parent->arParams["SM_THEME"]) > 0)
 		$arParams["SM_THEME"] = $parent->arParams["SM_THEME"];
-	}
 	else
 	{
 		$site_template = CSite::GetCurTemplate();
@@ -631,18 +574,14 @@ if (is_object($parent) && strlen($parent->__name) > 0)
 }
 
 if (!in_array($arParams["SM_THEME"], $arThemes))
-{
 	$arParams["SM_THEME"] = (in_array("grey", $arThemes) ? "grey" : $arThemes[0]);
-}
 
 if (in_array($arParams["SM_THEME"], $arThemes))
-{
-	$this->InitComponentTemplate();
-	$obTemplate = & $this->GetTemplate();
-	$GLOBALS['APPLICATION']->SetAdditionalCSS($obTemplate->GetFolder()."/themes/".$arParams["SM_THEME"]."/style.css");
-}
+	$GLOBALS['APPLICATION']->SetAdditionalCSS("/bitrix/components/bitrix/socialnetwork.menu/templates/.default/themes/".$arParams["SM_THEME"]."/style.css");
+
 	
 $arUserOptions = CUserOptions::GetOption("socialnetwork", "~menu_".$arParams["ENTITY_TYPE"]."_".$arParams["ENTITY_ID"], false, 0);
+
 $arResult["ALL_FEATURES"] = Array();
 
 $arFeaturesTmp = array();
@@ -651,24 +590,13 @@ $dbResultTmp = CSocNetFeatures::GetList(
 	array("ENTITY_ID" => $arParams["ENTITY_ID"], "ENTITY_TYPE" => $arParams["ENTITY_TYPE"])
 );
 while ($arResultTmp = $dbResultTmp->GetNext())
-{
 	$arFeaturesTmp[$arResultTmp["FEATURE"]] = $arResultTmp;
-}
 						
 $arCustomFeatures = array();
 $events = GetModuleEvents("socialnetwork", "OnFillSocNetMenu");
 while ($arEvent = $events->Fetch())
 	ExecuteModuleEventEx($arEvent, array(&$arCustomFeatures, $arParams));
 
-if ($arParams["ENTITY_TYPE"] == SONET_ENTITY_USER && $USER->IsAuthorized() && $USER->GetID() ==  $arParams["ENTITY_ID"])
-	$arResult["ALL_FEATURES"]["log"] = array(
-		"FeatureName" => $arParams["LogName"],
-		"Active" => true,
-		"Operations" => array(),
-		"NOPARAMS" => true,
-		"Url" => $arParams["arResult"]["Urls"]["Log"]
-	);
-	
 if ($arParams["ENTITY_TYPE"] == SONET_ENTITY_USER || $arParams["ENTITY_TYPE"] == SONET_ENTITY_GROUP)
 	$arResult["ALL_FEATURES"]["general"] = array(
 		"FeatureName" => $arParams["GeneralName"],
@@ -698,12 +626,9 @@ if ($arParams["ENTITY_TYPE"] == SONET_ENTITY_USER && $arParams["arResult"]["Curr
 
 foreach ($arSocNetFeaturesSettings as $feature => $arFeature)
 {
-	if (
-		!array_key_exists("allowed", $arFeature)
-		|| !in_array($arParams["ENTITY_TYPE"], $arFeature["allowed"])
-	)
+	if (!in_array($arParams["ENTITY_TYPE"], $arFeature["allowed"]))
 		continue;
-
+		
 	if (is_array($arCustomFeatures) && count($arCustomFeatures) > 0 && array_key_exists($feature, $arCustomFeatures["CanView"]) && !$arCustomFeatures["CanView"][$feature])
 		continue;
 	elseif(is_array($arCustomFeatures) && count($arCustomFeatures) > 0 && array_key_exists($feature, $arCustomFeatures["CanView"]))
@@ -781,13 +706,24 @@ if ($arParams["ENTITY_TYPE"] == "M")
 		"NOPARAMS" => true,
 		"Url" => $arParams["arResult"]["Urls"]["UserBan"]
 	);
-
-	if (
-		array_key_exists("arResult", $arParams)
-		&& isset($arParams["arResult"]["Urls"])
-		&& isset($arParams["arResult"]["Urls"]["BizProc"])
-	)
-	{
+	
+	$arResult["ALL_FEATURES"]["log"] = array(
+		"FeatureName" => GetMessage("SONET_SM_M_LOG"),
+		"Active" => true,
+		"Operations" => array(),
+		"NOPARAMS" => true,
+		"Url" => $arParams["arResult"]["Urls"]["Log"]
+	);
+	
+	$arResult["ALL_FEATURES"]["subscribe"] = array(
+		"FeatureName" => GetMessage("SONET_SM_M_SUBSCRIBE"),
+		"Active" => true,
+		"Operations" => array(),
+		"NOPARAMS" => true,
+		"Url" => $arParams["arResult"]["Urls"]["Subscribe"]
+	);
+	
+	if (array_key_exists("BizProc", $arParams["arResult"]["Urls"]))
 		$arResult["ALL_FEATURES"]["bizproc"] = array(
 			"FeatureName" => GetMessage("SONET_SM_M_BIZPROC"),
 			"Active" => true,
@@ -795,34 +731,25 @@ if ($arParams["ENTITY_TYPE"] == "M")
 			"NOPARAMS" => true,
 			"Url" => $arParams["arResult"]["Urls"]["BizProc"]
 		);
-	}
 }
 
 
 $arResult["FEATURES"] = Array();
 $arResult["FEATURES_CODES"] = Array();
 
-if (
-	isset($arUserOptions["FEATURES"])
-	&& count($arUserOptions["FEATURES"]) > 0
-)
+if(is_array($arUserOptions) && array_key_exists("FEATURES", $arUserOptions) && count($arUserOptions["FEATURES"]) > 0)
 {
 	foreach($arUserOptions["FEATURES"] as $feature_id => $featureUserSettings)
 	{
 		if(
-			$arResult["ALL_FEATURES"][$feature_id] 
+			($arResult["ALL_FEATURES"][$feature_id] 
 			&& array_key_exists("Active", $arResult["ALL_FEATURES"][$feature_id]) 
 			&& $arResult["ALL_FEATURES"][$feature_id]["Active"] == true 
-			&& (
-				(
-					array_key_exists("arResult", $arParams) 
-					&& array_key_exists("CanView", $arParams["arResult"]) 
-					&& array_key_exists($feature_id, $arParams["arResult"]["CanView"]) 
-					&& $arParams["arResult"]["CanView"][$feature_id]
-				)
-				|| 
-				in_array($feature_id, $arStaticTabs)
-			)
+			&& (array_key_exists("arResult", $arParams) 
+			&& array_key_exists("CanView", $arParams["arResult"]) 
+			&& array_key_exists("search", $arParams["arResult"]["CanView"]) 
+			&& $arParams["arResult"]["CanView"][$feature_id])
+			|| in_array($feature_id, $arStaticTabs))
 		)
 		{
 			$arFeature = $arResult["ALL_FEATURES"][$feature_id];			
@@ -875,24 +802,6 @@ elseif (strpos($arParams["PAGE_ID"], "user_") === 0)
 elseif (strpos($arParams["PAGE_ID"], "group_") === 0)
 	$page_id = substr($arParams["PAGE_ID"], 6);
 
-if (array_key_exists("log", $arResult["ALL_FEATURES"]) && !in_array("log", $arResult["FEATURES_CODES"]))
-{
-	$arResult["FEATURES"] = array_merge(
-		array(
-			array(
-				"FeatureName" => $arResult["ALL_FEATURES"]["log"]["FeatureName"],
-				"Active" => $arResult["ALL_FEATURES"]["log"]["Active"],
-				"Operations" => $arResult["ALL_FEATURES"]["log"]["Operations"],
-				"NOPARAMS" => $arResult["ALL_FEATURES"]["log"]["NOPARAMS"],
-				"Url" => $arResult["ALL_FEATURES"]["log"]["Url"],
-				"feature" =>"log"
-			)
-		), 
-		$arResult["FEATURES"]
-	);
-	$arResult["FEATURES_CODES"] = array_merge(array("log"), $arResult["FEATURES_CODES"]);
-}
-
 if ($arParams["USE_MAIN_MENU"] == "Y")
 {
 	$arResult["PAGE_ID"] = $page_id;
@@ -911,14 +820,12 @@ if ($arParams["USE_MAIN_MENU"] == "Y")
 	}
 }
 else
-{
-	$arResult["MAX_ITEMS"] = (
-		isset($arUserOptions["MAX_ITEMS"])
-		&& intval($arUserOptions["MAX_ITEMS"]) > 0
-			? $arUserOptions["MAX_ITEMS"]
-			: $arParams["MAX_ITEMS"]
-	);
-
+{	
+	if(is_array($arUserOptions) && array_key_exists("MAX_ITEMS", $arUserOptions) && intval($arUserOptions["MAX_ITEMS"]) > 0)
+		$arResult["MAX_ITEMS"] = $arUserOptions["MAX_ITEMS"];
+	else
+		$arResult["MAX_ITEMS"] = $arParams["MAX_ITEMS"];
+		
 	foreach ($arResult["FEATURES"] as $i => $arFeature)
 	{
 		if ($arFeature["feature"] == $page_id && $i >= $arResult["MAX_ITEMS"])

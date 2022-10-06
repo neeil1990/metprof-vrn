@@ -17,11 +17,12 @@ else
 	?>	
 	<?if ($arResult["CurrentUserPerms"]["UserCanModerateGroup"]):?>
 		<form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
+		<input type="submit" name="save" value="<?= GetMessage("SONET_C7_ACT_SAVE") ?>">
+		<br /><br />
 	<?endif;?>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>
-	<div class="sonet-cntnr-group-ban">
 	<table width="100%" class="sonet-user-profile-friends data-table">
 		<tr>
 			<th><?= GetMessage("SONET_C7_SUBTITLE") ?></th>
@@ -125,7 +126,6 @@ else
 			</td>
 		</tr>
 	</table>
-	</div>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<br><?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>

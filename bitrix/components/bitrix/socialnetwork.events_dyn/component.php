@@ -7,15 +7,6 @@ if (!CModule::IncludeModule("socialnetwork"))
 	return;
 }
 
-if (IsModuleInstalled("im"))
-{
-	if ($this->__templateName == "popup")
-		$this->__templateName = ".default";
-
-	$this->IncludeComponentTemplate();
-	return false;
-}
-
 $arParams["USER_ID"] = IntVal($arParams["USER_ID"]);
 if ($arParams["USER_ID"] <= 0)
 	$arParams["USER_ID"] = IntVal($USER->GetID());
@@ -29,11 +20,11 @@ if (strLen($arParams["MESSAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM"] = trim($arParams["PATH_TO_MESSAGE_FORM"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM_MESS"] = trim($arParams["PATH_TO_MESSAGE_FORM_MESS"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM_MESS"]) <= 0)
@@ -58,7 +49,7 @@ if ($arParams["AJAX_LONG_TIMEOUT"] <= 0)
 	$arParams["AJAX_LONG_TIMEOUT"] = 60;
 
 if (strlen(trim($arParams["NAME_TEMPLATE"])) <= 0)
-	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+	$arParams["NAME_TEMPLATE"] = GetMessage('SONET_NAME_TEMPLATE_DEFAULT');
 
 $arParams['SHOW_LOGIN'] = $arParams['SHOW_LOGIN'] != "N" ? "Y" : "N";
 $arParams['POPUP'] = $arParams['POPUP'] != "Y" ? "N" : "Y";
@@ -82,9 +73,9 @@ if ($GLOBALS["USER"]->IsAuthorized())
 
 	if (COption::GetOptionString("socialnetwork", "allow_tooltip", "Y") != "Y")
 		$arResult["USE_TOOLTIP"] = false;
-
+			
 	$this->IncludeComponentTemplate();
-
+	
 	return Array("arResult" => $arResult, "arParams" => $arParams);
 }
 ?>

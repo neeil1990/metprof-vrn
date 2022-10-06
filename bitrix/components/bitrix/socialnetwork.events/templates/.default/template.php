@@ -18,7 +18,6 @@ else
 	if ($arResult["EventType"] == "FriendRequest")
 	{
 		?>
-		<div class="sonet-cntnr-events">
 		<table class="sonet-user-profile-friends data-table" width="100%">
 			<tr>
 				<th align="center"><?= GetMessage("SONET_C1_FR_TITLE") ?></th>
@@ -87,13 +86,12 @@ else
 				</td>
 			</tr>
 		</table>
-		</div>
+		<br>
 		<?
 	}
 	elseif ($arResult["EventType"] == "GroupRequest")
 	{
 		?>
-		<div class="sonet-cntnr-events">
 		<table class="sonet-user-profile-friends data-table" width="100%">
 			<tr>
 				<th align="center"><?= GetMessage("SONET_C1_GR_TITLE") ?></th>
@@ -180,13 +178,13 @@ else
 				</td>
 			</tr>
 		</table>
-		</div>
+		<br>
 		<?
 	}
 	elseif ($arResult["EventType"] == "Message")
 	{
 		?>
-		<div class="sonet-cntnr-events">
+
 		<table class="sonet-user-profile-friends data-table" width="100%" cellspacing="0" cellpadding="0">
 			<tr>
 				<th align="center"><?= GetMessage("SONET_C1_MS_TITLE") ?></th>
@@ -278,7 +276,8 @@ else
 				</td>
 			</tr>
 		</table>
-		</div>
+
+		<br>
 		<?
 	}
 }

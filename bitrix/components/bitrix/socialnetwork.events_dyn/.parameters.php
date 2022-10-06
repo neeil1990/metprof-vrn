@@ -93,7 +93,7 @@ $arComponentParameters = Array(
 			"VALUES" => CComponentUtil::GetDefaultNameTemplates(),
 			"MULTIPLE" => "N",
 			"ADDITIONAL_VALUES" => "Y",
-			"DEFAULT" => "",
+			"DEFAULT" => GetMessage("SONET_NAME_TEMPLATE_DEFAULT"),
 			"PARENT" => "ADDITIONAL_SETTINGS",
 		),
 		"SHOW_LOGIN" => Array(

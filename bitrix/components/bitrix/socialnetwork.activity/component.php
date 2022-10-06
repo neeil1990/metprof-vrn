@@ -16,11 +16,11 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_GROUP"] = trim($arParams["PATH_TO_GROUP"]);
 if (strlen($arParams["PATH_TO_GROUP"]) <= 0)
-	$arParams["PATH_TO_GROUP"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group&".$arParams["GROUP_VAR"]."=#group_id#");
+	$arParams["PATH_TO_GROUP"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group&".$arParams["GROUP_VAR"]."=#group_id#");
 
 $arParams["PATH_TO_SMILE"] = trim($arParams["PATH_TO_SMILE"]);
 
@@ -31,16 +31,14 @@ if ($arParams["USER_ID"] <= 0)
 	return;
 }
 
-$arParams["NAME_TEMPLATE"] = $arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : CSite::GetNameFormat();
+$arParams["NAME_TEMPLATE"] = $arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : "#NOBR##NAME# #LAST_NAME##/NOBR#";
 $arParams["NAME_TEMPLATE_WO_NOBR"] = str_replace(
 			array("#NOBR#", "#/NOBR#"), 
 			array("", ""), 
 			$arParams["NAME_TEMPLATE"]
 	);
 $bUseLogin = $arParams["SHOW_LOGIN"] != "N" ? true : false;
-
-$arSocNetFeaturesSettings = CSocNetAllowed::GetAllowedFeatures();
-
+	
 $arParams["LOG_DATE_DAYS"] = IntVal($arParams["LOG_DATE_DAYS"]);
 if ($arParams["LOG_DATE_DAYS"] <= 0)
 	$arParams["LOG_DATE_DAYS"] = 7;
@@ -87,7 +85,7 @@ if ($arUser = $dbUser->Fetch())
 			$arResult["Features"][] = "tasks";
 		}
 
-		if (IsModuleInstalled("webdav") || IsModuleInstalled("disk"))
+		if (IsModuleInstalled("webdav"))
 			$arResult["Features"][] = "files";
 	
 		if ($arParams["SET_TITLE"] == "Y" || $arParams["SET_NAV_CHAIN"] != "N")
@@ -126,7 +124,7 @@ if ($arUser = $dbUser->Fetch())
 				"MI"	=> 0,
 				"SS"	=> 0,
 			);
-			$stmp = AddToTimeStamp($arrAdd, time()+CTimeZone::GetOffset());				
+			$stmp = AddToTimeStamp($arrAdd, time());				
 			$arFilter[">=LOG_DATE"] = ConvertTimeStamp($stmp, "FULL");
 		}
 		
@@ -180,43 +178,27 @@ if ($arUser = $dbUser->Fetch())
 				}
 				elseif ($arEvents["EVENT_ID"] == "blog_post")
 				{
-					if (
-						!array_key_exists("blog", $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists("blog", $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin))
 						continue;
-					}
 				}
 				elseif ($arEvents["EVENT_ID"] == "blog_post_micro")
 				{
-					if (
-						!array_key_exists("microblog", $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists("microblog", $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin))
 						continue;
-					}
 				}
 				elseif ($arEvents["EVENT_ID"] == "blog_comment")
 				{
-					if (
-						!array_key_exists("blog", $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], "blog", "view_comment", $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists("blog", $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], "blog", "view_comment", $bCurrentUserIsAdmin))
 						continue;
-					}
 				}
 				else
 				{
-					if (
-						!array_key_exists($arEvents["EVENT_ID"], $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], $arEvents["EVENT_ID"], $arSocNetFeaturesSettings[$arEvents["EVENT_ID"]]["minoperation"][0], $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists($arEvents["EVENT_ID"], $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_GROUP, $arEvents["ENTITY_ID"], $arEvents["EVENT_ID"], $GLOBALS["arSocNetFeaturesSettings"][$arEvents["EVENT_ID"]]["minoperation"][0], $bCurrentUserIsAdmin))
 						continue;
-					}
 				}
 
 				$path2Entity = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_GROUP"], array("group_id" => $arEvents["ENTITY_ID"]));
@@ -242,43 +224,27 @@ if ($arUser = $dbUser->Fetch())
 				}
 				elseif ($arEvents["EVENT_ID"] == "blog_post")
 				{
-					if (
-						!array_key_exists("blog", $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists("blog", $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin))
 						continue;
-					}
 				}
 				elseif ($arEvents["EVENT_ID"] == "blog_post_micro")
 				{
-					if (
-						!array_key_exists("microblog", $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists("microblog", $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], "blog", "view_post", $bCurrentUserIsAdmin))
 						continue;
-					}
 				}
 				elseif ($arEvents["EVENT_ID"] == "blog_comment")
 				{
-					if (
-						!array_key_exists("blog", $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], "blog", "view_comment", $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists("blog", $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], "blog", "view_comment", $bCurrentUserIsAdmin))
 						continue;
-					}
 				}				
 				else
 				{
-					if (
-						!array_key_exists($arEvents["EVENT_ID"], $arSocNetFeaturesSettings)
-						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], $arEvents["EVENT_ID"], $arSocNetFeaturesSettings[$arEvents["EVENT_ID"]]["minoperation"][0], $bCurrentUserIsAdmin)
-					)
-					{
+					if (!array_key_exists($arEvents["EVENT_ID"], $GLOBALS["arSocNetFeaturesSettings"])
+						|| !CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), SONET_ENTITY_USER, $arEvents["ENTITY_ID"], $arEvents["EVENT_ID"], $GLOBALS["arSocNetFeaturesSettings"][$arEvents["EVENT_ID"]]["minoperation"][0], $bCurrentUserIsAdmin))
 						continue;
-					}
 				}
 
 				$path2Entity = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arEvents["ENTITY_ID"]));

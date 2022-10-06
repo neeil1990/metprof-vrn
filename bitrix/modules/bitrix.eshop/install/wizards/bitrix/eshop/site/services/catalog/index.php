@@ -46,7 +46,7 @@ if (CModule::IncludeModule("catalog"))
 			$newStoreId = CCatalogStore::Add($arStoreFields);
 			if($newStoreId)
 			{
-				CCatalogDocs::synchronizeStockQuantity($newStoreId);
+				$_SESSION['NEW_STORE_ID'] = $newStoreId;
 			}
 		}
 	}

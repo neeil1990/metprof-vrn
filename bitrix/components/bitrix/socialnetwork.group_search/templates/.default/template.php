@@ -2,7 +2,6 @@
 <table width="100%"><tr><td valign="top">
 <form method="get" action="<?= $arResult["Urls"]["GroupSearch"] ?>" style="margin:0;padding:0;">
 	<input type="hidden" name="<?= $arParams["PAGE_VAR"] ?>" value="group_search">
-	<div class="sonet-cntnr-group-search">
 	<table class="sonet-user-profile-friends data-table">
 		<tr>
 			<th colspan="2"><?= GetMessage("SONET_C24_T_SEARCH_TITLE") ?></th>
@@ -31,7 +30,6 @@
 		</tr>
 		</tfoot>
 	</table>
-	</div>
 	<?if ($arResult["how"] == "d"):?>
 		<input type="hidden" name="how" value="d">
 	<?endif;?>
@@ -49,50 +47,51 @@
 <?if (strlen($arResult["ERROR_MESSAGE"]) <= 0):?>
 	<?if (count($arResult["SEARCH_RESULT"]) > 0):?>
 		<br /><?foreach ($arResult["SEARCH_RESULT"] as $v):?>
-		<div class="sonet-cntnr-group-search2">
 		<table width="100%" class="sonet-user-profile-friends data-table">
-			<tr>
-				<td width="105" nowrap valign="top" align="center">
-					<?= $v["IMAGE_IMG"] ?>
-				</td>
-				<td valign="top">
-					<a href="<?= $v["URL"] ?>"><b><?= $v["TITLE_FORMATED"] ?></b></a><br />
-					<?
-					if ($v["ARCHIVE"] == "Y")
-					{
+			
+				<tr>
+					<td width="105" nowrap valign="top" align="center">
+						<?= $v["IMAGE_IMG"] ?>
+					</td>
+					<td valign="top">
+						<a href="<?= $v["URL"] ?>"><b><?= $v["TITLE_FORMATED"] ?></b></a><br />
+						<?
+						if ($v["ARCHIVE"] == "Y")
+						{
+							?>
+							<br />
+							<b><?= GetMessage("SONET_C39_ARCHIVE_GROUP") ?></b>
+							<?
+						}
+						if (strlen($v["BODY_FORMATED"]) > 0)
+						{
+							?>
+							<br />
+							<?= $v["BODY_FORMATED"] ?>
+							<?
+						}
+						if (strlen($v["SUBJECT_NAME"]) > 0)
+						{
+							?>
+							<br />
+							<?= GetMessage("SONET_C24_T_SUBJ") ?>: <?= $v["SUBJECT_NAME"] ?>
+							<?
+						}
+						if (IntVal($v["NUMBER_OF_MEMBERS"]) > 0)
+						{
+							?>
+							<br />
+							<?= GetMessage("SONET_C24_T_MEMBERS") ?>: <?= $v["NUMBER_OF_MEMBERS"] ?>
+							<?
+						}
 						?>
 						<br />
-						<b><?= GetMessage("SONET_C39_ARCHIVE_GROUP") ?></b>
-						<?
-					}
-					if (strlen($v["BODY_FORMATED"]) > 0)
-					{
-						?>
-						<br />
-						<?= $v["BODY_FORMATED"] ?>
-						<?
-					}
-					if (strlen($v["SUBJECT_NAME"]) > 0)
-					{
-						?>
-						<br />
-						<?= GetMessage("SONET_C24_T_SUBJ") ?>: <?= $v["SUBJECT_NAME"] ?>
-						<?
-					}
-					if (IntVal($v["NUMBER_OF_MEMBERS"]) > 0)
-					{
-						?>
-						<br />
-						<?= GetMessage("SONET_C24_T_MEMBERS") ?>: <?= $v["NUMBER_OF_MEMBERS"] ?>
-						<?
-					}
-					?>
-					<br />
-					<?= GetMessage("SONET_C24_T_ACTIVITY") ?>: <?= $v["FULL_DATE_CHANGE_FORMATED"]; ?>
-				</td>
-			</tr>
+						<?= GetMessage("SONET_C24_T_ACTIVITY") ?>: <?= $v["FULL_DATE_CHANGE_FORMATED"]; ?>
+					</td>
+				</tr>
+			
 		</table>
-		</div>
+		<br />
 		<?endforeach;?>
 
 		<?if (strlen($arResult["NAV_STRING"]) > 0):?>

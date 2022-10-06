@@ -152,6 +152,7 @@ div.bx-users-selector-filter table.bx-selector-table tfoot td {
 }
 
 .bx-user-info {border: solid 1px #C4C4C4; margin: 0px 0px 10px 0px;}
+{padding: 15px; border-top: solid 3px #D8E3E8;}
 
 .bx-user-text {}
 .bx-user-text .bx-user-name, .bx-user-text .bx-user-post {margin-bottom: 10px;}
@@ -202,4 +203,12 @@ div.bx-users-selector-filter table.bx-selector-table tfoot td {
 .bx-user-control .bx-icon-featured{background-position: 0 -80px;}
 .bx-user-control .bx-icon-addfriend{background-position: 0 -100px;}
 
-div.sonet-cntnr-user-search, div.sonet-cntnr-user-search2, div.sonet-cntnr-user-search3 { margin-bottom: 1em; }
+.bx-user-subtitle {
+	width: 100%;
+	font-size: 1.2em;
+	font-weight: bold;
+	padding: 5px 2px;
+	margin-bottom: 10px;
+	background-color: #F8F6EE;
+}
+.bx-user-subtitle-featured {color: #C30808;}

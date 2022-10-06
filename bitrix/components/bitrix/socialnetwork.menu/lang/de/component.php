@@ -39,7 +39,7 @@ $MESS["SONET_SM_M_USERS"] = "Nachrichten";
 $MESS["SONET_SM_M_INPUT"] = "Empfangen";
 $MESS["SONET_SM_M_OUTPUT"] = "Gesendet";
 $MESS["SONET_SM_M_BAN"] = "Schwarze Liste";
-$MESS["SONET_SM_M_LOG"] = "Activity Stream";
+$MESS["SONET_SM_M_LOG"] = "Live Updates";
 $MESS["SONET_SM_M_SUBSCRIBE"] = "Abonnement";
 $MESS["SONET_SM_M_BIZPROC"] = "Geschäftsprozesse";
 $MESS["SONET_SM_MAX_ITEMS"] = "Anzahl der Einträge in einer Zeile";
@@ -47,7 +47,4 @@ $MESS["SONET_SM_CLEAR"] = "Menüeinstellungen zurücksetzen";
 $MESS["SONET_SM_MAX_ITEMS_INCORRECT"] = "Die eingegebene Punktenanzahl ist nicht korrekt";
 $MESS["SONET_SM_G_MICROBLOG"] = "Microblog";
 $MESS["SONET_SM_U_MICROBLOG"] = "Microblog";
-$MESS["SONET_SM_GENERAL_U"] = "Profil";
-$MESS["SONET_SM_GENERAL_G"] = "Allgemein";
-$MESS["SONET_MODULE_NOT_INSTALL"] = "Das Modul \"Soziales Netz\" wurde nicht installiert.";
 ?>

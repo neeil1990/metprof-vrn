@@ -23,23 +23,13 @@ function CreateActivity(oActivity)
 		a = eval("new "+arAllActivities[t.toLowerCase()]['JSCLASS']+"()");
 		if(!oActivity.Properties)
 			oActivity.Properties = {};
-		else if (oActivity.Properties instanceof Array)
-		{
-			var k, properties = BX.clone(oActivity.Properties);
-			oActivity.Properties = {};
-			for (k in properties)
-				if (properties.hasOwnProperty(k))
-					oActivity.Properties[k] = properties[k];
-		}
 		if(!oActivity.Properties['Title'])
 			oActivity.Properties['Title'] = arAllActivities[t.toLowerCase()]['NAME'];
 		if(!oActivity.Icon && arAllActivities[t.toLowerCase()]['ICON'])
 			oActivity.Icon = arAllActivities[t.toLowerCase()]['ICON'];
 	}
-	else if (typeof window[t] !== 'undefined')
-		a = eval("new " + t + "()");
 	else
-		a = new UnknownBizProcActivity();
+		a = eval("new "+t+"()");
 
 	a.Init(oActivity);
 	return a;
@@ -47,19 +37,6 @@ function CreateActivity(oActivity)
 
 function JSToPHPHidd(v, ob, varname)
 {
-	if (typeof BPDesignerUseJson !== 'undefined'  && BPDesignerUseJson)
-	{
-		v[varname] = JSON.stringify(ob, function (i, v)
-			{
-				if (typeof(v) == 'boolean')
-				{
-					return v ? '1' : '0';
-				}
-				return v;
-			});
-		return true;
-	}
-
 	var res, i, key;
 	if(typeof(ob)=='object')
 	{
@@ -107,17 +84,6 @@ function JSToPHPHidd(v, ob, varname)
 
 function JSToPHP(ob, varname)
 {
-	if (typeof BPDesignerUseJson !== 'undefined'  && BPDesignerUseJson)
-	{
-		return varname + '=' + encodeURIComponent(JSON.stringify(ob, function (i, v)
-			{
-				if (typeof(v) == 'boolean')
-				{
-					return v ? '1' : '0';
-				}
-				return v;
-			}));
-	}
 	var res, i, key;
 	if(typeof(ob)=='object')
 	{
@@ -165,7 +131,34 @@ function ActGetRealPos(el)
 	if(!el || !el.offsetParent)
 		return false;
 
-	return BX.pos(el, true);
+	var res = Array();
+	res["left"] = el.offsetLeft;
+	res["top"] = el.offsetTop;
+	var objParent = el.offsetParent;
+
+	while(objParent && objParent.tagName != "BODY")
+	{
+		res["left"] += objParent.offsetLeft;
+		res["top"] += objParent.offsetTop;
+		//if(objParent.scrollTop>0)
+		//	console.debug(objParent.scrollTop);
+		objParent = objParent.offsetParent;
+	}
+
+	objParent = el.parentNode;
+	while(objParent && objParent.tagName && objParent.tagName != "BODY")
+	{
+		if(objParent.scrollLeft)
+			res["left"] -= objParent.scrollLeft;
+		if(objParent.scrollTop)
+			res["top"] -= objParent.scrollTop;
+		objParent = objParent.parentNode;
+	}
+
+	res["right"] = res["left"] + el.offsetWidth;
+	res["bottom"] = res["top"] + el.offsetHeight;
+
+	return res;
 }
 
 function XMLEncode(str)
@@ -269,7 +262,7 @@ BizProcActivity = function()
 		}
 
 		if(oActivity['Properties'])
-			this.Properties = BX.clone(oActivity['Properties']);
+			this.Properties = oActivity['Properties'];
 
 		if(oActivity['Icon'])
 			this.Icon = oActivity['Icon'];
@@ -280,19 +273,16 @@ BizProcActivity = function()
 		this.height = 0;
 		this.width = 0;
 
+		// размещаем его детей
 		var activity;
 		this.childActivities = [];
-
-		if(!oActivity.Children && oActivity.childActivities)
-			oActivity.Children = oActivity.childActivities;
-
 		for(var i in oActivity.Children)
 		{
 			activity = CreateActivity(oActivity.Children[i]);
 			activity.parentActivity = this;
 			this.childActivities[this.childActivities.length] = activity;
 		}
-	};
+	}
 
 
 	ob.SerializeToXML = function (e)
@@ -306,7 +296,8 @@ BizProcActivity = function()
 		}
 		else
 			return '<activity class="'+XMLEncode(ob.Type)+'" name="'+XMLEncode(ob['Properties'].Title)+'" id="'+XMLEncode(ob.Name)+'" params="" />';
-	};
+	}
+
 
 	ob.Serialize = function ()
 	{
@@ -318,35 +309,33 @@ BizProcActivity = function()
 				s['Children'].push(ob.childActivities[i].Serialize());
 		}
 		return s;
-	};
+	}
 
 	ob.OnRemoveClick = function (e)
 	{
 		ob.parentActivity.RemoveChild(ob);
-	};
+	}
 
 	ob.OnSettingsClick = function (e)
 	{
 		ob.Settings();
-	};
+	}
 
 	ob.Settings = function (e)
 	{
 		(new BX.CDialog({
-			'content_url': "/bitrix/admin/"+MODULE_ID+"_bizproc_activity_settings.php?mode=public&bxpublic=Y&lang="+BX.message('LANGUAGE_ID')+"&entity="+ENTITY,
+			'content_url': "/bitrix/admin/"+MODULE_ID+"_bizproc_activity_settings.php?mode=public&bxpublic=Y&lang=&entity="+ENTITY, 
 			'content_post': 'id='+encodeURIComponent(ob.Name)+ '&' +
 				'decode=Y&' +
 				'document_type=' + encodeURIComponent(document_type) + '&' +
 				'activity='+encodeURIComponent(ob.Type)+ '&' +
 				JSToPHP(arWorkflowParameters, 'arWorkflowParameters')  + '&' +
 				JSToPHP(arWorkflowVariables, 'arWorkflowVariables')  + '&' +
-				JSToPHP(Array(rootActivity.Serialize()), 'arWorkflowTemplate') + '&' +
-				'current_site_id=' + encodeURIComponent(CURRENT_SITE_ID) + '&' +
-				'sessid=' + BX.bitrix_sessid(),
+				JSToPHP(Array(rootActivity.Serialize()), 'arWorkflowTemplate'), 				
 			'height': 500,
 			'width': 800
-			})).Show();
-	};
+			})).Show(); 
+	}
 
 	ob.RemoveResources = function (self)
 	{
@@ -355,7 +344,7 @@ BizProcActivity = function()
 			ob.div.parentNode.removeChild(ob.div);
 			ob.div = null;
 		}
-	};
+	}
 
 	ob.RemoveChild = function (ch)
 	{
@@ -367,6 +356,7 @@ BizProcActivity = function()
 			{
 				while(ch.childActivities.length > 0)
 				{
+					//debugger;
 					ch.childActivities[0].parentActivity.RemoveChild(ch.childActivities[0]);
 				}
 
@@ -387,27 +377,17 @@ BizProcActivity = function()
 				break;
 			}
 		}
-		BPTemplateIsModified = true;
-	};
+	}
 
-	ob.SetError = function (s, setFocus)
+	ob.SetError = function (s)
 	{
-		if (!ob.div)
-		{
-			return false;
-		}
-
 		if(s===false)
 			ob.div.className = 'activity';
 		else
 			ob.div.className = 'activityerr';
+	}
 
-		if (setFocus === true && s !== false)
-		{
-			BX.scrollToNode(ob.div);
-		}
-	};
-
+	// любое действие должно уметь рисовать себя
 	ob.Draw = function (divC)
 	{
 		ob.div = divC.appendChild(document.createElement('DIV'));
@@ -429,14 +409,6 @@ BizProcActivity = function()
 		a2.className = 'activityset';
 
 		a2.onclick = this.OnSettingsClick;// this!
-
-		if(this.OnHideClick)
-		{
-			var a3 = d111.appendChild(document.createElement('A'));
-			a3.className = 'activitymin';
-
-			a3.onclick = this.OnHideClick;// this!
-		}
 
 
 		var sp = d111.appendChild(document.createElement('DIV'));
@@ -482,7 +454,6 @@ BizProcActivity = function()
 			act.style.paddingLeft = '24px';
 			act.style.textAlign = 'left';
 			act.innerHTML = HTMLEncode(ob['Properties']['Title']);
-			act.setAttribute('title', ob['Properties']['Title']);
 		}
 
 		var d3 = ob.div.appendChild(document.createElement('DIV'));
@@ -505,31 +476,8 @@ BizProcActivity = function()
 	this.SetHeight = function (iHeight)
 	{
 		this.height = iHeight;
-	};
-
-	ob.findChildById = function (id)
-	{
-		if(ob.childActivities)
-		{
-			for(var i = 0; i < ob.childActivities.length; i++)
-			{
-				if (id === ob.childActivities[i]['Name'])
-				{
-					return ob.childActivities[i];
-				}
-				else
-				{
-					var found = ob.childActivities[i].findChildById(id);
-					if (found)
-					{
-						return found;
-					}
-				}
-			}
-		}
-		return null;
 	}
-};
+}
 
 function _DragNDrop()
 {
@@ -612,6 +560,7 @@ function _DragNDrop()
 
 	ob.RemoveHandler = function (eventName, i)
 	{
+		//debugger;
 		if(ob.Handlers[eventName][i])
 			delete ob.Handlers[eventName][i];
 	}
@@ -624,28 +573,28 @@ function _DragNDrop()
 		if(!e)
 			e = window.event;
 
-		BX.fixEventPageXY(e);
-		var X = e.pageX;
-		var Y = e.pageY;
+	 	var scrollPos = jsUtils.GetWindowScrollPos();
+
+		var X = e.clientX + scrollPos.scrollLeft;
+		var Y = e.clientY + scrollPos.scrollTop;
 
 		ob.drdrop.style.left = X + 1 + 'px';
 		ob.drdrop.style.top = Y + 1 + 'px';
 
-	 	var scrollSize = BX.GetWindowInnerSize();
-	 	var scrollPos = BX.GetWindowScrollPos();
-
-	 	if((scrollSize.innerHeight - 30) < e.clientY)
+	 	var scrollSize = jsUtils.GetWindowInnerSize();
+	 	if((scrollSize.innerHeight - 15) < e.clientY)
 	 		window.scrollBy(0, 20);
 
-	 	if((scrollSize.innerWidth - 30) < e.clientX)
-	 		window.scrollBy(20, 0);
-
-	 	if(scrollPos.scrollTop>0 && e.clientY<30)
+	 	if(scrollPos.scrollTop>0 && e.clientY<15)
 	 		window.scrollBy(0, -20);
+/*
 
-	 	if(scrollPos.scrollLeft>0 && e.clientX<30)
-	 		window.scrollBy(-20, 0);
+		var X = e.clientX + document.documentElement.scrollLeft;
+		var Y = e.clientY + document.documentElement.scrollTop;
 
+		ob.drdrop.style.top = Y + 1 + 'px';
+		ob.drdrop.style.left = X + 1 + 'px';
+*/
 		if(document.selection && document.selection.empty)
 			document.selection.empty();
 		else
@@ -687,148 +636,6 @@ function _DragNDrop()
 	}
 
 }
-
-UnknownBizProcActivity = function()
-{
-	var ob = new BizProcActivity();
-
-	ob.Draw = function (divC)
-	{
-		ob.div = divC.appendChild(document.createElement('DIV'));
-		ob.div.className = 'activityerr';
-		var d1 = ob.div.appendChild(document.createElement('DIV'));
-		d1.className = 'activityhead';
-		var d11 = d1.appendChild(document.createElement('DIV'));
-		d11.className = 'activityheadr';
-		var d111 = d11.appendChild(document.createElement('DIV'));
-		d111.className = 'activityheadl';
-
-		var a1 = d111.appendChild(document.createElement('A'));
-		a1.className = 'activitydel';
-
-		a1.onclick = this.OnRemoveClick;// this!
-
-		var sp = d111.appendChild(document.createElement('DIV'));
-		//sp.innerHTML = HTMLEncode(ob['Properties']['Title']);
-		sp.style.padding = '5px';
-		sp.style.cursor = 'not-allowed';
-
-		var d2 = ob.div.appendChild(document.createElement('DIV'));
-		d2.style.backgroundColor = '#E6E6E6';
-		d2.style.borderLeft = '2px #bebabb solid';
-		d2.style.borderRight = '2px #bebabb solid';
-		d2.style.overflowX = 'hidden';
-		d2.style.overflowY = 'hidden';
-		d2.style.height = (ob.activityHeight ? ob.activityHeight : '30px');
-
-		var act = d2.appendChild(document.createElement('DIV'));
-		act.style.background = 'url(/bitrix/images/bizproc/act_icon.gif) left center no-repeat';
-		act.style.height = '30px';
-		act.style.margin = '2px';
-		act.style.paddingLeft = '24px';
-		act.style.textAlign = 'left';
-		act.innerHTML = HTMLEncode(ob['Properties']['Title']);
-		act.setAttribute('title', ob['Properties']['Title']);
-
-		var d3 = ob.div.appendChild(document.createElement('DIV'));
-		d3.style.background = 'url(/bitrix/images/bizproc/act_bt.gif)';
-		d3.style.backgroundColor = '#E6E6E6';
-		d3.style.height = '4px';
-		d3.style.overflowY = 'hidden';
-		var d33 = d3.appendChild(document.createElement('DIV'));
-		d33.style.background = 'url(/bitrix/images/bizproc/act_br.gif) right top no-repeat';
-		var d333 = d33.appendChild(document.createElement('DIV'));
-		d333.style.background = 'url(/bitrix/images/bizproc/act_bl.gif) left top no-repeat';
-		d333.style.height = '4px';
-
-		ob.div.style.margin = '0 auto';
-		ob.div.style.width = (ob.activityWidth ? ob.activityWidth : '170px');
-	};
-
-	return ob;
-};
-
-BX.namespace('BX.Bizproc');
-BX.Bizproc.cloneTypeControl = function(tableID)
-{
-	var tbl = document.getElementById(tableID);
-	var cnt = tbl.rows.length;
-	var oRow = tbl.insertRow(cnt);
-	var oCell = oRow.insertCell(0);
-	var sHTML = tbl.rows[cnt - 1].cells[0].innerHTML;
-	var p = 0, s, e, n;
-	while (true)
-	{
-		s = sHTML.indexOf('[n', p);
-		if (s < 0)
-			break;
-		e = sHTML.indexOf(']', s);
-		if (e < 0)
-			break;
-		n = parseInt(sHTML.substr(s + 2, e - s));
-		sHTML = sHTML.substr(0, s) + '[n' + (++n) + ']' + sHTML.substr(e + 1);
-		p = s + 1;
-	}
-	p = 0;
-	while (true)
-	{
-		s = sHTML.indexOf('__n', p);
-		if (s < 0)
-			break;
-		e = sHTML.indexOf('_', s + 2);
-		if (e < 0)
-			break;
-		n = parseInt(sHTML.substr(s + 3, e - s));
-		sHTML = sHTML.substr(0, s) + '__n' + (++n) + '_' + sHTML.substr(e + 1);
-		p = e + 1;
-	}
-	oCell.innerHTML = sHTML;
-	var pattern = new RegExp('<' + 'script' + '>[^\000]*?<' + '\/' + 'script' + '>', 'ig');
-	var code = sHTML.match(pattern);
-	if (code)
-	{
-		for (var i = 0; i < code.length; i++)
-		{
-			if (code[i] != '')
-			{
-				s = code[i].substring(8, code[i].length - 9);
-				jsUtils.EvalGlobal(s);
-			}
-		}
-	}
-};
-
-BX.Bizproc.cloneTypeControlHtml = function(tableID, wrapperId)
-{
-	var tbl = document.getElementById(tableID);
-	var cnt = tbl.rows.length;
-	var oRow = tbl.insertRow(cnt);
-	var oCell = oRow.insertCell(0);
-	var sHTML = tbl.rows[cnt - 1].cells[0].innerHTML;
-	var p = 0, s, e, n = 0;
-	s = sHTML.indexOf('[n', p);
-	if (s > -1)
-	{
-		e = sHTML.indexOf(']', s);
-		if (e > -1)
-		{
-			n = parseInt(sHTML.substr(s + 2, e - s));
-			++n;
-		}
-	}
-
-	BX.ajax({
-		method: 'GET',
-		dataType: 'html',
-		url: '/bitrix/tools/bizproc_get_html_editor.php?site_id='
-			+BX.message('SITE_ID')+'&editor_id='+ wrapperId+'__n'
-			+n+'_&field_name='+wrapperId+'[n'+n+']',
-		onsuccess: function (HTML)
-		{
-			oCell.innerHTML = HTML;
-		}
-	});
-};
 
 var DragNDrop = new _DragNDrop();
 }

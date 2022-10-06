@@ -1,9 +1,9 @@
-<?php
+ï»¿<?php
 
 IncludeModuleLangFile(__FILE__);
 
 /**
- * Êëàññ äëÿ ðàáîòû ñ òàáëèöåé ñ ëîãàìè îøèáîê.
+ * ÐšÐ»Ð°ÑÑ Ð´Ð»Ñ Ñ€Ð°Ð±Ð¾Ñ‚Ñ‹ Ñ Ñ‚Ð°Ð±Ð»Ð¸Ñ†ÐµÐ¹ Ñ Ð»Ð¾Ð³Ð°Ð¼Ð¸ Ð¾ÑˆÐ¸Ð±Ð¾Ðº.
  * @author r.smoliarenko
  * @author r.sarazhyn
  */
@@ -11,7 +11,7 @@ class CUnitellerAgentLog {
 	var $LAST_ERROR = '';
 
 	/**
-	 * Âîçâðàùàåò ñïèñîê çàïèñåé â ñîîòâåòñòâèè ñ ôèëüòðîì è ñîðòèðîâêîé.
+	 * Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‰Ð°ÐµÑ‚ ÑÐ¿Ð¸ÑÐ¾Ðº Ð·Ð°Ð¿Ð¸ÑÐµÐ¹ Ð² ÑÐ¾Ð¾Ñ‚Ð²ÐµÑ‚ÑÑ‚Ð²Ð¸Ð¸ Ñ Ñ„Ð¸Ð»ÑŒÑ‚Ñ€Ð¾Ð¼ Ð¸ ÑÐ¾Ñ€Ñ‚Ð¸Ñ€Ð¾Ð²ÐºÐ¾Ð¹.
 	 * @param array $aSort
 	 * @param array $aFilter
 	 * @return object
@@ -91,7 +91,7 @@ class CUnitellerAgentLog {
 	}
 
 	/**
-	 * Âîçâðàùàåò ñïèñîê òèïîâ îøèáîê.
+	 * Ð’Ð¾Ð·Ð²Ñ€Ð°Ñ‰Ð°ÐµÑ‚ ÑÐ¿Ð¸ÑÐ¾Ðº Ñ‚Ð¸Ð¿Ð¾Ð² Ð¾ÑˆÐ¸Ð±Ð¾Ðº.
 	 * @return object
 	 */
 	function GetTypeList() {
@@ -110,7 +110,7 @@ class CUnitellerAgentLog {
 	}
 
 	/**
-	 * Óäàëÿåò çàïèñü.
+	 * Ð£Ð´Ð°Ð»ÑÐµÑ‚ Ð·Ð°Ð¿Ð¸ÑÑŒ.
 	 * @param integer $ID
 	 * @return object
 	 */

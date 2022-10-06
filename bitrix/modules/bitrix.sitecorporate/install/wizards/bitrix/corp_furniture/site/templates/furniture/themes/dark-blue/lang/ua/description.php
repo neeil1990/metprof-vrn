@@ -1,3 +1,3 @@
 <?
-$MESS["CFST_THEME_DARK_BLUE"] = "Π†Π½Π΄Ρ–Π³ΠΎ";
+$MESS["CFST_THEME_DARK_BLUE"] = "²νδ³γξ";
 ?>

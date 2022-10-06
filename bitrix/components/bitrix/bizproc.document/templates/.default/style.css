@@ -21,6 +21,7 @@ ul.bizproc-document-states li.bizproc-document-start{
 	overflow:hidden;}
 ul.bizproc-document-states li.bizproc-document-start td, ul.bizproc-document-states li.bizproc-item-buttons td{
 	font-weight:bold;
+	height:35px!important;
 	overflow:hidden;}
 ul.bizproc-document-states li.bizproc-item-buttons{
 	border:none;}

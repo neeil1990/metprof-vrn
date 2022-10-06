@@ -20,7 +20,6 @@ $APPLICATION->IncludeComponent(
 		"ITEMS_COUNT" => $arParams["ITEM_DETAIL_COUNT"],
 		"PATH_TO_GROUP_REQUEST_USER" => $arResult["PATH_TO_GROUP_REQUEST_USER"],
 		"PAGE" => "group_request_group_search",
-		"USE_KEYWORDS" => $arParams["GROUP_USE_KEYWORDS"],
 	),
 	$component 
 );

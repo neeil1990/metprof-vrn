@@ -1,6 +1,6 @@
 div.ddmenu {
 	position: relative;
-	z-index: 190;
+	z-index: 90;
 }
 
 div.ddmenu div.ddmenu-inactive, div.ddmenu div.ddmenu-active {
@@ -61,11 +61,6 @@ div.ddmenu div.ddmenu-active {
 #ddmenuadd .bx-sm-parent .bx-sm-header, #ddmenuinact .bx-sm-parent .bx-sm-header { 
 	margin-right: 20px;
 	padding-left: 20px;	
-}
-
-.bx-sm-parent .bx-sm-header {
-	max-width: 250px;
-	overflow: hidden;
 }
 
 .bx-sm-holder-show .bx-sm-parent .bx-sm-header {

@@ -35,7 +35,7 @@ else
 				<?if(strlen($arResult["Group"]["DESCRIPTION"])>0):?>
 				<tr>
 					<td width="25%" valign="top"><?= GetMessage("SONET_C6_DESCR") ?>:</td>
-					<td valign="top" width="75%"><?=nl2br($arResult["Group"]["DESCRIPTION"])?></td>
+					<td valign="top" width="75%"><?=$arResult["Group"]["DESCRIPTION"]?></td>
 				</tr>
 				<?endif;?>
 				<?if ($arResult["GroupProperties"]["SHOW"] == "Y"):?>
@@ -81,12 +81,7 @@ else
 					<?if (!$arResult["CurrentUserPerms"]["UserRole"]):?>
 						<li class="bx-icon-join"><a href="<?= $arResult["Urls"]["UserRequestGroup"] ?>"><?= GetMessage("SONET_C6_ACT_JOIN") ?></a></li>
 					<?endif;?>
-					<?
-					if (
-						$arResult["CurrentUserPerms"]["UserIsMember"]
-						&& (!isset($arResult["CurrentUserPerms"]["UserIsAutoMember"]) || !$arResult["CurrentUserPerms"]["UserIsAutoMember"])
-						&& !$arResult["CurrentUserPerms"]["UserIsOwner"]
-					):?>
+					<?if ($arResult["CurrentUserPerms"]["UserIsMember"] && !$arResult["CurrentUserPerms"]["UserIsOwner"]):?>
 						<li class="bx-icon-leave"><a href="<?= $arResult["Urls"]["UserLeaveGroup"] ?>"><?= GetMessage("SONET_C6_ACT_EXIT") ?></a></li>
 					<?endif;?>
 					</ul>

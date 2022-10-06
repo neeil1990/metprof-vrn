@@ -47,10 +47,12 @@ else
 	</script>
 
 	<form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
+		<input type="submit" name="save" value="<?= GetMessage("SONET_C12_DO_SAVE") ?>">
+		<input type="submit" name="reject" value="<?= GetMessage("SONET_C12_DO_REJECT") ?>">
+		<br /><br />
 		<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 			<?=$arResult["NAV_STRING"]?><br /><br />
 		<?endif;?>
-		<div class="sonet-cntnr-group-requests">
 		<table width="100%" class="sonet-user-profile-friends data-table">
 			<tr>
 				<th colspan="3"><?= GetMessage("SONET_C12_SUBTITLE") ?></th>
@@ -114,7 +116,7 @@ else
 				<tr><td colspan="3"><?= GetMessage("SONET_C12_NO_REQUESTS") ?><br /><?= GetMessage("SONET_C12_NO_REQUESTS_DESCR") ?></td></tr>
 			<?endif;?>
 		</table>
-		</div>
+		<br />
 		<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 			<?=$arResult["NAV_STRING"]?><br /><br />
 		<?endif;?>

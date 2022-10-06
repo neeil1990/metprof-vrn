@@ -2,7 +2,7 @@
 <?
 $APPLICATION->IncludeComponent(
 	"bitrix:bizproc.wizards.view",
-	isset($arResult["COMPONENT_TEMPLATES"]["View"]) ? $arResult["COMPONENT_TEMPLATES"]["View"] : "",
+	"",
 	array(
 		"PAGE_VAR" => $arResult["ALIASES"]["page"],
 		"TASK_VAR" => $arResult["ALIASES"]["task_id"],
@@ -21,7 +21,6 @@ $APPLICATION->IncludeComponent(
 		"SET_NAV_CHAIN" => $arParams["SET_NAV_CHAIN"],
 		"ITEMS_COUNT" => $arParams["ITEMS_COUNT"],
 		"ADMIN_ACCESS" => $arParams["ADMIN_ACCESS"],
-		"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"]
 	),
 	$component
 );

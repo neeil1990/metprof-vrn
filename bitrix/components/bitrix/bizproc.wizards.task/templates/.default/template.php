@@ -37,8 +37,8 @@ else
 	<form method="post" name="task_form1" action="<?= POST_FORM_ACTION_URI ?>" enctype="multipart/form-data">
 		<input type="hidden" name="action" value="doTask">
 		<input type="hidden" name="id" value="<?= intval($arResult["Task"]["ID"]) ?>">
-		<input type="hidden" name="workflow_id" value="<?= htmlspecialcharsbx($arResult["Task"]["WORKFLOW_ID"]) ?>">
-		<input type="hidden" name="back_url" value="<?= htmlspecialcharsbx($backUrl) ?>">
+		<input type="hidden" name="workflow_id" value="<?= htmlspecialchars($arResult["Task"]["WORKFLOW_ID"]) ?>">
+		<input type="hidden" name="back_url" value="<?= htmlspecialchars($backUrl) ?>">
 		<?= bitrix_sessid_post() ?>
 		<table class="bpwiz1-view-form data-table" cellpadding="0" cellspacing="0">
 			<tr>

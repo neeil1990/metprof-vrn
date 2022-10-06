@@ -76,7 +76,6 @@ if ($arParams["PERMISSION"] >= "W" && $arParams["CHECK_CREATOR"] != "Y" && $arRe
 	"ELEMENT_VERSIONS_URL" => $arResult["~PATH_TO_GROUP_FILES_ELEMENT_VERSIONS"],
 	"ELEMENT_UPLOAD_URL" => $arResult["~PATH_TO_GROUP_FILES_ELEMENT_UPLOAD"],
 	"HELP_URL" => $arResult["~PATH_TO_GROUP_FILES_HELP"],
-	"CONNECTOR_URL" => $arResult["~PATH_TO_GROUP_FILES_CONNECTOR"],
 	"USER_VIEW_URL" => $arResult["~PATH_TO_USER"],
 	"WEBDAV_BIZPROC_HISTORY_URL" => $arResult["~PATH_TO_GROUP_FILES_WEBDAV_BIZPROC_HISTORY"], 
 	"WEBDAV_BIZPROC_HISTORY_GET_URL" => $arResult["~PATH_TO_GROUP_FILES_WEBDAV_BIZPROC_HISTORY_GET"], 
@@ -134,14 +133,14 @@ if ($arParams["SHOW_NAVIGATION"] != "N")
 		$path = substr($path, 0, $pos+1);
 	}
 	
+	$GLOBALS["tmp_STR_TITLE"] = $arParams["STR_TITLE"]; 
 	$GLOBALS["APPLICATION"]->IncludeComponent(
 		"bitrix:breadcrumb", 
 		"webdav",
 		Array(
 			"START_FROM" => (count($arChain) + $this->__component->__count_chain_item - 1), 
 			"PATH" => "", 
-			"SITE_ID" => "",
-			"STR_TITLE" => $arParams["STR_TITLE"]
+			"SITE_ID" => ""
 		), $component, 
 		array("HIDE_ICONS" => "Y")
 	);

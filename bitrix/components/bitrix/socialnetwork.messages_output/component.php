@@ -18,19 +18,19 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM"] = trim($arParams["PATH_TO_MESSAGE_FORM"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGES_OUTPUT"] = trim($arParams["PATH_TO_MESSAGES_OUTPUT"]);
 if (strlen($arParams["PATH_TO_MESSAGES_OUTPUT"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_OUTPUT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output");
+	$arParams["PATH_TO_MESSAGES_OUTPUT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output");
 
 $arParams["PATH_TO_MESSAGES_OUTPUT_USER"] = trim($arParams["PATH_TO_MESSAGES_OUTPUT_USER"]);
 if (strlen($arParams["PATH_TO_MESSAGES_OUTPUT_USER"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_OUTPUT_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output_user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGES_OUTPUT_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output_user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_SMILE"] = trim($arParams["PATH_TO_SMILE"]);
 
@@ -159,7 +159,7 @@ else
 
 		$pu = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arMessages["TO_USER_ID"]));
 		$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arMessages["TO_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
-		$canAnsver = (IsModuleInstalled("im") || CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arMessages["TO_USER_ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin()));
+		$canAnsver = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arMessages["TO_USER_ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin());
 
 		if (intval($arMessages["TO_USER_PERSONAL_PHOTO"]) <= 0)
 		{
@@ -190,7 +190,7 @@ else
 			"USER_PERSONAL_PHOTO_IMG" => $arImage["IMG"],
 			"USER_PROFILE_URL" => $pu,
 			"SHOW_PROFILE_LINK" => $canViewProfile,
-			"DELETE_LINK" => htmlspecialcharsbx($APPLICATION->GetCurUri("eventID=".$arMessages["ID"]."&action=delete&".bitrix_sessid_get()."")),
+			"DELETE_LINK" => htmlspecialchars($APPLICATION->GetCurUri("eventID=".$arMessages["ID"]."&action=delete&".bitrix_sessid_get()."")),
 			"ALL_USER_MESSAGES_LINK" => CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_MESSAGES_OUTPUT_USER"], array("user_id" => $arMessages["TO_USER_ID"])),
 			"DATE_CREATE" => $arMessages["DATE_CREATE"],
 			"TITLE" => $arMessages["TITLE"],

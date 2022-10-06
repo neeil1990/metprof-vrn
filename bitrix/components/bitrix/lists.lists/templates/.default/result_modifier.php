@@ -1,32 +1,42 @@
 <?
 if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
 
-$defaultImg = "<img src=\"/bitrix/images/lists/nopic_list_150.png\" width=\"36\" height=\"30\" border=\"0\" alt=\"\" />";
-if($arParams["IBLOCK_TYPE_ID"] == COption::GetOptionString("lists", "livefeed_iblock_type_id"))
-{
-	$defaultImg = "<img src=\"/bitrix/images/lists/default.png\" width=\"36\" height=\"30\" border=\"0\" alt=\"\" />";
-}
-foreach($arResult["ITEMS"] as $key => $item)
-{
-	if($item["PICTURE"] > 0)
-	{
-		$imageFile = CFile::GetFileArray($item["PICTURE"]);
-		if($imageFile !== false)
-		{
-			$imageFile = CFile::ResizeImageGet(
-				$imageFile,
-				array("width" => 36, "height" => 30),
-				BX_RESIZE_IMAGE_PROPORTIONAL,
-				false
-			);
-			$arResult["ITEMS"][$key]["IMAGE"] = CFile::ShowImage($imageFile['src'], 36, 30, 'border=0');
-		}
-	}
-	if(!$arResult["ITEMS"][$key]["IMAGE"])
-		$arResult["ITEMS"][$key]["IMAGE"] = $defaultImg;
+$arParams["LINE_ELEMENT_COUNT"] = intval($arParams["LINE_ELEMENT_COUNT"]);
+if($arParams["LINE_ELEMENT_COUNT"] <= 0)
+	$arParams["LINE_ELEMENT_COUNT"] = 3;
 
-	if($arParams["IBLOCK_TYPE_ID"] == COption::GetOptionString("lists", "livefeed_iblock_type_id"))
+$imageSize = 150;
+$arResult["TD_WIDTH"] = round(100/$arParams["LINE_ELEMENT_COUNT"])."%";
+
+$arResult["ROWS"] = array();
+while(count($arResult["ITEMS"]) > 0)
+{
+	$arRow = array_splice($arResult["ITEMS"], 0, $arParams["LINE_ELEMENT_COUNT"]);
+	foreach($arRow as $i => $arList)
 	{
-		$arResult["ITEMS"][$key]["SHOW_LIVE_FEED"] = CLists::getLiveFeed($item['ID']);
+		$arRow[$i]["IMAGE"] = false;
+		if($arList["PICTURE"] > 0)
+		{
+			$imageFile = CFile::GetFileArray($arList["PICTURE"]);
+			if($imageFile !== false)
+			{
+				$arFileTmp = CFile::ResizeImageGet(
+					$imageFile,
+					array("width" => $imageSize, "height" => $imageSize),
+					BX_RESIZE_IMAGE_PROPORTIONAL,
+					false
+				);
+				$arRow[$i]["IMAGE"] = CFile::ShowImage($arFileTmp["src"], $imageSize, $imageSize, "border=0", "", false);
+			}
+		}
+
+		if(!$arRow[$i]["IMAGE"])
+			$arRow[$i]["IMAGE"] = "<img src=\"/bitrix/images/lists/nopic_list_150.png\" width=\"".$imageSize."\" height=\"".$imageSize."\" border=\"0\" alt=\"\" />";
 	}
+
+	while(count($arRow) < $arParams["LINE_ELEMENT_COUNT"])
+		$arRow[] = false;
+
+	$arResult["ROWS"][] = $arRow;
 }
+?>

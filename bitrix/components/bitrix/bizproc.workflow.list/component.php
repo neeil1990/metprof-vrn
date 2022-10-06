@@ -2,6 +2,9 @@
 if (!CModule::IncludeModule('bizproc')):
 	return false;
 endif;
+global $by, $order;
+$by = (empty($by) ? "name" : $by);
+$order = (empty($order) ? "asc" : $order);
 /********************************************************************
 				Input params
 ********************************************************************/
@@ -9,7 +12,6 @@ endif;
 	$arParams["MODULE_ID"] = trim(empty($arParams["MODULE_ID"]) ? $_REQUEST["module_id"] : $arParams["MODULE_ID"]);
 	$arParams["ENTITY"] = trim(empty($arParams["ENTITY"]) ? $_REQUEST["entity"] : $arParams["ENTITY"]);
 	$arParams["DOCUMENT_ID"] = trim(empty($arParams["DOCUMENT_ID"]) ? $_REQUEST["document_id"] : $arParams["DOCUMENT_ID"]);
-	$arParams["CREATE_DEFAULT_TEMPLATE"] = isset($arParams["CREATE_DEFAULT_TEMPLATE"]) ? $arParams["CREATE_DEFAULT_TEMPLATE"] : "Y";
 /***************** URL *********************************************/
 	$URL_NAME_DEFAULT = array(
 		"edit" => "PAGE_NAME=edit&ID=#ID#&ACTION=#ACTION#");
@@ -20,11 +22,10 @@ endif;
 		if (empty($arParams[strToUpper($URL)."_URL"]))
 			$arParams[strToUpper($URL)."_URL"] = $APPLICATION->GetCurPage()."?".$URL_VALUE;
 		$arParams["~".strToUpper($URL)."_URL"] = $arParams[strToUpper($URL)."_URL"];
-		$arParams[strToUpper($URL)."_URL"] = htmlspecialcharsbx($arParams["~".strToUpper($URL)."_URL"]);
+		$arParams[strToUpper($URL)."_URL"] = htmlspecialchars($arParams["~".strToUpper($URL)."_URL"]);
 	}
 /***************** STANDART ****************************************/
 	$arParams["SET_TITLE"] = ($arParams["SET_TITLE"] == "N" ? "N" : "Y");
-	$arParams['NAME_TEMPLATE'] = empty($arParams['NAME_TEMPLATE']) ? COption::GetOptionString("bizproc", "name_template", CSite::GetNameFormat(false), SITE_ID) : str_replace(array("#NOBR#","#/NOBR#"), array("",""), $arParams["NAME_TEMPLATE"]);
 /********************************************************************
 				/Input params
 ********************************************************************/
@@ -105,7 +106,7 @@ elseif ($_REQUEST['action'] == 'delete')
 elseif (strpos($_REQUEST['action'], "autoload_") !== false)
 {
 	$db_res = CBPWorkflowTemplateLoader::GetList(
-		array('ID' => 'DESC'),
+		array($by => $order),
 		array("DOCUMENT_TYPE" => $documentType, "ID" => $_REQUEST["ID"]),
 		false,
 		false,
@@ -149,20 +150,12 @@ $arResult["GRID_TEMPLATES"] = array();
 /********************************************************************
 				Data
 ********************************************************************/
-$arResult["GRID_ID"] = "bizproc_wflist_".$arParams["MODULE_ID"];
-
-$gridOptions = new CGridOptions($arResult["GRID_ID"]);
-$gridSort = $gridOptions->GetSorting(array("sort" => array("NAME" => "ASC")));
-
 $db_res = CBPWorkflowTemplateLoader::GetList(
-	$gridSort["sort"],
-	array(
-		"DOCUMENT_TYPE" => $documentType,
-		'!AUTO_EXECUTE' => CBPDocumentEventType::Automation
-	),
+	array($by => $order),
+	array("DOCUMENT_TYPE" => $documentType),
 	false,
 	false,
-	array("ID", "NAME", "DESCRIPTION", "MODIFIED", "USER_ID", "AUTO_EXECUTE", "USER_NAME", "USER_LAST_NAME", "USER_LOGIN", "ACTIVE", "USER_SECOND_NAME"));
+	array("ID", "NAME", "DESCRIPTION", "MODIFIED", "USER_ID", "AUTO_EXECUTE", "USER_NAME", "USER_LAST_NAME", "USER_LOGIN", "ACTIVE"));
 if ($db_res)
 {
 	$db_res->NavStart(25, false);
@@ -170,7 +163,7 @@ if ($db_res)
 	$arResult["NAV_STRING"] = $db_res->GetPageNavStringEx($navComponentObject, GetMessage("BPATT_NAV"), "");
 
 	$adminPage = $APPLICATION->GetCurPageParam(
-		'back_url='.urlencode($back_url).'&action=delete&'.bitrix_sessid_get(),
+		'back_url='.urlencode($APPLICATION->GetCurPageParam()).'&action=delete&'.bitrix_sessid_get(), 
 		array('back_url', 'action', 'ID', 'sessid'));
 
 	while ($res = $db_res->GetNext())
@@ -180,20 +173,13 @@ if ($db_res)
 							array("ID" => $res["ID"], "MODULE_ID" => $arParams["MODULE_ID"], 
 								"ENTITY" => $arParams["ENTITY"], "DOCUMENT_ID" => $arParams["DOCUMENT_ID"])),
 			"DELETE" => $adminPage."&ID=".$res["ID"]);
-		if (isset($arParams["~EDIT_VARS_URL"]) && strlen($arParams["~EDIT_VARS_URL"]) > 0)
-			$res["URL"]["VARS"] = CComponentEngine::MakePathFromTemplate($arParams["~EDIT_VARS_URL"], 
-							array("ID" => $res["ID"], "MODULE_ID" => $arParams["MODULE_ID"], 
-								"ENTITY" => $arParams["ENTITY"], "DOCUMENT_ID" => $arParams["DOCUMENT_ID"]));
-		if (isset($arParams["~EDIT_CONSTANTS_URL"]) && strlen($arParams["~EDIT_CONSTANTS_URL"]) > 0)
-			$res["URL"]["CONSTANTS"] = CComponentEngine::MakePathFromTemplate($arParams["~EDIT_CONSTANTS_URL"],
-				array("ID" => $res["ID"], "MODULE_ID" => $arParams["MODULE_ID"],
-					"ENTITY" => $arParams["ENTITY"], "DOCUMENT_ID" => $arParams["DOCUMENT_ID"]));
 
 		foreach ($res["URL"] as $key => $val):
 			$res["URL"]["~".$key] = $val;
-			$res["URL"][$key] = htmlspecialcharsbx($val);
+			$res["URL"][$key] = htmlspecialchars($val);
 		endforeach;
-		$res["USER"] = CUser::FormatName($arParams["NAME_TEMPLATE"], array("NAME" => $res["~USER_NAME"], "LAST_NAME" => $res["~USER_LAST_NAME"], "SECOND_NAME" => $res["~USER_SECOND_NAME"], "LOGIN" => $res["~USER_LOGIN"]), true);
+		$res["USER"] = trim($res["USER_NAME"]." ".$res["USER_LAST_NAME"]);
+		$res["USER"] = (empty($res["USER"]) ? $res["USER_LOGIN"] : $res["USER"]);
 
 		$autoExecuteText = array();
 		if ($res["AUTO_EXECUTE"] == CBPDocumentEventType::None)
@@ -226,24 +212,6 @@ if ($db_res)
 				"TEXT" => ($b1 ? GetMessage("BPATT_DO_N_LOAD_EDIT") : GetMessage("BPATT_DO_LOAD_EDIT")),
 				"ONCLICK" => "jsUtils.Redirect([], '".CUtil::JSEscape($url1)."');")); 
 		$arActions[] = array("SEPARATOR" => true);
-		if (isset($res["URL"]["VARS"]))
-		{
-			$arActions[] = array(
-				"ICONCLASS" => "edit",
-				"TITLE" => GetMessage("BPATT_DO_EDIT_VARS"),
-				"TEXT" => GetMessage("BPATT_DO_EDIT_VARS1"),
-				"ONCLICK" => "jsUtils.Redirect([], '".CUtil::JSEscape($res["URL"]["~VARS"])."');", 
-				"DEFAULT" => false);
-		}
-		if (isset($res["URL"]["CONSTANTS"]))
-		{
-			$arActions[] = array(
-				"ICONCLASS" => "edit",
-				"TITLE" => GetMessage("BPATT_DO_EDIT_CONSTANTS"),
-				"TEXT" => GetMessage("BPATT_DO_EDIT_CONSTANTS1"),
-				"ONCLICK" => "jsUtils.Redirect([], '".CUtil::JSEscape($res["URL"]["~CONSTANTS"])."');",
-				"DEFAULT" => false);
-		}
 		if (IsModuleInstalled("bizprocdesigner"))
 		{
 			$arActions[] = array(
@@ -266,9 +234,8 @@ if ($db_res)
 				"columns" => array(
 					"NAME" => (IsModuleInstalled("bizprocdesigner") ? '<a href="'.$res["URL"]["EDIT"].'">'.$res["NAME"].'</a>' : $res["NAME"]), 
 					"AUTO_EXECUTE" => implode("<br />", $res["AUTO_EXECUTE"])), 
-				"editable" => false);
-
-		$arResult['SORT'] = $gridSort["sort"];
+				"editable" => false); 
+		
 	}
 }
 $this->IncludeComponentTemplate();

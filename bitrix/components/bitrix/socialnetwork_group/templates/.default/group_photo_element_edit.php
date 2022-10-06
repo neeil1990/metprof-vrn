@@ -59,7 +59,6 @@ endif;
 		"IBLOCK_ID" => $arParams["PHOTO_GROUP_IBLOCK_ID"],
 		"BEHAVIOUR" => "USER",
 		"USER_ALIAS" => $arResult["VARIABLES"]["GALLERY"]["CODE"],
-		"IS_SOCNET" => "Y",
 		"PERMISSION" => $arResult["VARIABLES"]["PERMISSION"],
 		"SECTION_ID" => $arResult["VARIABLES"]["SECTION_ID"],
 		"SECTION_CODE" => $arResult["VARIABLES"]["SECTION_CODE"],

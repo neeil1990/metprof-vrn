@@ -36,34 +36,16 @@ if (empty($arParams["NAME"]))
 }
 
 $arResult["ID"] = GetTagsIdTmp($arParams["NAME"]);
-$arResult["NAME"] = htmlspecialcharsbx(CUtil::addslashes($arParams["NAME"]));
+$arResult["NAME"] = HtmlSpecialChars($arParams["NAME"]);
 $arResult["~NAME"] = $arParams["NAME"];
-$arResult["FUNCTION"] = htmlspecialcharsbx(CUtil::addslashes($arParams["FUNCTION"]));
-
-preg_match('/^(\d+)$/', $arParams["VALUE"], $matches);
-if (count($matches) <= 0)
-{
-	$arResult["VALUE"] = $arParams["VALUE"];
-	$arResult["~VALUE"] = $arResult["VALUE"];
-}
-else
-{
-	// create username using Format from user_id
-
-	$rsUser = CUser::GetByID($arParams["VALUE"]);
-	if ($arUser = $rsUser->GetNext())
-	{
-		$arResult["VALUE"] = CUser::FormatName($arParams["NAME_TEMPLATE"]." [#ID#]", $arUser, ($arParams["SHOW_LOGIN"] != "N"));
-		$arResult["~VALUE"] = $arResult["VALUE"];
-	}
-}
-
-
+$arResult["FUNCTION"] = HtmlSpecialChars($arParams["FUNCTION"]);
+$arResult["VALUE"] = $arParams["VALUE"];
+$arResult["~VALUE"] = $arParams["VALUE"];
 $arResult["GROUP_ID"] = IntVal($arParams["GROUP_ID"]);
 $arResult["~GROUP_ID"] = $arParams["GROUP_ID"];
 
 if (strlen($arParams["NAME_TEMPLATE"]) <= 0)		
-	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+	$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 						
 if (trim($arParams["SHOW_LOGIN"]) != "N")
 	$arParams['SHOW_LOGIN'] = "Y";

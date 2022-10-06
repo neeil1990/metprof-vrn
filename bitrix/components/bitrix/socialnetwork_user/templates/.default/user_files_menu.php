@@ -3,16 +3,6 @@
 $pageId = "user_files";
 include("util_menu.php");
 include("util_profile.php");
-
-if (
-	isset($arUserProfileResult) 
-	&& isset($arUserProfileResult["ID"])
-	&& intval($arUserProfileResult["ID"]) <= 0
-)
-{
-	return;
-}
-
 ?><?
 if ($arParams["FATAL_ERROR"] == "Y"):
 	if (!empty($arParams["ERROR_MESSAGE"])):
@@ -33,31 +23,26 @@ endif;
 ?>
 <br class="sn-br" />
 <?
+
 if ($arParams["PERMISSION"] >= "W" && $arParams["CHECK_CREATOR"] != "Y" && $arResult["VARIABLES"]["PAGE_NAME"] == "SECTIONS")
 {
 //	$result = CSocNetUserToGroup::InitUserPerms($GLOBALS["USER"]->GetId(), $arGroup, CSocNetUser::IsCurrentUserModuleAdmin()); 
 //	if ($result["UserCanModerateGroup"] === true)
 //	{
-		if (($arParams["OBJECT"]->workflow == "bizproc") || $arParams['OBJECT']->e_rights)
+		$bNeedButton = ($arParams["OBJECT"]->workflow == "bizproc"); 
+		if ($arParams["OBJECT"]->workflow == "bizproc_limited")
 		{
-			$bIBlockPerms = $arParams['OBJECT']->GetPermission('IBLOCK', $arParams["OBJECT"]->IBLOCK_ID, 'iblock_rights_edit');
-			$bSectionPerms = $arParams['OBJECT']->GetPermission('SECTION', $arParams["OBJECT"]->arRootSection['ID'], 'section_rights_edit');
-			$bNeedButton = ($bIBlockPerms || $bSectionPerms);
-		}
-		elseif ($arParams["OBJECT"]->workflow == "bizproc_limited")
-		{
-			$bNeedButton = (CIBlock::GetArrayByID($arParams["OBJECT"]->IBLOCK_ID, "BIZPROC") != "N");
+			$bNeedButton = (CIBlock::GetArrayByID($arParams["OBJECT"]->IBLOCK_ID, "BIZPROC") != "N"); 
 		}
 		if ($bNeedButton)
 		{
 			$component->arResult["arButtons"] = (is_array($component->arResult["arButtons"]) ? $component->arResult["arButtons"] : array()); 
-
-			$docType = "iblock_".$arParams["OBJECT"]->IBLOCK_ID."_user_".  $arResult["VARIABLES"]["user_id"];
 			$component->arResult["arButtons"][] = array(
 				"TEXT" => GetMessage("SOCNET_SETTINGS"),
 				"TITLE" => GetMessage("SOCNET_SETTINGS_ALT"),
 				"LINK" => "javascript:".$APPLICATION->GetPopupLink(Array(
-					"URL" => $component->__path."/include/webdav_settings.php?DOCUMENT_ID=".$docType."&back_url=".urlencode($APPLICATION->GetCurPage()),
+					"URL" => $component->__path."/include/webdav_settings.php?DOCUMENT_ID=".$arParams["OBJECT"]->wfParams['DOCUMENT_TYPE'][2].
+						"&back_url=".urlencode($APPLICATION->GetCurPage()),
 					"PARAMS" => Array("min_width" => 300, "min_height" => 150)
 				)),
 				"ICON" => "btn-list settings"); 

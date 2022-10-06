@@ -60,7 +60,6 @@ div.bx-user-control li.bx-icon-action {
 	clear: both;
 	background-image: url(images/icons_all5.gif);
 	background-repeat: no-repeat;
-	white-space:nowrap;
 }
 
 div.bx-user-control .bx-icon-message{background-position: 0 0;}

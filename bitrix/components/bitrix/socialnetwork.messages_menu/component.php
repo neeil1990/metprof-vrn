@@ -21,39 +21,39 @@ if(strLen($arParams["PAGE_VAR"])<=0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if(strlen($arParams["PATH_TO_USER"])<=0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGES_INPUT"] = trim($arParams["PATH_TO_MESSAGES_INPUT"]);
 if(strlen($arParams["PATH_TO_MESSAGES_INPUT"])<=0)
-	$arParams["PATH_TO_MESSAGES_INPUT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_input");
+	$arParams["PATH_TO_MESSAGES_INPUT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_input");
 
 $arParams["PATH_TO_MESSAGES_OUTPUT"] = trim($arParams["PATH_TO_MESSAGES_OUTPUT"]);
 if(strlen($arParams["PATH_TO_MESSAGES_OUTPUT"])<=0)
-	$arParams["PATH_TO_MESSAGES_OUTPUT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output");
+	$arParams["PATH_TO_MESSAGES_OUTPUT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output");
 
 $arParams["PATH_TO_USER_BAN"] = trim($arParams["PATH_TO_USER_BAN"]);
 if(strlen($arParams["PATH_TO_USER_BAN"])<=0)
-	$arParams["PATH_TO_USER_BAN"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_ban");
+	$arParams["PATH_TO_USER_BAN"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_ban");
 
 $arParams["PATH_TO_MESSAGES_USERS"] = trim($arParams["PATH_TO_MESSAGES_USERS"]);
 if (strlen($arParams["PATH_TO_MESSAGES_USERS"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_USERS"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users");
+	$arParams["PATH_TO_MESSAGES_USERS"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users");
 
 $arParams["PATH_TO_LOG"] = trim($arParams["PATH_TO_LOG"]);
 if (strlen($arParams["PATH_TO_LOG"]) <= 0)
-	$arParams["PATH_TO_LOG"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=log");
+	$arParams["PATH_TO_LOG"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=log");
 
 $arParams["PATH_TO_TASKS"] = trim($arParams["PATH_TO_TASKS"]);
 if (strlen($arParams["PATH_TO_TASKS"]) <= 0)
-	$arParams["PATH_TO_TASKS"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=tasks");
+	$arParams["PATH_TO_TASKS"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=tasks");
 
 $arParams["PATH_TO_SUBSCRIBE"] = trim($arParams["PATH_TO_SUBSCRIBE"]);
 if (strlen($arParams["PATH_TO_SUBSCRIBE"]) <= 0)
-	$arParams["PATH_TO_SUBSCRIBE"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=subscribe");
+	$arParams["PATH_TO_SUBSCRIBE"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=subscribe");
 
 $arParams["PATH_TO_BIZPROC"] = trim($arParams["PATH_TO_BIZPROC"]);
 if (strlen($arParams["PATH_TO_BIZPROC"]) <= 0)
-	$arParams["PATH_TO_BIZPROC"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=bizproc");
+	$arParams["PATH_TO_BIZPROC"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=bizproc");
 
 	
 $arResult["Urls"]["User"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $GLOBALS["USER"]->GetID()));

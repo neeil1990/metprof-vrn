@@ -7,6 +7,7 @@ include("util_profile.php");
 if (CSocNetFeatures::IsActiveFeature(SONET_ENTITY_USER, $arResult["VARIABLES"]["user_id"], "tasks"))
 {
 	?>
+
 	<?
 	$APPLICATION->IncludeComponent("bitrix:intranet.tasks.menu", ".default", Array(
 			"IBLOCK_ID" => $arParams["TASK_IBLOCK_ID"],
@@ -45,6 +46,7 @@ if (CSocNetFeatures::IsActiveFeature(SONET_ENTITY_USER, $arResult["VARIABLES"]["
 			"PATH_TO_USER_TASKS_TASK" => $arResult["PATH_TO_USER_TASKS_TASK"],
 			"PATH_TO_USER_TASKS_VIEW" => $arResult["PATH_TO_USER_TASKS_VIEW"],
 			"ITEMS_COUNT" => $arParams["ITEM_DETAIL_COUNT"], 
+			"TASKS_FIELDS_SHOW" => $arParams["TASKS_FIELDS_SHOW"],
 			"SET_NAV_CHAIN" => $arResult["SET_NAV_CHAIN"],
 			"SET_TITLE" => $arResult["SET_TITLE"],
 			"FORUM_ID" => $arParams["TASK_FORUM_ID"],

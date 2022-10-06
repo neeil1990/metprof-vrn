@@ -146,7 +146,7 @@ elseif($arResult['MESSAGE'])
 			{
 				$img = $templateFolder.'/images/'.LANGUAGE_ID.'/button_back.gif';
 				if (file_exists($_SERVER['DOCUMENT_ROOT'].$img))
-					echo '<input type=image src="'.$img.'" onclick="javascript:window.location=\''.htmlspecialcharsbx(addslashes($arParams['BACK_URL'])).'\';return false;">';
+					echo '<input type=image src="'.$img.'" onclick="javascript:window.location=\''.htmlspecialchars(addslashes($arParams['BACK_URL'])).'\';return false;">';
 				else
 					echo '<input type=submit value="'.GetMessage('WZ_BTN_BACK').'" name="back">';
 			} 
@@ -165,7 +165,7 @@ elseif($arResult['MESSAGE'])
 			{
 				var wizard = document.forms.wizard;
 				wizard.action=url;
-				BX.submit(wizard);
+				wizard.submit();
 			}
 			</script>	
 
@@ -180,9 +180,9 @@ elseif($arResult['MESSAGE'])
 			<?
 			$img = $templateFolder.'/images/'.LANGUAGE_ID.'/button_done.gif';
 			if (file_exists($_SERVER['DOCUMENT_ROOT'].$img))
-				echo '<input type=image src="'.$img.'" name="wizard" onclick="Goto(\''.htmlspecialcharsbx(addslashes($arParams['NEXT_URL'])).'\')">';
+				echo '<input type=image src="'.$img.'" name="wizard" onclick="Goto(\''.htmlspecialchars(addslashes($arParams['NEXT_URL'])).'\')">';
 			else
-				echo '<input type=submit value="'.GetMessage('WZ_BTN_FINISH').'" name="wizard" onclick="Goto(\''.htmlspecialcharsbx(addslashes($arParams['NEXT_URL'])).'\')">';
+				echo '<input type=submit value="'.GetMessage('WZ_BTN_FINISH').'" name="wizard" onclick="Goto(\''.htmlspecialchars(addslashes($arParams['NEXT_URL'])).'\')">';
 			?>
 		<? } ?>
 		</p>
@@ -227,4 +227,4 @@ if (count($arHelp))
 }
 ?>
 </div>
-
+<?//echo '<pre>';print_r($arResult);echo '</pre>';?>

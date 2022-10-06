@@ -17,15 +17,14 @@ endif;
 	$arParams["FID"] = intVal($arParams["FID"]);
 	$arParams["TID"] = intVal(empty($arParams["TID"]) ? $_REQUEST["TID"] : $arParams["TID"]);
 	$arParams["MID"] = intVal(empty($arParams["MID"]) ? $_REQUEST["MID"] : $arParams["MID"]);
-
-	$arParams["PAGE_NAME"] = htmlspecialcharsbx(empty($arParams["PAGE_NAME"]) ? $_REQUEST["PAGE_NAME"] : $arParams["PAGE_NAME"]);
+	
+	$arParams["PAGE_NAME"] = (empty($arParams["PAGE_NAME"]) ? $_REQUEST["PAGE_NAME"] : $arParams["PAGE_NAME"]);
 	$arParams["MESSAGE_TYPE"] = (in_array(strToUpper($arParams["MESSAGE_TYPE"]), array("REPLY", "EDIT", "NEW")) ? strToUpper($arParams["MESSAGE_TYPE"]):"NEW");
-	$arParams["MID"] = ($arParams["MESSAGE_TYPE"] == "EDIT" ? $arParams["MID"] : 0);
 	$arParams["bVarsFromForm"] = ($arParams["bVarsFromForm"] == "Y" || $arParams["bVarsFromForm"] === true ? "Y" : "N");
-
+	
 	$arParams["SOCNET_GROUP_ID"] = intVal($arParams["SOCNET_GROUP_ID"]);
 	$arParams["MODE"] = ($arParams["SOCNET_GROUP_ID"] > 0 ? "GROUP" : "USER");
-	$arParams["USER_ID"] = intval(!empty($arParams["USER_ID"]) ? $arParams["USER_ID"] : $USER->GetID());
+	$arParams["USER_ID"] = intVal(intVal($arParams["USER_ID"]) > 0 ? $arParams["USER_ID"] : $USER->GetID());
 /***************** URL *********************************************/
 	if (empty($arParams["URL_TEMPLATES_MESSAGE"]) && !empty($arParams["URL_TEMPLATES_READ"]))
 		$arParams["URL_TEMPLATES_MESSAGE"] = $arParams["URL_TEMPLATES_READ"];
@@ -37,17 +36,16 @@ endif;
 		if (strLen(trim($arParams["URL_TEMPLATES_".strToUpper($URL)])) <= 0)
 			$arParams["URL_TEMPLATES_".strToUpper($URL)] = $APPLICATION->GetCurPage()."?".$URL_VALUE;
 		$arParams["~URL_TEMPLATES_".strToUpper($URL)] = $arParams["URL_TEMPLATES_".strToUpper($URL)];
-		$arParams["URL_TEMPLATES_".strToUpper($URL)] = htmlspecialcharsbx($arParams["~URL_TEMPLATES_".strToUpper($URL)]);
+		$arParams["URL_TEMPLATES_".strToUpper($URL)] = htmlspecialchars($arParams["~URL_TEMPLATES_".strToUpper($URL)]);
 	}
 /***************** ADDITIONAL **************************************/
 	$arParams["AJAX_TYPE"] = ($arParams["AJAX_TYPE"] == "Y" ? "Y" : "N");
 	$arParams["AJAX_CALL"] = (($_REQUEST["AJAX_CALL"] == "Y" && $arParams["AJAX_TYPE"] == "Y") ? "Y" : "N");
-	$arParams["EDITOR_CODE_DEFAULT"] = ($arParams["EDITOR_CODE_DEFAULT"] == "Y" ? "Y" : "N");
-	$arParams['AJAX_POST'] = ($arParams["AJAX_POST"] == "Y" ? "Y" : "N");
 	
-	$arParams["VOTE_CHANNEL_ID"] = intVal($arParams["VOTE_CHANNEL_ID"]);
-	$arParams["SHOW_VOTE"] = ($arParams["SHOW_VOTE"] == "Y" && $arParams["VOTE_CHANNEL_ID"] > 0 && IsModuleInstalled("vote") ? "Y" : "N");
-	$arParams["AUTOSAVE"] = CForumAutosave::GetInstance();
+	$arParams["PATH_TO_SMILE"] = (empty($arParams["PATH_TO_SMILE"]) ? "/bitrix/images/forum/smile/" : $arParams["PATH_TO_SMILE"]);
+	$arParams["PATH_TO_ICON"] = (empty($arParams["PATH_TO_ICON"]) ? "/bitrix/images/forum/icon/" : $arParams["PATH_TO_ICON"]);
+	$arParams["SMILE_TABLE_COLS"] = (intval($arParams["SMILE_TABLE_COLS"]) > 0 ? intval($arParams["SMILE_TABLE_COLS"]) : 3);
+
 /***************** STANDART ****************************************/
 	if ($arParams["CACHE_TYPE"] == "Y" || ($arParams["CACHE_TYPE"] == "A" && COption::GetOptionString("main", "component_cache_on", "Y") == "Y"))
 		$arParams["CACHE_TIME"] = intval($arParams["CACHE_TIME"]);
@@ -122,41 +120,34 @@ endif;
 	if ($arParams["MESSAGE_TYPE"] == "EDIT")
 	{
 		$res = CForumMessage::GetByIDEx($arParams["MID"], array("GET_TOPIC_INFO" => "Y"));
-		if (!is_array($res) || empty($res)) {
+		if (!is_array($res) || empty($res)):
 			$arError[] = array(
 				"id" => "mid_is_lost",
 				"text" => GetMessage("F_MID_IS_LOST"));
-		} elseif ($arParams["MODE"] != "GROUP" && $res["FORUM_ID"] != $arParams["FID"]) {
+		elseif ($res["FORUM_ID"] != $arParams["FID"]):
 			$arError[] = array(
 				"id" => "mid_is_lost",
 				"text" => GetMessage("F_MID_IS_LOST_IN_FORUM"));
-		} elseif (
-			($arParams["MODE"] == "GROUP" && $res["TOPIC_INFO"]["SOCNET_GROUP_ID"] == $arParams["SOCNET_GROUP_ID"])
-				||
-			($arParams["MODE"] != "GROUP" && $res["TOPIC_INFO"]["OWNER_ID"] == $arParams["USER_ID"])
-		)
-		{
+		elseif (($arParams["MODE"] == "GROUP" && $res["TOPIC_INFO"]["SOCNET_GROUP_ID"] == $arParams["SOCNET_GROUP_ID"]) || 
+			($arParams["MODE"] != "GROUP" && $res["TOPIC_INFO"]["OWNER_ID"] == $arParams["USER_ID"])):
 			$arResult["MESSAGE"] = $res;
 			$arParams["TID"] = $res["TOPIC_INFO"]["ID"];
 			$arResult["TOPIC"] = $res["TOPIC_INFO"];
 			$arResult["TOPIC_FILTER"] = CForumTopic::GetByID($res["TOPIC_ID"]);
-		} else {
+		else:
 			$arError[] = array(
 				"id" => "mid_is_lost",
 				"text" => str_replace("#SOCNET_OBJECT#", ($arParams["MODE"] == "GROUP" ? 
 					GetMessage("F_GROUPS") : GetMessage("F_USERS")), GetMessage("F_MID_IS_LOST_IN_OBJECT")));
-		}
+		endif;
 	}
 /************** Topic **********************************************/
 	elseif ($arParams["MESSAGE_TYPE"] == "REPLY")
 	{
-		$arFilter = array(
-			"ID" => $arParams["TID"], 
-			"SOCNET_GROUP_ID" => false);
+		$arFilter = array("FORUM_ID" => $arParams["FID"], "ID" => $arParams["TID"], "SOCNET_GROUP_ID" => false);
 		if ($arParams["MODE"] == "GROUP"):
 			$arFilter["SOCNET_GROUP_ID"] = $arParams["SOCNET_GROUP_ID"];
 		else:
-			$arFilter["FORUM_ID"] = $arParams["FID"];
 			$arFilter["OWNER_ID"] = $arParams["USER_ID"];
 		endif;
 		
@@ -173,7 +164,7 @@ endif;
 					"id" => "not correct socnet_object",
 					"text" => str_replace("#SOCNET_OBJECT#", ($arParams["MODE"] == "GROUP" ? 
 					GetMessage("F_GROUPS") : GetMessage("F_USERS")), GetMessage("F_TID_IS_LOST_IN_OBJECT")));
-			elseif ($arParams["MODE"] != "GROUP" && $res["FORUM_ID"] != $arParams["FID"]):
+			elseif ($res["FORUM_ID"] != $arParams["FID"]):
 				$arError[] = array(
 					"id" => "not correct forum_id",
 					"text" => GetMessage("F_TID_IS_LOST_IN_FORUM"));
@@ -190,7 +181,6 @@ endif;
 			$arResult["TOPIC"] = $res;
 		endif;
 	}
-
 /************** Permission *****************************************/
 	if (empty($arError))
 	{
@@ -227,13 +217,6 @@ endif;
 $_REQUEST["FILES"] = is_array($_REQUEST["FILES"]) ? $_REQUEST["FILES"] : array();
 $_REQUEST["FILES_TO_UPLOAD"] = is_array($_REQUEST["FILES_TO_UPLOAD"]) ? $_REQUEST["FILES_TO_UPLOAD"] : array();
 
-$arParams["USER_FIELDS"] = (is_array($arParams["USER_FIELDS"]) ? $arParams["USER_FIELDS"] : ($arParams["USER_FIELDS"] ? array($arParams["USER_FIELDS"]) : array()));
-if(IsModuleInstalled("webdav") || IsModuleInstalled("disk"))
-	$arParams["USER_FIELDS"][] = "UF_FORUM_MESSAGE_DOC";
-$arResult["~USER_FIELDS"] = $GLOBALS["USER_FIELD_MANAGER"]->GetUserFields("FORUM_MESSAGE", $arParams["MID"], LANGUAGE_ID);
-foreach ($arResult["~USER_FIELDS"] as $key => $val) { if ($val["MANDATORY"] == "Y") { $arParams["USER_FIELDS"][] = $key; } }
-$arResult["USER_FIELDS"] = array_intersect_key($arResult["~USER_FIELDS"], array_flip($arParams["USER_FIELDS"]));
-
 //************* Message ********************************************/
 $arResult["DATA"] = array(
 	"USE_SMILES" => "Y", 
@@ -251,18 +234,8 @@ $arResult["DATA"] = array(
 	"EDITOR_NAME" => $GLOBALS["FORUM_STATUS_NAME"]["guest"], 
 	"EDITOR_EMAIL" => "quest@guest.com", 
 	"EDIT_REASON" => "", 
-	"FILES" => array(),
-	"PROPS" => $arResult["USER_FIELDS"]
-);
-$arResult["DATA"]["PROPS"] = (is_array($arResult["DATA"]["PROPS"]) ? $arResult["DATA"]["PROPS"] : array());
-$arResult["QUESTIONS"] = array();
-$arResult["~QUESTIONS"] = array();
-$arResult['DATE_END'] = GetTime((time() + 30*86400));
-if ($arParams["SHOW_VOTE"] == "Y")
-{
-	CModule::IncludeModule("vote");
-	$arParams["SHOW_VOTE"] = ( ($arParams["PERMISSION"] == "A") ? "N" : $arParams["SHOW_VOTE"]);
-}
+	"FILES" => array());
+
 if ($arParams["MESSAGE_TYPE"] == "EDIT")
 {
 	$arResult["DATA"]["AUTHOR_NAME"] = $arResult["MESSAGE"]["AUTHOR_NAME"];
@@ -286,91 +259,22 @@ if ($arParams["MESSAGE_TYPE"] == "EDIT")
 			$arResult["DATA"]["FILES"][$res["FILE_ID"]] = $res;
 		} while ($res = $db_res->Fetch());
 	}
-	if ($arParams["SHOW_VOTE"] == "Y" && $arResult["MESSAGE"]["PARAM1"] == "VT" && intVal($arResult["MESSAGE"]["PARAM2"]) > 0)
-	{
-		$db_vote = CVote::GetByID(intVal($arMessage["PARAM2"]));
-		if ($db_vote && $arVote = $db_vote->GetNext())
-			$arResult['DATE_END'] = $arVote['DATE_END'];
-
-		$db_res = CVoteQuestion::GetListEx(
-			array("ID" => "ASC"),
-			array("CHANNEL_ID" => $arParams["VOTE_CHANNEL_ID"], "VOTE_ID" => $arResult['MESSAGE']["PARAM2"]));
-		if ($db_res && $res = $db_res->Fetch())
-		{
-			do 
-			{
-				$arResult["~QUESTIONS"][$res["ID"]] = $res;
-				$arResult["~QUESTIONS"][$res["ID"]]["ANSWERS"] = array();
-			} while ($res = $db_res->Fetch());
-		}
-		if (!empty($arResult["~QUESTIONS"]))
-		{
-			$db_res = CVoteAnswer::GetListEx(array("ID" => "ASC"), array("VOTE_ID" => $arResult["MESSAGE"]["PARAM2"]));
-			if ($db_res && $res = $db_res->Fetch())
-			{
-				do 
-				{
-					if (is_set($arResult["~QUESTIONS"], $res["QUESTION_ID"])):
-						$arResult["~QUESTIONS"][$res["QUESTION_ID"]]["ANSWERS"][$res["ID"]] = $res;
-						if (intVal($res["FIELD_TYPE"]) == 1):
-							$arResult["~QUESTIONS"][$res["QUESTION_ID"]]["MULTI"] = "Y";
-						endif;
-					endif;
-				} while ($res = $db_res->Fetch());
-			}
-		}
-		$arResult["QUESTIONS"] = $arResult["~QUESTIONS"];
-	}
 }
 
 if ($arParams["bVarsFromForm"] == "Y")
 {
 	foreach ($arResult["DATA"] as $key => $val)
-		if ($key != "PROPS")
-			$arResult["DATA"][$key] = $_REQUEST[$key];
+		$arResult["DATA"][$key] = $_REQUEST[$key];
 
-	$arResult["DATA"]["USE_SMILES"] = ($_REQUEST["USE_SMILES"] == "N" ? "N" : "Y");
+	$arResult["DATA"]["USE_SMILES"] = ((!is_set($_REQUEST["USE_SMILES"]) || $_REQUEST["USE_SMILES"]=="Y") ? "Y" : "N");
 	$arResult["DATA"]["AUTHOR_ID"] = $USER->GetID();
 	$arResult["DATA"]["FILES"] = array();
 	
-	foreach ($_REQUEST["FILES"] as $key => $val){
-		if (intval($val) > 0) {
-			$arResult["DATA"]["FILES"][$val] = $val; }
-	}
-	$arResult["QUESTIONS"] = array();
-
-	$_REQUEST["QUESTION"] = (is_array($_REQUEST["QUESTION"]) ? $_REQUEST["QUESTION"] : array());
-	$_REQUEST["ANSWER"] = (is_array($_REQUEST["ANSWER"]) ? $_REQUEST["ANSWER"] : array());
-	foreach ($_REQUEST["QUESTION"] as $key => $val) {
-		$res = array(
-			"ID" => intval($_REQUEST["QUESTION_ID"][$key]),
-			"QUESTION" => trim($val),
-			"MULTI" => ($_REQUEST["MULTI"][$key] == "Y" ? "Y" : "N"),
-			"DEL" => ($_REQUEST["QUESTION_DEL"][$key] == "Y" ? "Y" : "N"),
-			"ANSWERS" => array());
-
-		if ($res["ID"] > 0 && !is_set($arResult["~QUESTIONS"], $res["ID"]))
-			$res["ID"] = false;
-		if (!$res["ID"] && $res["DEL"] == "Y")
-			continue;
-
-		if (is_array($_REQUEST["ANSWER"][$key])) {
-			foreach ($_REQUEST["ANSWER"][$key] as $keya => $vala) {
-				$resa = array(
-					"ID" => intval($_REQUEST["ANSWER_ID"][$key][$keya]),
-					"MESSAGE" => trim($vala),
-					"DEL" => $_REQUEST["ANSWER_DEL"][$key][$keya] == "Y" ? "Y" : "N");
-				if ($resa["ID"] > 0 && !is_set($arResult["~QUESTIONS"][$res["ID"]]["ANSWERS"], $resa["ID"]))
-					$resa["ID"] = false;
-				if (!$resa["ID"] && ($resa["DEL"] == "Y" || empty($resa["MESSAGE"])))
-					continue;
-				$res["ANSWERS"][] = $resa;
-			}
-		}
-		if (empty($res["ANSWERS"]) && empty($res["QUESTION"]) && empty($res["ID"]))
-			continue;
-		$arResult["QUESTIONS"][] = $res;
-	}
+	foreach ($_REQUEST["FILES"] as $key => $val):
+		if (intVal($val) <= 0)
+			return false;
+		$arResult["DATA"]["FILES"][$val] = $val;
+	endforeach;
 }
 
 //************* Page info ******************************************/
@@ -389,7 +293,7 @@ if ($arParams["MESSAGE_TYPE"]=="REPLY")
 $arResult["SHOW_PANEL"] = array(
 	"GUEST" => (($arParams["MESSAGE_TYPE"] != "EDIT" && !$USER->IsAuthorized() || 
 		$arParams["MESSAGE_TYPE"]=="EDIT" && $arResult["DATA"]["AUTHOR_ID"] <= 0) ? "Y" : "N"), 
-	"TOPIC" => ($arParams["MESSAGE_TYPE"]=="NEW" || ($arParams["MESSAGE_TYPE"] == "EDIT"  && $arResult["MESSAGE"]["NEW_TOPIC"] == "Y" &&
+	"TOPIC" => ($arParams["MESSAGE_TYPE"]=="NEW" || ($arParams["MESSAGE_TYPE"]=="EDIT" && 
 		CForumTopic::CanUserUpdateTopic($arParams["TID"], $USER->GetUserGroupArray(), $USER->GetID(), $arParams["PERMISSION"]))  ? "Y" : "N"), 
 	"SUBSCRIBE" => "N",
 	"ATTACH" => (in_array($arResult["FORUM"]["ALLOW_UPLOAD"], array("Y", "F", "A")) ? "Y" : "N"), 
@@ -399,24 +303,20 @@ $arResult["SHOW_PANEL"] = array(
 	"TRANSLIT" => (LANGUAGE_ID == "ru" ? "Y" : "N"), 
 	"EDIT_INFO" => ($arParams["MESSAGE_TYPE"] == "EDIT" ? "Y" : "N"), 
 	"EDIT_INFO_FOR_GUEST" => (!$USER->IsAuthorized() ? "Y" : "N"), 
-	"EDIT_INFO_ASK" => ($USER->IsAdmin() ? "Y" : "N"),
-	"TAGS" => "Y",
-	"VOTE" => ((
-		$arParams["SHOW_VOTE"] == "Y" &&
-		($arParams["MESSAGE_TYPE"]=="NEW" || $arParams["MESSAGE_TYPE"]=="EDIT" &&
-		CForumTopic::CanUserUpdateTopic($arParams["TID"], $USER->GetUserGroupArray(), $USER->GetID(), $arParams["PERMISSION"]))
-	) ? "Y" : "N")
-);
+	"EDIT_INFO_ASK" => ($USER->IsAdmin() ? "Y" : "N"));
+	
+
 if ($arResult["SHOW_PANEL"]["GUEST"] == "Y")
 {
 	$arResult["DATA"]["AUTHOR_NAME"] = (!empty($arResult["DATA"]["AUTHOR_NAME"]) ? $arResult["DATA"]["AUTHOR_NAME"] : GetMessage("FPF_GUEST"));
 }
-if ($arResult["SHOW_PANEL"]["TOPIC"] == "Y") {
-	$arResult["ICONS_LIST"] = ForumPrintIconsList(7, $arResult["DATA"]["ICON_ID"]);
+if ($arResult["SHOW_PANEL"]["TOPIC"] == "Y")
+{
+	$arResult["ICONS_LIST"] = ForumPrintIconsList(7, "ICON_ID", $arResult["DATA"]["ICON_ID"], GetMessage("FPF_NO_ICON"), LANGUAGE_ID, $arParams["PATH_TO_ICON"], $arParams["CACHE_TIME"]);
 }
 if ($arResult["FORUM"]["ALLOW_SMILES"] == "Y")
 {
-	$arResult["SMILES_LIST"] = ForumPrintSmilesList(3, LANGUAGE_ID);
+	$arResult["SMILES_LIST"] = ForumPrintSmilesList($arParams["SMILE_TABLE_COLS"], LANGUAGE_ID, $arParams["PATH_TO_SMILE"], $arParams["CACHE_TIME"]);
 	$arResult["SMILES"] = CForumSmile::GetByType("S", LANGUAGE_ID);
 }
 
@@ -424,18 +324,19 @@ $arResult["SHOW_SUBSCRIBE"] = "N";
 
 if ($arResult["SHOW_PANEL"]["ATTACH"] == "Y")
 {
-	foreach ($arResult["DATA"]["FILES"] as $key => $val) {
-		if (intval($val) > 0)
-			$arResult["DATA"]["FILES"][$key] = CFile::GetFileArray($key);
-	}
+	foreach ($arResult["DATA"]["FILES"] as $key => $val):
+		if (intVal($val) <= 0)
+			return false;
+		$arResult["DATA"]["FILES"][$key] = CFile::GetFileArray($key);
+	endforeach;
 /************** For custom component *******************************/
-/*	$arResult["DATA"]["ATTACH_IMG_FILE"] = false;
+	$arResult["DATA"]["ATTACH_IMG_FILE"] = false;
 	if (strlen($arResult["DATA"]["ATTACH_IMG"]) > 0)
 	{
 		$arResult["DATA"]["ATTACH_IMG_FILE"] = $arResult["MESSAGE"]["FILES"][$arResult["MESSAGE"]["ATTACH_IMG"]];
 		if ($arResult["DATA"]["ATTACH_IMG_FILE"])
-			$arResult["DATA"]["ATTACH_IMG"] = CFile::ShowImage($arResult["MESSAGE"]["ATTACH_IMG_FILE"], 200, 200, "border=0");
-	}*/
+			$arResult["DATA"]["ATTACH_IMG"] = CFile::ShowImage($arResult["MESSAGE"]["ATTACH_IMG_FILE"]["SRC"], 200, 200, "border=0");
+	}
 /************** For custom component/*******************************/
 }
 
@@ -460,7 +361,15 @@ $arResult["URL"] = array(
 		"TID" => $arParams["TID"], "UID" => $arParams["USER_ID"], "GID" => $arParams["SOCNET_GROUP_ID"], 
 		"MID"=>((intVal($arParams["MID"]) > 0) ? intVal($arParams["MID"]) : "s"))));
 /************** Submit *********************************************/
-$arResult["SUBMIT"] = $arResult["INFO"]["SUBMIT"];
+$arResult["SUBMIT"] = GetMessage("FPF_EDIT");
+$arResult["str_HEADER"] = GetMessage("FPF_EDIT_FORM");
+if ($arParams["MESSAGE_TYPE"]=="NEW"):
+	$arResult["SUBMIT"] = GetMessage("FPF_SEND");
+	$arResult["str_HEADER"] = GetMessage("FPF_CREATE_IN_FORUM")." ".$arResult["FORUM"]["NAME"];
+elseif ($arParams["MESSAGE_TYPE"]=="REPLY"):
+	$arResult["SUBMIT"] = GetMessage("FPF_REPLY");
+	$arResult["str_HEADER"] = GetMessage("FPF_REPLY_FORM");
+endif;
 /********************************************************************
 				/Data
 ********************************************************************/

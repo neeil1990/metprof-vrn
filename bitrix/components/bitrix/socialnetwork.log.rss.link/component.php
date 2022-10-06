@@ -68,7 +68,7 @@ $arResult["PATH_TO_RSS"] = CComponentEngine::MakePathFromTemplate($arParams["PAT
 						));
 
 if(strlen($arParams["PATH_TO_USER"])<=0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $APPLICATION->AddHeadString('<link rel="alternate" type="application/rss+xml" title="RSS" href="'.$arResult["PATH_TO_RSS"].'" />');
 		

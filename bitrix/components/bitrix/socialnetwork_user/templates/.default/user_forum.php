@@ -23,7 +23,6 @@ include("util_profile.php");
 		"MESSAGES_PER_PAGE"	=>	$arParams["MESSAGES_PER_PAGE"],
 		"DATE_FORMAT"	=>	$arParams["DATE_FORMAT"],
 		"DATE_TIME_FORMAT"	=>	$arParams["DATE_TIME_FORMAT"],
-		"NAME_TEMPLATE"	=> $arParams["NAME_TEMPLATE"],
 		"WORD_LENGTH"	=>	$arParams["WORD_LENGTH"],
 		"SET_TITLE"	=>	"N",
 		"CACHE_TYPE" => $arParams["CACHE_TYPE"],

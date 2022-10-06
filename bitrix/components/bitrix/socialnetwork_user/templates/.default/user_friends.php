@@ -7,18 +7,22 @@ include("util_profile.php");
 ?>
 <?
 $APPLICATION->IncludeComponent(
-	"bitrix:socialnetwork.user_friends.ex", 
+	"bitrix:socialnetwork.user_friends", 
 	"", 
 	Array(
 		"PATH_TO_USER" => $arResult["PATH_TO_USER"],
 		"USER_VAR" => $arResult["ALIASES"]["user_id"],
+		"PATH_TO_USER_FRIENDS_ADD" => $arResult["PATH_TO_USER_FRIENDS_ADD"],
 		"PATH_TO_SEARCH" => $arResult["PATH_TO_SEARCH"],
+		"PATH_TO_SEARCH_EXTERNAL" => $arParams["PATH_TO_SEARCH_EXTERNAL"],
+		"PATH_TO_USER_FRIENDS_DELETE" => $arResult["PATH_TO_USER_FRIENDS_DELETE"],
 		"PATH_TO_MESSAGES_CHAT" => $arResult["PATH_TO_MESSAGES_CHAT"],
 		"ID" => $arResult["VARIABLES"]["user_id"],
 		"SET_NAV_CHAIN" => $arResult["SET_NAV_CHAIN"],
 		"SET_TITLE" => $arResult["SET_TITLE"],
 		"ITEMS_COUNT" => $arParams["ITEM_DETAIL_COUNT"],
-		"THUMBNAIL_LIST_SIZE" => 42,
+		"PATH_TO_LOG" => $arResult["PATH_TO_LOG"],
+		"THUMBNAIL_LIST_SIZE" => 30,
 		"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"],
 		"SHOW_LOGIN" => $arParams["SHOW_LOGIN"],
 		"DATE_TIME_FORMAT" => $arResult["DATE_TIME_FORMAT"],		

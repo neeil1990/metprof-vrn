@@ -48,5 +48,5 @@ $MESS["AJAX_OPTION_STYLE_TIP"] = "Specifies to download and process CSS styles o
 $MESS["AJAX_OPTION_HISTORY_TIP"] = "Allows \"Back\" and \"Forward\" browser buttons for AJAX transitions.";
 $MESS["USER_PROPERTY_NAME_TIP"] = "The name of the tab on which user properties will be shown.";
 $MESS["NAME_TEMPLATE_TIP"] = "Possible macros: #NAME# - first name; #LAST_NAME# - last name, #SECOND_NAME# - middle name; #NAME_SHORT#, #LAST_NAME_SHORT#, #SECOND_NAME_SHORT# - abbreviations of the respective names.";
-$MESS["FILES_AUTO_PUBLISH_TIP"] = "Publish the new documents if the document library is used in business processes";
+$MESS["AUTO_PUBLISH_TOOLTIP"] = "Publish the new documents if the document library is used in business processes";
 ?>

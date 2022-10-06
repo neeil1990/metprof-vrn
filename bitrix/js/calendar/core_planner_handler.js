@@ -101,8 +101,8 @@ BX.CCalendarPlannerHandler.prototype.drawEvent = function(event, additional_prop
 			}),
 			BX.create('DIV', {
 				props: additional_props,
-				events: event.ID ? {click: BX.proxy(this.showEvent, this)} : null,
-				html: '<span class="tm-popup-event-text">' + BX.util.htmlspecialchars(event.NAME) + '</span>'
+				// events: event.ID ? {click: BX.proxy(this.showEvent, this)} : null,
+				html: '<a class="tm-popup-event-text" href="' + event.EVENT_PATH + '">' + BX.util.htmlspecialchars(event.NAME) + '</a>'
 			})
 		]
 	});
@@ -349,7 +349,7 @@ BX.CCalendarPlannerEventPopup = function(params)
 		}
 	});
 
-	BX.addCustomEvent(this.parent, 'onEventWndShow', BX.delegate(this.onEventWndShow, this))
+	BX.addCustomEvent(this, 'onEventWndShow', this.onEventWndShow.bind(this));
 
 	this.bSkipShow = false;
 	this.isReady = false;

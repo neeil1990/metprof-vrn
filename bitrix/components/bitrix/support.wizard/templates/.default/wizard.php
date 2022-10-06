@@ -9,9 +9,7 @@ $APPLICATION->IncludeComponent("bitrix:iblock.wizard", $template, Array(
 	"BACK_URL"	=>	$arResult["BACK_URL"],
 	"NEXT_URL"	=>	$arResult["NEXT_URL"],
 	"INCLUDE_IBLOCK_INTO_CHAIN"	=> $arParams["INCLUDE_IBLOCK_INTO_CHAIN"],
-	"SHOW_COUPON_FIELD"	=> $arParams["SHOW_COUPON_FIELD"],
-	"ALLOWED_IBLOCK_SECTIONS" => $arResult['ALLOWED_IBLOCK_SECTIONS'],
-	"RESTRICTED_IBLOCK_SECTIONS" => $arResult['RESTRICTED_IBLOCK_SECTIONS']
+	"SHOW_COUPON_FIELD"	=> $arParams["SHOW_COUPON_FIELD"]
 	),
 	$component,
 	array('HIDE_ICONS' => 'Y')

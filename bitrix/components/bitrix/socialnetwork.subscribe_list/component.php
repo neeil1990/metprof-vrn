@@ -7,10 +7,8 @@ if (!CModule::IncludeModule("socialnetwork"))
 	return;
 }
 
-$arSocNetFeaturesSettings = CSocNetAllowed::GetAllowedFeatures();
-$arSocNetLogEvents = CSocNetAllowed::GetAllowedLogEvents();
-$arResult["arSocNetAllowedSubscribeEntityTypesDesc"] = CSocNetAllowed::GetAllowedEntityTypesDesc();
-$arResult["arSocNetAllowedSubscribeEntityTypes"] = CSocNetAllowed::GetAllowedEntityTypes();
+global $arSocNetLogEvents, $arSocNetFeaturesSettings;
+global $arSocNetAllowedSubscribeEntityTypes, $arSocNetAllowedSubscribeEntityTypesDesc;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/components/bitrix/socialnetwork.subscribe_list/include.php");
 
@@ -27,25 +25,25 @@ if (strLen($arParams["GROUP_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_GROUP"] = trim($arParams["PATH_TO_GROUP"]);
 if (strlen($arParams["PATH_TO_GROUP"]) <= 0)
-	$arParams["PATH_TO_GROUP"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group&".$arParams["GROUP_VAR"]."=#group_id#");
+	$arParams["PATH_TO_GROUP"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group&".$arParams["GROUP_VAR"]."=#group_id#");
 
 $arParams["PATH_TO_GROUP_SUBSCRIBE"] = trim($arParams["PATH_TO_GROUP_SUBSCRIBE"]);
 if (strlen($arParams["PATH_TO_GROUP_SUBSCRIBE"]) <= 0)
-	$arParams["PATH_TO_GROUP_SUBSCRIBE"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group_subscribe&".$arParams["GROUP_VAR"]."=#group_id#");
+	$arParams["PATH_TO_GROUP_SUBSCRIBE"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group_subscribe&".$arParams["GROUP_VAR"]."=#group_id#");
 
 $arParams["PATH_TO_USER_SUBSCRIBE"] = trim($arParams["PATH_TO_USER_SUBSCRIBE"]);
 if (strlen($arParams["PATH_TO_USER_SUBSCRIBE"]) <= 0)
-	$arParams["PATH_TO_USER_SUBSCRIBE"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_subscribe&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER_SUBSCRIBE"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_subscribe&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
 	$arParams["ITEMS_COUNT"] = 30;
 
-$arParams["NAME_TEMPLATE"] = $arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : CSite::GetNameFormat();
+$arParams["NAME_TEMPLATE"] = $arParams["NAME_TEMPLATE"] ? $arParams["NAME_TEMPLATE"] : "#NOBR##NAME# #LAST_NAME##/NOBR#";
 $arParams["NAME_TEMPLATE_WO_NOBR"] = str_replace(
 			array("#NOBR#", "#/NOBR#"), 
 			array("", ""), 
@@ -83,7 +81,7 @@ else
 				|| strpos($key, "v_cb_bx_sl_") === 0				
 			)
 			{
-				if (preg_match("#(t_bx_sl|t_cb_bx_sl|v_bx_sl|v_cb_bx_sl)_([a-zA-Z0-9]+)_([0-9almy]+)_([a-zA-Z_]+)#i".BX_UTF_PCRE_MODIFIER, $key, $res) > 0)
+				if (preg_match("#(t_bx_sl|t_cb_bx_sl|v_bx_sl|v_cb_bx_sl)_([a-zA-Z]+)_([0-9almy]+)_([a-zA-Z_]+)#i".BX_UTF_PCRE_MODIFIER, $key, $res) > 0)
 				{
 					$entity_type = $res[2];
 					if ($res[3] == "all")
@@ -108,9 +106,6 @@ else
 						$entity_cb = "N";
 
 					$event_id = $res[4];
-
-					if ($event_id == "cb_all")
-						$event_id = "all";
 
 					$bFound = false;
 
@@ -170,45 +165,49 @@ else
 								"ENTITY_MY" => $entity_my,
 								"EVENT_ID" => $event_id,
 								"SITE_ID" => (
-									$entity_cb != "Y"
-									&& array_key_exists("HAS_SITE_ID", $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-									&& $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["HAS_SITE_ID"] == "Y"
-									&& defined("SITE_ID") 
-									&& strlen(SITE_ID) > 0 
-										? SITE_ID 
-										: false
-								)
+												$entity_cb != "Y"
+												&& array_key_exists("HAS_SITE_ID", $GLOBALS["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
+												&& $GLOBALS["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["HAS_SITE_ID"] == "Y"
+												&& defined("SITE_ID") 
+												&& strlen(SITE_ID) > 0 
+												? 
+													SITE_ID 
+												: 
+													false
+											),
 							)
 						);
-
+						
 						$arFields = array(
-							"USER_ID" => $GLOBALS["USER"]->GetID(),
-							"ENTITY_TYPE" => $entity_type,
-							"ENTITY_ID" => $entity_id,
-							"ENTITY_CB" => $entity_cb,
-							"ENTITY_MY" => $entity_my,
-							"EVENT_ID" 	=> $event_id,
-							"SITE_ID" 	=> (
-								$entity_cb != "Y"
-								&& array_key_exists("HAS_SITE_ID", $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-								&& $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["HAS_SITE_ID"] == "Y"
-								&& defined("SITE_ID") 
-								&& strlen(SITE_ID) > 0 
-									? SITE_ID 
-									: false
-							)
-						);
+									"USER_ID" => $GLOBALS["USER"]->GetID(),
+									"ENTITY_TYPE" => $entity_type,
+									"ENTITY_ID" => $entity_id,
+									"ENTITY_CB" => $entity_cb,
+									"ENTITY_MY" => $entity_my,
+									"EVENT_ID" 	=> $event_id,
+									"SITE_ID" 	=> (
+													$entity_cb != "Y"
+													&& array_key_exists("HAS_SITE_ID", $GLOBALS["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
+													&& $GLOBALS["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["HAS_SITE_ID"] == "Y"
+													&& defined("SITE_ID") 
+													&& strlen(SITE_ID) > 0 
+													? 
+														SITE_ID 
+													: 
+														false
+												)
+								);
 
-						if (
-							strpos($key, "t_bx_sl_") === 0 
-							|| strpos($key, "t_cb_bx_sl_") === 0
-						)
-							$arFields["TRANSPORT"] = $value;
-						elseif (
-							strpos($key, "v_bx_sl_") === 0 
-							|| strpos($key, "v_cb_bx_sl_") === 0
-						)
-							$arFields["VISIBLE"] = $value;
+								if (
+									strpos($key, "t_bx_sl_") === 0 
+									|| strpos($key, "t_cb_bx_sl_") === 0
+								)
+									$arFields["TRANSPORT"] = $value;
+								elseif (
+									strpos($key, "v_bx_sl_") === 0 
+									|| strpos($key, "v_cb_bx_sl_") === 0
+								)
+									$arFields["VISIBLE"] = $value;								
 						
 						if ($arRes = $dbRes->Fetch())
 						{
@@ -228,7 +227,6 @@ else
 								$arFields
 							);
 						}
-
 						if (!$idTmp)
 						{
 							if ($e = $APPLICATION->GetException())
@@ -244,56 +242,49 @@ else
 		}
 
 		if (strlen($errorMessage) > 0)
-		{
 			$arResult["ErrorMessage"] = $errorMessage;
-		}
 		else
-		{
 			LocalRedirect($APPLICATION->GetCurPage());
-		}
 	}
 
 	// get my entities of each types
 	$arEntities = array();
-	foreach ($arResult["arSocNetAllowedSubscribeEntityTypes"] as $entity_type)
+	foreach ($arSocNetAllowedSubscribeEntityTypes as $entity_type)
 	{
 		if (
-			is_array($arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-			&& array_key_exists("TITLE_LIST", $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-			&& strlen($arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["TITLE_LIST"]) > 0
+			array_key_exists("TITLE_LIST", $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type])
+			&& strlen($arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["TITLE_LIST"]) > 0
 		)
-			$arEntities[$entity_type]["ALL"]["TITLE_LIST"] = $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["TITLE_LIST"];
+			$arEntities[$entity_type]["ALL"]["TITLE_LIST"] = $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["TITLE_LIST"];
 	
 		if (
-			array_key_exists($entity_type, $arResult["arSocNetAllowedSubscribeEntityTypesDesc"])
-			&& array_key_exists("HAS_MY", $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-			&& $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["HAS_MY"] == "Y"
-			&& array_key_exists("CLASS_MY", $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-			&& array_key_exists("METHOD_MY", $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-			&& strlen($arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["CLASS_MY"]) > 0
-			&& strlen($arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["METHOD_MY"]) > 0
-			&& method_exists($arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["CLASS_MY"], $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["METHOD_MY"])
+			array_key_exists($entity_type, $arSocNetAllowedSubscribeEntityTypesDesc)
+			&& array_key_exists("HAS_MY", $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type])
+			&& $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["HAS_MY"] == "Y"
+			&& array_key_exists("CLASS_MY", $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type])
+			&& array_key_exists("METHOD_MY", $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type])
+			&& strlen($arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["CLASS_MY"]) > 0
+			&& strlen($arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["METHOD_MY"]) > 0
+			&& method_exists($arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["CLASS_MY"], $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["METHOD_MY"])
 		)
 		{
 			if (
-				array_key_exists("TITLE_LIST_MY", $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type])
-				&& strlen($arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["TITLE_LIST_MY"]) > 0
+				array_key_exists("TITLE_LIST_MY", $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type])
+				&& strlen($arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["TITLE_LIST_MY"]) > 0
 			)
-			{
-				$arEntities[$entity_type]["ALL_MY"]["TITLE_LIST"] = $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["TITLE_LIST_MY"];
-			}
-			$arEntities[$entity_type]["ALL_MY"]["ITEMS"] = call_user_func(array($arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["CLASS_MY"], $arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$entity_type]["METHOD_MY"]));
+				$arEntities[$entity_type]["ALL_MY"]["TITLE_LIST"] = $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["TITLE_LIST_MY"];
+			$arEntities[$entity_type]["ALL_MY"]["ITEMS"] = call_user_func(array($arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["CLASS_MY"], $arSocNetAllowedSubscribeEntityTypesDesc[$entity_type]["METHOD_MY"]));
 		}
 	}
 
-	$arResult["Urls"]["ViewAll"] = htmlspecialcharsbx($APPLICATION->GetCurPageParam("", array("flt_entity_type"))); 
+	$arResult["Urls"]["ViewAll"] = htmlspecialchars($APPLICATION->GetCurPageParam("", array("flt_entity_type"))); 
 	
 	if (CBXFeatures::IsFeatureEnabled("Workgroups"))
-		$arResult["Urls"]["ViewGroups"] = htmlspecialcharsbx($APPLICATION->GetCurPageParam("flt_entity_type=".SONET_ENTITY_GROUP, array("flt_entity_type"))); 
+		$arResult["Urls"]["ViewGroups"] = htmlspecialchars($APPLICATION->GetCurPageParam("flt_entity_type=".SONET_ENTITY_GROUP, array("flt_entity_type"))); 
 	else
 		$arResult["Urls"]["ViewGroups"] = "";
 
-	$arResult["Urls"]["ViewUsers"] = htmlspecialcharsbx($APPLICATION->GetCurPageParam("flt_entity_type=".SONET_ENTITY_USER, array("flt_entity_type")));
+	$arResult["Urls"]["ViewUsers"] = htmlspecialchars($APPLICATION->GetCurPageParam("flt_entity_type=".SONET_ENTITY_USER, array("flt_entity_type")));
 
 	if ($arParams["SET_TITLE"] == "Y")
 		$APPLICATION->SetTitle(GetMessage("SONET_C30_PAGE_TITLE"));
@@ -337,7 +328,7 @@ else
 			)
 		)
 			continue;
-
+		
 		if ($arResult["Events"] == false)
 			$arResult["Events"] = array();
 
@@ -394,7 +385,7 @@ else
 				);		
 		}
 			
-		if (in_array($arEvents["ENTITY_TYPE"], $arResult["arSocNetAllowedSubscribeEntityTypes"]))
+		if (in_array($arEvents["ENTITY_TYPE"], $arSocNetAllowedSubscribeEntityTypes))
 		{
 			if ($arEvents["ENTITY_ID"] != 0)
 			{
@@ -428,16 +419,16 @@ else
 
 			$arEntityTmp = call_user_func(
 				array(
-					$arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$arEvents["ENTITY_TYPE"]]["CLASS_DESC_GET"], 
-					$arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$arEvents["ENTITY_TYPE"]]["METHOD_DESC_GET"]
+					$arSocNetAllowedSubscribeEntityTypesDesc[$arEvents["ENTITY_TYPE"]]["CLASS_DESC_GET"], 
+					$arSocNetAllowedSubscribeEntityTypesDesc[$arEvents["ENTITY_TYPE"]]["METHOD_DESC_GET"]
 				),
 				$arEvents["ENTITY_ID"]
 			);
 
 			$path2Entity = CComponentEngine::MakePathFromTemplate(
-				$arParams[$arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$arEvents["ENTITY_TYPE"]]["URL_PARAM_KEY"]], 
+				$arParams[$arSocNetAllowedSubscribeEntityTypesDesc[$arEvents["ENTITY_TYPE"]]["URL_PARAM_KEY"]], 
 				array(
-					$arResult["arSocNetAllowedSubscribeEntityTypesDesc"][$arEvents["ENTITY_TYPE"]]["URL_PATTERN"] => $arEvents["ENTITY_ID"]
+					$arSocNetAllowedSubscribeEntityTypesDesc[$arEvents["ENTITY_TYPE"]]["URL_PATTERN"] => $arEvents["ENTITY_ID"]
 				)
 			);
 
@@ -481,7 +472,7 @@ else
 		}
 	}
 
-	foreach ($arResult["arSocNetAllowedSubscribeEntityTypes"] as $entity_type)
+	foreach ($arSocNetAllowedSubscribeEntityTypes as $entity_type)
 	{
 		if (
 			array_key_exists($entity_type, $arResult["EventsNew"]) 
@@ -524,10 +515,7 @@ foreach ($arSocNetFeaturesSettings as $feature_tmp => $arFeatureTmp)
 		|| !$arFeatureTmp["subscribe_events"]
 	)
 		continue;
-
-	if ($feature_tmp == "files")
-		continue;
-
+		
 	foreach ($arFeatureTmp["subscribe_events"] as $event_id_tmp => $arEventTmp)
 	{
 		if (

@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS['SALE_MODULE_NOT_INSTALL'] = "e-Store module is not installed";
 $MESS['SALE_ACCESS_DENIED']="You have to authorise to view the order";
 $MESS["SPOD_TITLE"]="My order no. #ID#";

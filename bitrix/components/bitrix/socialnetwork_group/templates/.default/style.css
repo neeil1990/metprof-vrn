@@ -1,18 +1,18 @@
 /* Standart */
 div.empty-clear{
-	clear:both;
-	width:100%;
-	overflow:hidden;
+	clear:both; 
+	width:100%; 
+	overflow:hidden; 
 	height:4px!important;}
 form.wd-form{
  	padding:0px!important;
  	margin:0px!important;
  	border:none!important;}
 div.controls a{
-	display:block;
+	display:block; 
 	margin:0px;
-	padding:3px 3px 5px 23px;
-	border:none;
+	padding:3px 3px 5px 23px; 
+	border:none; 
 	white-space:nowrap;
 	text-decoration:none;
 	background-position:2px center;
@@ -20,8 +20,8 @@ div.controls a{
 	vertical-align:bottom;}
 span.controls a{
 	margin:0px;
-	padding:5px 3px 6px 21px;
-	border:none;
+	padding:5px 3px 6px 21px; 
+	border:none; 
 	white-space:nowrap;
 	text-decoration:none;
 	background-position:2px center;
@@ -41,11 +41,11 @@ table.clear, td.clear {
 	width:auto!important;
 	background-color:transparent;}
 div.debug-info{
-	position:absolute;
-	width:170px; padding:5px;
-	background-color:#FCF7D1;
-	border:1px solid #EACB6B;
-	text-align:left;
+	position:absolute; 
+	width:170px; padding:5px; 
+	background-color:#FCF7D1; 
+	border:1px solid #EACB6B; 
+	text-align:left; 
 	z-index:100; font-size:11px;}
 /* /Standart */
 
@@ -64,7 +64,7 @@ table.wd-menu td {
 	padding:0px;
 	margin:0px;
 	border:none;}
-table.wd-menu thead, table.wd-menu tfoot,
+table.wd-menu thead, table.wd-menu tfoot, 
 /*table.wd-menu tbody td.right, table.wd-menu tbody td.left,*/
 table.wd-menu-inner div.section-separator{
 	display:none;}
@@ -72,22 +72,22 @@ table.wd-menu tbody td.center{
 	width:100%;
 	padding:4px;}
 table.wd-menu div.separator {
-	width:1px;
-	height:21px;
-	border-left:1px solid #9CB0C5;
+	width:1px; 
+	height:21px; 
+	border-left:1px solid #9CB0C5; 
 	margin:0px 3px 0px 3px;}
 table.wd-menu-inner td{
 	vertical-align:bottom;}
 table.wd-menu-inner td.separator{
 	vertical-align:middle;}
 table.wd-menu-inner div.controls a{
-	border:1px solid #CEDEEC;
+	border:1px solid #CEDEEC; 
 	color:#072838;}
 table.wd-menu-inner div.controls a:hover {
-	border:1px solid #6290A6;
+	border:1px solid #6290A6; 
 	background-color:#E6EEF5;}
-table.wd-menu-inner div.controls a,
-table.wd-menu-inner div.controls a:visited,
+table.wd-menu-inner div.controls a, 
+table.wd-menu-inner div.controls a:visited, 
 table.wd-menu-inner div.controls a:active {
 	color:#072838;}
 table.wd-menu-inner{}
@@ -104,15 +104,15 @@ table.wd-menu-inner div.element-add a{
 	background-image: url('images/webdav/menu_icons/element_add.gif');}
 table.wd-menu-inner div.upload a{
 	background-image: url('images/webdav/menu_icons/element_upload.gif');}
-table.wd-menu-inner div.element_edit a{
+table.wd-menu-inner div.element_edit a{ 
 	background-image: url('images/webdav/menu_icons/element_edit.gif');}
-table.wd-menu-inner div.element_delete a{
+table.wd-menu-inner div.element_delete a{ 
 	background-image: url('images/webdav/menu_icons/element_delete.gif');}
-table.wd-menu-inner div.element_download a{
+table.wd-menu-inner div.element_download a{ 
 	background-image: url('images/webdav/menu_icons/element.gif');}
 table.wd-menu-inner div.help a{
 	background-image: url('images/webdav/menu_icons/help.gif');}
-table.wd-menu-inner div.maping a{
+table.wd-menu-inner div.maping a{ 
 	background-image: url('images/webdav/menu_icons/maping.gif');}
 table.wd-menu div.notice{
 	padding:0px;
@@ -254,7 +254,7 @@ table.webdav-form span.element_view a{
 	background-image: url('images/webdav/simple/element_view.gif');}
 table.webdav-form span.element_unlock a{
 	background-image: url('images/webdav/simple/element_unlock.gif');}
-
+	
 span.comments{
 	font-style:italic;}
 table.webdav-upload tbody select, table.webdav-upload tbody input{
@@ -265,28 +265,28 @@ table.webdav-upload tbody select, table.webdav-upload tbody input{
 div.up a{
 	background-image: url('images/webdav/table/up.gif');}
 div.show-action a.action{
-	display:block;
+	display:block; 
 	background-image: url('images/webdav/dropdown/arr_down.gif');
-	background-repeat:no-repeat;
-	background-position:22px center;
-	padding:3px;
-	border:1px solid white;
-	margin:0px;
+	background-repeat:no-repeat; 
+	background-position:22px center; 
+	padding:3px; 
+	border:1px solid white; 
+	margin:0px; 
 	white-space:nowrap;}
 div.show-action a.action:hover, table.wd-dropdown-pointer-active a.action {
-	border:1px solid #AEB6C2;
+	border:1px solid #AEB6C2; 
 	background-color:#DBE3F2;}
 div.show-action a.action div.empty{
 	background-image: url('images/webdav/dropdown/action.gif');
-	background-repeat:no-repeat;
-	background-position:left center;
+	background-repeat:no-repeat; 
+	background-position:left center; 
 	width:25px;
 	height:20px; }
 div.wd-action-block{
-	display:block;
+	display:block; 
 	height:11px;
 	background-image: url('images/webdav/dropdown/action_head.gif');
-	background-repeat:no-repeat;
+	background-repeat:no-repeat; 
 	background-position:top center;}
 tr.selected div.show-action a.action{}
 /* Actions styles */
@@ -345,7 +345,7 @@ table.wd-dropdown-item td.gutter div{
 	background-position:center center;
 	background-repeat:no-repeat;}
 table.wd-dropdown-item td.content{
-	padding:3px 5px 3px 9px;
+	padding:3px 5px 3px 9px; 
 	white-space: nowrap;}
 table.wd-dropdown-item td.gutter div.section_edit{
 	background-image:url('images/webdav/dropdown/section_edit.gif');}
@@ -377,17 +377,17 @@ td.popupmenu div.popupseparator {margin:1px 0px 1px 30px;
 
 /* Popups */
 div.wd-popup, div.wd-window-edit{
-	background-color:white;
-	padding:0px;
+	background-color:white; 
+	padding:0px; 
 	margin:0px;
-	border: 1px solid gray;
-	width:350px;
-	height:200px;
-	overflow:hidden;
-	text-align:center;
+	border: 1px solid gray; 
+	width:350px; 
+	height:200px; 
+	overflow:hidden; 
+	text-align:center; 
 	color:black;}
 div.wd-popup{
-	width:352px;
+	width:352px; 
 	height:202px;}
 div.wd-window-edit{
 	border:none;}
@@ -399,10 +399,10 @@ div.wd-window-edit table, div.wd-window-edit table td{
 	padding:0px;
 	margin:0px;}
 div.wd-window-edit table.wd-window-edit{
-	width:100%;
+	width:100%; 
 	height:200px;}
 div.wd-window-edit table.wd-window-edit thead td{
-	height:50px!important;
+	height:50px!important; 
 	overflow:hidden;
 	font-size: 110%;
 	padding:5px 10px 0px 10px;
@@ -419,13 +419,51 @@ div.wd-window-edit table.wd-window-edit tfoot td{
 div.wd-window-edit table.wd-window-edit tfoot input{
 	margin:0px 7px;}
 div.wd-window-edit table.wd-window-edit tbody div.content {
-	height:90px;
-	overflow:auto;
-	border:none;
+	height:90px; 
+	overflow:auto; 
+	border:none; 
 	position:relative;
 	width:330px;}
 div.wd-window-edit table.wd-window-edit tbody input{
 	width: 90%;}
+	
+div.cover{
+	width:200px;
+	height:120px;
+	position:absolute;
+	border:1px solid red;
+	background-image:url('images/webdav/notice/corner.gif');
+	background-position:right bottom;
+	background-repeat:no-repeat;}
+div.cover table.cover{
+	width:100%;
+	height:100px;
+	border:none;
+	border-collapse:collapse;
+	margin:0px;
+	padding:0px;}
+div.cover table.cover td{
+	margin:0px;
+	padding:0px;
+	border:none;}
+div.cover table.cover td.left, td.right{
+	background-repeat:no-repeat;
+	width:10px;}
+div.cover table.cover tr.top td.left{
+	background-image:url('images/webdav/notice/table_corner_tl.gif');
+	background-position:left top;}
+div.cover table.cover tr.top td.right{
+	background-image:url('images/webdav/notice/table_corner_tr.gif');
+	background-position:right top;}
+div.cover table.cover tr.bottom td.left{
+	background-image:url('images/webdav/notice/table_corner_bl.gif');
+	background-position:left bottom;}
+div.cover table.cover tr.bottom td.right{
+	background-image:url('images/webdav/notice/table_corner_br.gif');
+	background-position:right bottom;}
+div.cover table.cover tr.middle td.left, div.cover table.cover tr.middle td.right, div.cover table.cover td.center{
+	background-color:#CBE5EE;}
+	
 
 /* /Popups */
 
@@ -439,6 +477,14 @@ div.section-icon{
 	width:20px;
 	height:20px;
 	margin-right:2px;}
+div.element-icon {
+	margin-right:2px;
+	float:left;
+	width:20px;
+	height:20px;
+	background-position:center center;
+	background-repeat: no-repeat;
+	background-image:url('images/webdav/icons/icundef.gif');}
 div.element-lamp-green, div.element-lamp-yellow, div.element-lamp-red {
 	background-repeat: no-repeat;
 	background-position:center;
@@ -533,26 +579,27 @@ div#pwaitwindow {
 	text-align:center;
 	width:100%;}
 iframe.waitwindow {
-	position:absolute;
+	position:absolute; 
 	border:0px;
 	z-index:9999;}
 div.waitwindow {
 	position:absolute;
-	width:170px!important;
-	padding:10px;
-	background-color:#FCF7D1;
-	border:1px solid #EACB6B;
-	text-align:center;
+	width:170px!important; 
+	padding:10px; 
+	background-color:#FCF7D1; 
+	border:1px solid #EACB6B; 
+	text-align:center; 
 	z-index:10000;
-	font-size:13px;
-	background-image:url(images/wait.gif);
-	background-position:10px center;
+	font-size:13px; 
+	background-image:url(images/wait.gif); 
+	background-position:10px center; 
 	background-repeat:no-repeat;
 	display:block;}
 /*/ WEBDAV*/
+/* PHOTO */
+div#photo-main-page-right {
+	float: right; }
+/* /PHOTO */
 
 /*top panel icons */
 div.bx-top-panel table.bx-pnbutton div.icon-socnet-reindex {background-image:url(images/panel/reindex.gif);}
-
-/* DISK */
-.bx-disk-bizproc-section{padding:15px;}

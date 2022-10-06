@@ -18,23 +18,23 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM"] = trim($arParams["PATH_TO_MESSAGE_FORM"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGES_CHAT"] = trim($arParams["PATH_TO_MESSAGES_CHAT"]);
 if (strlen($arParams["PATH_TO_MESSAGES_CHAT"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGES_USERS"] = trim($arParams["PATH_TO_MESSAGES_USERS"]);
 if (strlen($arParams["PATH_TO_MESSAGES_USERS"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_USERS"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users");
+	$arParams["PATH_TO_MESSAGES_USERS"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users");
 
 $arParams["PATH_TO_MESSAGES_USERS_MESSAGES"] = trim($arParams["PATH_TO_MESSAGES_USERS_MESSAGES"]);
 if (strlen($arParams["PATH_TO_MESSAGES_USERS_MESSAGES"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_USERS_MESSAGES"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users_messages&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGES_USERS_MESSAGES"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_users_messages&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
@@ -119,13 +119,7 @@ else
 
 		$pu = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arMessages["ID"]));
 		$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arMessages["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
-		$canAnsver = (
-			($arMessages["ACTIVE"] != "N")
-			&& (
-				IsModuleInstalled("im") 
-				|| CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arMessages["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin())
-			)
-		);
+		$canAnsver = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arMessages["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin());
 
 		$relation = CSocNetUserRelations::GetRelation($GLOBALS["USER"]->GetID(), $arMessages["ID"]);
 
@@ -160,9 +154,9 @@ else
 			"SHOW_ANSWER_LINK" => $canAnsver,
 			"ANSWER_LINK" => CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_MESSAGE_FORM"], array("user_id" => $arMessages["ID"])),
 			"CHAT_LINK" => CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_MESSAGES_CHAT"], array("user_id" => $arMessages["ID"])),
-			"BAN_LINK" => htmlspecialcharsbx($APPLICATION->GetCurUri("userID=".$arMessages["ID"]."&action=ban&".bitrix_sessid_get()."")),
+			"BAN_LINK" => htmlspecialchars($APPLICATION->GetCurUri("userID=".$arMessages["ID"]."&action=ban&".bitrix_sessid_get()."")),
 			"SHOW_BAN_LINK" => (!CSocNetUser::IsUserModuleAdmin($arMessages["ID"]) && $arMessages["ID"] != $GLOBALS["USER"]->GetID() && (!$relation || $relation != SONET_RELATIONS_BAN)),
-			"IS_ONLINE" => ($arMessages["IS_ONLINE"] == "Y"),
+			"IS_ONLINE" => CSocNetUser::IsOnLine($arMessages["ID"]),
 			"TOTAL" => $arMessages["TOTAL"],
 			"MAX_DATE" => $arMessages["MAX_DATE"],
 			"MAX_DATE_FORMAT" => $arMessages["MAX_DATE_FORMAT"],

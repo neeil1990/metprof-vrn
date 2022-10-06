@@ -1,15 +1,13 @@
 <?Define("STOP_STATISTICS", true);
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 
-if (
-	CModule::IncludeModule("socialnetwork")
-	&& !IsModuleInstalled("b24network")
-)
+if (CModule::IncludeModule("socialnetwork"))
 {
 	if ($GLOBALS["USER"]->IsAuthorized())
 	{
 		$bIntranet = IsModuleInstalled('intranet');
 
+		
 		if (!Function_Exists("__UnEscapeTmp"))
 		{
 			function __UnEscapeTmp(&$item, $key)
@@ -37,47 +35,50 @@ if (
 			$arParams["pe"] = 10;
 		$arParams["gf"] = IntVal($arParams["gf"]);
 
-		$signer = new \Bitrix\Main\Security\Sign\Signer;
-
-		try {
-			$nt = $signer->unsign($arParams["nt"]);
+		if (strlen(trim($arParams["nt"])) > 0)
+		{
+			$arParams["NAME_TEMPLATE"] = trim($arParams["nt"]);
 			$arParams["NAME_TEMPLATE"] = str_replace(
-				array("#EMAIL#", "#LOGIN#", "#NOBR#", "#/NOBR#", "#COMMA#"), 
-				array(" ", " ", " ", " ", ","), 
-				trim($nt)
+				array("#NOBR#", "#/NOBR#", "#COMMA#"), 
+				array("", "", ","), 
+				$arParams["NAME_TEMPLATE"]
 			);
 		}
-		catch (\Bitrix\Main\Security\Sign\BadSignatureException $e)
-		{
-			$arParams["NAME_TEMPLATE"] = str_replace("#COMMA#",",", CSite::GetNameFormat(false));
-		}
+		else
+			$arParams["NAME_TEMPLATE"] = '#NAME# #LAST_NAME#';
 
 		$arParams['NAME_TEMPLATE'] .= ($bIntranet ? ' <#EMAIL#>' : '');
-		$arParams['NAME_TEMPLATE'] .= " [#ID#]";
+		$arParams['NAME_TEMPLATE'] .= " [#ID#]";		
 
-		try {
-			$sl = $signer->unsign($arParams["sl"]);
-			$bUseLogin = (trim($sl) != "N");
-		}
-		catch (\Bitrix\Main\Security\Sign\BadSignatureException $e)
-		{
+		if (trim($arParams["sl"]) != "N")
+			$bUseLogin = true;
+		else
 			$bUseLogin = false;
-		}
 
-		if (CModule::IncludeModule('extranet'))
+		if (strlen($arParams["ex"]) > 0 && $arParams["ex"] == "E" && strlen($arParams["site"]) > 0 && CModule::IncludeModule('extranet') && CExtranet::IsExtranetUser())
 		{
-			if (CExtranet::IsIntranetUser($arParams["site"]))
-			{
-				$arUsersInMyGroupsID = CExtranet::GetMyGroupsUsers($arParams["site"]);
-				$arIntranetUsersID = CExtranet::GetIntranetUsers();
-				$arUsersToFilter = array_merge($arUsersInMyGroupsID, $arIntranetUsersID);
-			}
-			else
-			{
-				$arUsersInMyGroupsID = CExtranet::GetMyGroupsUsers($arParams["site"]);
-				$arPublicUsersID = CExtranet::GetPublicUsers();
-				$arUsersToFilter = array_merge($arUsersInMyGroupsID, $arPublicUsersID);
-			}
+			$arUsersInMyGroupsID = CExtranet::GetMyGroupsUsers($arParams["site"]);
+			$arPublicUsersID = CExtranet::GetPublicUsers();
+			$arUsersToFilter = array_merge($arUsersInMyGroupsID, $arPublicUsersID);
+		}
+		elseif (strlen($arParams["ex"]) > 0 && $arParams["ex"] == "EA" && $GLOBALS["APPLICATION"]->GetGroupRight("socialnetwork") >= "K" && CModule::IncludeModule('extranet'))
+		{
+			$arExtranetUsersID = CExtranet::GetExtranetGroupUsers();
+			$arIntranetUsersID = CExtranet::GetIntranetUsers();
+			$arUsersToFilter = array_diff($arExtranetUsersID, $arIntranetUsersID);
+		}
+		elseif (strlen($arParams["ex"]) > 0 && $arParams["ex"] == "EA" && CModule::IncludeModule('extranet'))
+		{
+			$arUsersInMyGroupsID = CExtranet::GetMyGroupsUsers($arParams["site"]);
+			$arIntranetUsersID = CExtranet::GetIntranetUsers();
+			$arUsersToFilter = array_diff($arUsersInMyGroupsID, $arIntranetUsersID);
+		}
+		elseif (CModule::IncludeModule('extranet') && CExtranet::IsIntranetUser())
+			$arUsersToFilter = CExtranet::GetIntranetUsers();
+		elseif (CModule::IncludeModule('extranet'))
+		{
+			require_once($_SERVER["DOCUMENT_ROOT"].BX_ROOT."/modules/main/include/epilog_after.php");
+			die();	
 		}
 
 		$arResult = array();
@@ -87,16 +88,15 @@ if (
 		{
 			do
 			{
-				if (
-					(
-					is_array($arUsersToFilter)
-					&& in_array($arUser["ID"], $arUsersToFilter)
-					)
-					|| !is_array($arUsersToFilter)
-				)
+				$formatName = CUser::FormatName($arParams['NAME_TEMPLATE'], $arUser, $bUseLogin);
+				
+				if (strlen($arParams["ex"]) > 0 && ($arParams["ex"] == "E" || $arParams["ex"] == "EA" || $arParams["ex"] == "I") && strlen($arParams["site"]) > 0)
 				{
-					$arResult[] = array("NAME" => CUser::FormatName($arParams['NAME_TEMPLATE'], $arUser, $bUseLogin));
+					if (count($arUsersToFilter) > 0 && in_array($arUser["ID"], $arUsersToFilter))
+						$arResult[] = array("NAME" => $formatName);
 				}
+				elseif (CModule::IncludeModule('extranet') && CExtranet::IsIntranetUser() || !CModule::IncludeModule('extranet'))
+					$arResult[] = array("NAME" => $formatName);
 			}
 			while ($arUser = $dbUsers->Fetch());
 		}

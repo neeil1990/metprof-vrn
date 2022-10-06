@@ -20,22 +20,22 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGES_INPUT"] = trim($arParams["PATH_TO_MESSAGES_INPUT"]);
 if(strlen($arParams["PATH_TO_MESSAGES_INPUT"])<=0)
-	$arParams["PATH_TO_MESSAGES_INPUT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_input");
+	$arParams["PATH_TO_MESSAGES_INPUT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_input");
 
 $arParams["PATH_TO_MESSAGES_OUTPUT"] = trim($arParams["PATH_TO_MESSAGES_OUTPUT"]);
 if(strlen($arParams["PATH_TO_MESSAGES_OUTPUT"])<=0)
-	$arParams["PATH_TO_MESSAGES_OUTPUT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output");
+	$arParams["PATH_TO_MESSAGES_OUTPUT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_output");
 
 $arParams["PATH_TO_SMILE"] = trim($arParams["PATH_TO_SMILE"]);
 
 $arParams["MESSAGE_ID"] = IntVal($arParams["MESSAGE_ID"]);
 
 if (strlen($arParams["NAME_TEMPLATE"]) <= 0)		
-	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+	$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 $bUseLogin = $arParams['SHOW_LOGIN'] != "N" ? true : false;
 
 if (!$USER->IsAuthorized())
@@ -58,7 +58,7 @@ else
 
 		$arResult["CurrentUserPerms"]["ViewProfile"] = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
 		$arResult["CurrentUserPerms"]["ModifyUser"] = ($GLOBALS["USER"]->GetID() == $arResult["User"]["ID"] || CSocNetUser::IsCurrentUserModuleAdmin());
-		$arResult["CurrentUserPerms"]["Message"] = (IsModuleInstalled("im") || CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin()));
+		$arResult["CurrentUserPerms"]["Message"] = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arResult["User"]["ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin());
 
 		$arResult["Urls"]["User"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arResult["User"]["ID"]));
 		$arResult["Urls"]["MessagesInput"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_MESSAGES_INPUT"], array());

@@ -1,11 +1,15 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 <?
+\Bitrix\Main\UI\Extension::load([
+	"calendar.util"
+]);
 $id = $arResult['ID'];
 $event = $arResult['EVENT'];
+$emptyAvatarSrc = "/bitrix/images/1.gif";
 ?>
 <div class="feed-event-view" id="feed-event-view-cont-<?= $id?>">
 	<div class="feed-calendar-view-icon">
-		<a class="feed-calendar-view-icon-fake-link" id="feed-event-view-icon-link-<?= $id?>" href="#"><img src="/bitrix/images/1.gif"></a>
+		<a class="feed-calendar-view-icon-fake-link" id="feed-event-view-icon-link-<?= $id?>" href="#"><img src="<?= $emptyAvatarSrc?>"></a>
 		<div class="feed-calendar-view-icon-day"><?= $event['FROM_WEEK_DAY']?></div>
 		<div class="feed-calendar-view-icon-date"><?= $event['FROM_MONTH_DAY']?></div>
 	</div>
@@ -21,8 +25,8 @@ $event = $arResult['EVENT'];
 				<?
 				if (
 					$event['DT_SKIP_TIME'] != 'Y' &&
-					(intVal($event['~USER_OFFSET_FROM']) != 0 ||
-					intVal($event['~USER_OFFSET_TO']) != 0 ||
+					(intval($event['~USER_OFFSET_FROM']) != 0 ||
+					intval($event['~USER_OFFSET_TO']) != 0 ||
 					$event['TZ_FROM'] != $event['TZ_TO'])
 				)
 				{
@@ -44,56 +48,11 @@ $event = $arResult['EVENT'];
 			</tr>
 
 			<?if (isset($event['RRULE']) && $event['RRULE'] !== ''):?>
-			<?
-			$repeatHTML = '';
-			$RRULE = CCalendarEvent::ParseRRULE($event['RRULE']);
-			switch ($RRULE['FREQ'])
-			{
-				case 'DAILY':
-					if ($RRULE['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_DAY');
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_DAY_1', array('#DAY#' => $RRULE['INTERVAL']));
-					break;
-				case 'WEEKLY':
-
-					$daysList = array();
-					foreach ($RRULE['BYDAY'] as $day)
-						$daysList[] = GetMessage('EC_'.$day);
-					$daysList = implode(', ', $daysList);
-					if ($RRULE['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_WEEK', array('#DAYS_LIST#' => $daysList));
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_WEEK_1', array('#WEEK#' => $RRULE['INTERVAL'], '#DAYS_LIST#' => $daysList));
-					break;
-				case 'MONTHLY':
-					if ($RRULE['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_MONTH');
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_MONTH_1', array('#MONTH#' => $RRULE['INTERVAL']));
-					break;
-				case 'YEARLY':
-					if ($RRULE['INTERVAL'] == 1)
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_YEAR', array('#DAY#' => 0, '#MONTH#' => 0));
-					else
-						$repeatHTML = GetMessage('EC_RRULE_EVERY_YEAR_1', array('#YEAR#' => $RRULE['INTERVAL'], '#DAY#' => 0, '#MONTH#' => 0));
-					break;
-			}
-
-			if($RRULE['COUNT'] > 0)
-			{
-				$repeatHTML .= ', '.GetMessage('EC_RRULE_COUNT', array('#COUNT#' => $RRULE['COUNT']));
-			}
-			elseif ($RRULE['UNTIL'] != '' && $RRULE['UNTIL'] != CCalendar::GetMaxDate())
-			{
-				$repeatHTML .= '<br>'.GetMessage('EC_RRULE_UNTIL', array('#UNTIL_DATE#' => CCalendar::Date(CCalendar::Timestamp($RRULE['UNTIL']), false)));
-			}
-			?>
 			<tr>
 				<td class="feed-calendar-view-text-cell-l"><?=GetMessage('EC_T_REPEAT')?>:</td>
-				<td class="feed-calendar-view-text-cell-r"><?= $repeatHTML?></td>
+				<td class="feed-calendar-view-text-cell-r"><?= CCalendarEvent::GetRRULEDescription($event, true)?></td>
 			</tr>
-			<?endif;/*if ($event['RRULE'] !== '')*/?>
+			<?endif;?>
 
 
 			<?if (!empty($event['LOCATION'])):?>
@@ -111,26 +70,27 @@ $event = $arResult['EVENT'];
 					$cnt = 0;
 					$bShowAll = count($event['ACCEPTED_ATTENDEES']) <= $arParams['ATTENDEES_SHOWN_COUNT_MAX'];
 					$popupContent = '';
-					foreach($event['ACCEPTED_ATTENDEES'] as $att)
+					foreach($event['ACCEPTED_ATTENDEES'] as $attendee)
 					{
 						$cnt++;
 						if (!$bShowAll && $cnt > $arParams['ATTENDEES_SHOWN_COUNT'])
 						{
 							// Put to popup
-							$popupContent .= '<a href="'.$att['URL'].'" target="_blank" class="bxcal-att-popup-img bxcal-att-popup-att-full">'.
+							$popupContent .= '<a href="'.$attendee['URL'].'" target="_blank" class="bxcal-att-popup-img bxcal-att-popup-att-full">'.
 								'<span class="bxcal-att-popup-avatar">'.
-									($att['AVATAR_SRC'] ? '<img src="'.$att['AVATAR_SRC'].'" width="'.$arParams['AVATAR_SIZE'].'" height="'.$arParams['AVATAR_SIZE'].'" class="bxcal-att-popup-img-not-empty" />' : '').
+									($attendee['AVATAR'] ? '<img src="'.$attendee['AVATAR'].'" width="'.$arParams['AVATAR_SIZE'].'" height="'.$arParams['AVATAR_SIZE'].'" class="bxcal-att-popup-img-not-empty" />' : '').
 								'</span>'.
-								'<span class="bxcal-att-popup-name">'.htmlspecialcharsbx($att['DISPLAY_NAME']).'</span>'.
+								'<span class="bxcal-att-popup-name">'.htmlspecialcharsbx($attendee['DISPLAY_NAME']).'</span>'.
 							'</a>';
 						}
 						else // Display avatar
 						{
-							?><a title="<?= htmlspecialcharsbx($att['DISPLAY_NAME'])?>" href="<?= $att['URL']?>" target="_blank" class="bxcal-att-popup-img"><?
+							?><a title="<?= htmlspecialcharsbx($attendee['DISPLAY_NAME'])?>" href="<?= $attendee['URL']?>" target="_blank" class="bxcal-att-popup-img"><?
 								?><span class="bxcal-att-popup-avatar"><?
-									if ($att['AVATAR_SRC'])
+									if ($attendee['AVATAR'] && $attendee['AVATAR'] != $emptyAvatarSrc)
 									{
-										?><img src="<?= $att['AVATAR_SRC']?>" width="<?= $arParams['AVATAR_SIZE']?>" height="<?= $arParams['AVATAR_SIZE']?>" class="bxcal-att-popup-img-not-empty" /><?
+										?><img src="<?= $attendee['AVATAR']?>" width="<?= $arParams['AVATAR_SIZE']?>"
+											   height="<?= $arParams['AVATAR_SIZE']?>" class="bxcal-att-popup-img-not-empty1" /><?
 									}
 								?></span><?
 							?></a><?
@@ -155,26 +115,26 @@ $event = $arResult['EVENT'];
 						$cnt = 0;
 						$bShowAll = count($event['DECLINED_ATTENDEES']) <= $arParams['ATTENDEES_SHOWN_COUNT_MAX'];
 						$popupContent = '';
-						foreach($event['DECLINED_ATTENDEES'] as $att)
+						foreach($event['DECLINED_ATTENDEES'] as $attendee)
 						{
 							$cnt++;
 							if (!$bShowAll && $cnt > $arParams['ATTENDEES_SHOWN_COUNT'])
 							{
 								// Put to popup
-								$popupContent .= '<a href="'.$att['URL'].'" target="_blank" class="bxcal-att-popup-img bxcal-att-popup-att-full">'.
+								$popupContent .= '<a href="'.$attendee['URL'].'" target="_blank" class="bxcal-att-popup-img bxcal-att-popup-att-full">'.
 									'<span class="bxcal-att-popup-avatar">'.
-										($att['AVATAR_SRC'] ? ('<img src="'.$att['AVATAR_SRC'].'" width="'.$arParams['AVATAR_SIZE'].'" height="'.$arParams['AVATAR_SIZE'].'" class="bxcal-att-popup-img-not-empty" />') : '').
+										($attendee['AVATAR'] ? ('<img src="'.$attendee['AVATAR'].'" width="'.$arParams['AVATAR_SIZE'].'" height="'.$arParams['AVATAR_SIZE'].'" class="bxcal-att-popup-img-not-empty" />') : '').
 									'</span>'.
-									'<span class="bxcal-att-popup-name">'.htmlspecialcharsbx($att['DISPLAY_NAME']).'</span>'.
+									'<span class="bxcal-att-popup-name">'.htmlspecialcharsbx($attendee['DISPLAY_NAME']).'</span>'.
 								'</a>';
 							}
 							else // Display avatar
 							{
-								?><a title="<?= htmlspecialcharsbx($att['DISPLAY_NAME'])?>" href="<?= $att['URL']?>" target="_blank" class="bxcal-att-popup-img"><?
+								?><a title="<?= htmlspecialcharsbx($attendee['DISPLAY_NAME'])?>" href="<?= $attendee['URL']?>" target="_blank" class="bxcal-att-popup-img"><?
 									?><span class="bxcal-att-popup-avatar"><?
-										if($att['AVATAR_SRC'])
+										if($attendee['AVATAR'] && $attendee['AVATAR'] != $emptyAvatarSrc)
 										{
-											?><img src="<?= $att['AVATAR_SRC']?>" width="<?= $arParams['AVATAR_SIZE']?>" height="<?= $arParams['AVATAR_SIZE']?>" class="bxcal-att-popup-img-not-empty" /><?
+											?><img src="<?= $attendee['AVATAR']?>" width="<?= $arParams['AVATAR_SIZE']?>" height="<?= $arParams['AVATAR_SIZE']?>" class="bxcal-att-popup-img-not-empty" /><?
 										}
 									?></span><?
 								?></a><?
@@ -201,11 +161,13 @@ $event = $arResult['EVENT'];
 	<?endif;?>
 </div>
 
+<? $culture = \Bitrix\Main\Context::getCurrent()->getCulture(); ?>
+
 <script>
 	if (!window.oViewEventManager)
 		window.oViewEventManager = {};
 	window.oViewEventManager[('<?= $event['ID']?>' || 0)] = new window.ViewEventManager(<?=CUtil::PhpToJSObject(
-	array(
+	[
 		"id" => $id,
 		"eventId" => $event['ID'],
 		"EVENT" => $event,
@@ -216,12 +178,17 @@ $event = $arResult['EVENT'];
 		'ATTENDEES_SHOWN_COUNT' => $arParams['ATTENDEES_SHOWN_COUNT'],
 		'ATTENDEES_SHOWN_COUNT_MAX' => $arParams['ATTENDEES_SHOWN_COUNT_MAX'],
 		'AVATAR_SIZE' => $arParams['AVATAR_SIZE'],
-		"AJAX_PARAMS" => array(
+		"AJAX_PARAMS" => [
 			'PATH_TO_USER' => $arParams['PATH_TO_USER'],
 			'ATTENDEES_SHOWN_COUNT' => $arParams['ATTENDEES_SHOWN_COUNT'],
 			'ATTENDEES_SHOWN_COUNT_MAX' => $arParams['ATTENDEES_SHOWN_COUNT_MAX'],
-		)
-	));?>
+		],
+		"culture" => [
+			"time_format" => $culture->getShortTimeFormat(),
+			"date_format" => $culture->getFullDateFormat(),
+		]
+	]
+		);?>
 	);
 </script>
 

@@ -134,14 +134,14 @@ if ($arParams["SHOW_NAVIGATION"] != "N")
 		$path = substr($path, 0, $pos+1);
 	}
 	
+	$GLOBALS["tmp_STR_TITLE"] = $arParams["STR_TITLE"]; 
 	$GLOBALS["APPLICATION"]->IncludeComponent(
 		"bitrix:breadcrumb", 
 		"webdav",
 		Array(
 			"START_FROM" => (count($arChain) + $this->__component->__count_chain_item - 1), 
 			"PATH" => "", 
-			"SITE_ID" => "",
-			"STR_TITLE" => $arParams["STR_TITLE"]
+			"SITE_ID" => ""
 		), $component, 
 		array("HIDE_ICONS" => "Y")
 	);

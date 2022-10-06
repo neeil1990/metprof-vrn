@@ -21,8 +21,7 @@ if (!function_exists("__vote_template_default_votes_ending"))
 	}
 }
 
-CJSCore::Init(array("ajax"));
-
+CAjax::Init();
 ?><script src="<?=$this->__folder?>/script.js"></script><?
 //Let's determine what value to display: rating or average ?
 if($arParams["DISPLAY_AS_RATING"] == "vote_avg")

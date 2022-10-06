@@ -3,7 +3,7 @@ define("STOP_STATISTICS", true);
 define("BX_SECURITY_SHOW_MESSAGE", true);
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-\Bitrix\Main\Localization\Loc::loadMessages(__FILE__);
+__IncludeLang(dirname(__FILE__).'/lang/'.LANGUAGE_ID.'/'.basename(__FILE__));
 
 if(!CModule::IncludeModule('lists'))
 {
@@ -36,10 +36,7 @@ if($lists_perm < 0)
 		die();
 	}
 }
-elseif(
-	$lists_perm < CListPermissions::CAN_READ
-	&& !CIBlockRights::UserHasRightTo($iblock_id, $iblock_id, "element_read")
-)
+elseif($lists_perm < CListPermissions::CAN_READ)
 {
 	ShowError(GetMessage("CT_BMLI_ACCESS_DENIED"));
 	die();
@@ -76,7 +73,7 @@ if($_REQUEST['MODE'] == 'SEARCH')
 				);
 
 				Header('Content-Type: application/x-javascript; charset='.LANG_CHARSET);
-				echo CUtil::PhpToJsObject($arResult);
+				echo CUtil::PhpToJsObject($arUsers);
 				die();
 			}
 		}

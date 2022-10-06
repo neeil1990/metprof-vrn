@@ -40,10 +40,7 @@ return $APPLICATION->IncludeComponent("bitrix:webdav.element.edit", "view_pro", 
 	"WEBDAV_START_BIZPROC_URL" => $arResult["~PATH_TO_USER_FILES_WEBDAV_START_BIZPROC"], 
 	"WEBDAV_TASK_LIST_URL" => $arResult["~PATH_TO_BIZPROC_TASK_LIST"], 
 	"WEBDAV_TASK_URL" => $arResult["~PATH_TO_BIZPROC_TASK"], 
-   
-	"SHOW_RATING"	=>	$arParams["SHOW_RATING"],
-	"RATING_TYPE"	=>	$arParams["RATING_TYPE"],
-	
+    
 	"BIZPROC" => $arResult["VARIABLES"]["BIZPROC"], 
     "SET_TITLE"	=>	"N",
     "SET_NAV_CHAIN"	=>	"Y",

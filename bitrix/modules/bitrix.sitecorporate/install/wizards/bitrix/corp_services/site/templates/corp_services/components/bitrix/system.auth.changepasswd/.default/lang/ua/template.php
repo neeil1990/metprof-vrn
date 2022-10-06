@@ -1,11 +1,11 @@
 <?
-$MESS["AUTH_CHANGE_PASSWORD"] = "Ð—Ð¼Ñ–Ð½Ð° Ð¿Ð°Ñ€Ð¾Ð»ÑŽ";
-$MESS["AUTH_LOGIN"] = "Ð›Ð¾Ð³Ñ–Ð½";
-$MESS["AUTH_CHECKWORD"] = "ÐšÐ¾Ð½Ñ‚Ñ€Ð¾Ð»ÑŒÐ½Ð¸Ð¹ Ñ€ÑÐ´Ð¾Ðº";
-$MESS["AUTH_NEW_PASSWORD"] = "ÐÐ¾Ð²Ð¸Ð¹ Ð¿Ð°Ñ€Ð¾Ð»ÑŒ";
-$MESS["AUTH_NEW_PASSWORD_CONFIRM"] = "ÐŸÑ–Ð´Ñ‚Ð²ÐµÑ€Ð´Ð¶ÐµÐ½Ð½Ñ Ð¿Ð°Ñ€Ð¾Ð»ÑŽ";
-$MESS["AUTH_CHANGE"] = "Ð—Ð¼Ñ–Ð½Ð¸Ñ‚Ð¸ Ð¿Ð°Ñ€Ð¾Ð»ÑŒ";
-$MESS["AUTH_REQ"] = "ÐžÐ±Ð¾Ð²'ÑÐ·ÐºÐ¾Ð²Ñ– Ð¿Ð¾Ð»Ñ";
-$MESS["AUTH_AUTH"] = "ÐÐ²Ñ‚Ð¾Ñ€Ð¸Ð·Ð°Ñ†Ñ–Ñ";
-$MESS["AUTH_NEW_PASSWORD_REQ"] = "ÐÐ¾Ð²Ð¸Ð¹ Ð¿Ð°Ñ€Ð¾Ð»ÑŒ";
+$MESS["AUTH_CHANGE_PASSWORD"] = "Çì³íà ïàðîëþ";
+$MESS["AUTH_LOGIN"] = "Ëîã³í";
+$MESS["AUTH_CHECKWORD"] = "Êîíòðîëüíèé ðÿäîê";
+$MESS["AUTH_NEW_PASSWORD"] = "Íîâèé ïàðîëü";
+$MESS["AUTH_NEW_PASSWORD_CONFIRM"] = "Ï³äòâåðäæåííÿ ïàðîëþ";
+$MESS["AUTH_CHANGE"] = "Çì³íèòè ïàðîëü";
+$MESS["AUTH_REQ"] = "Îáîâ'ÿçêîâ³ ïîëÿ";
+$MESS["AUTH_AUTH"] = "Àâòîðèçàö³ÿ";
+$MESS["AUTH_NEW_PASSWORD_REQ"] = "Íîâèé ïàðîëü";
 ?>

@@ -12,7 +12,7 @@ class CCheckAuthWS extends IWebService
 	{
 		$UserAuthTry = new CUser();
 		$authTry = $UserAuthTry->Login($user, $password);
-		if ($authTry === true)
+		if (!is_array($authTry))
 		{
 			$unode = $UserAuthTry->GetByLogin($user);
 			$uinfo = $unode->Fetch();

@@ -62,6 +62,8 @@ if ($arParams["FILES_USE_COMMENTS"]=="Y" && $arResult["GROUP"]["CLOSED"] != "Y" 
 		"URL_TEMPLATES_PROFILE_VIEW" => str_replace("#USER_ID#", "#UID#", $arResult["~PATH_TO_USER"]),
 		"URL_TEMPLATES_DETAIL" => $arResult["~PATH_TO_USER_FILES_ELEMENT"],
 		
+		"POST_FIRST_MESSAGE" => "Y", 
+		"POST_FIRST_MESSAGE_TEMPLATE" => GetMessage("WD_TEMPLATE_MESSAGE"), 
 		"SUBSCRIBE_AUTHOR_ELEMENT" => "Y", 
 		"IMAGE_SIZE" => false, 
 		"MESSAGES_PER_PAGE" => 20,

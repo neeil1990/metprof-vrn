@@ -21,9 +21,9 @@ if(isset($arParams['INPUT_VALUE_STRING']) && strlen($arParams['INPUT_VALUE_STRIN
 ?>
 <div class="mli-layout" id="layout_<?=$control_id?>">
 	<?if($arParams["MULTIPLE"]=="Y"):?>
-	<textarea name="<?=$textarea_id?>" id="<?=$textarea_id?>"><?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialcharsbx($arParams['INPUT_VALUE_STRING']);?></textarea>
+	<textarea name="<?=$textarea_id?>" id="<?=$textarea_id?>"><?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialchars($arParams['INPUT_VALUE_STRING']);?></textarea>
 	<?else:?>
-	<input autocomplete="off" type="text" name="<?=$textarea_id?>" id="<?=$textarea_id?>" value="<?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialcharsbx($arParams['INPUT_VALUE_STRING']);?>">
+	<input autocomplete="off" type="text" name="<?=$textarea_id?>" id="<?=$textarea_id?>" value="<?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialchars($arParams['INPUT_VALUE_STRING']);?>">
 	<?endif?>
 </div>
 <script type="text/javascript">
@@ -32,7 +32,6 @@ var jsMLI_<?=$control_id?> = new JCMainLookupSelector({
 	'AJAX_PARAMS' : <?echo CUtil::PhpToJsObject(array(
 		"IBLOCK_TYPE_ID" => $arParams["IBLOCK_TYPE_ID"],
 		"IBLOCK_ID" => $arParams["IBLOCK_ID"],
-		"SOCNET_GROUP_ID" => $arParams["SOCNET_GROUP_ID"],
 	))?>,
 	'CONTROL_ID': '<?echo CUtil::JSEscape($control_id)?>',
 	'LAYOUT_ID': 'layout_<?echo CUtil::JSEscape($control_id)?>',
@@ -45,9 +44,7 @@ var jsMLI_<?=$control_id?> = new JCMainLookupSelector({
 		'ID': '<?=$textarea_id?>',
 		'MAX_HEIGHT': <?echo $arParams['TEXTAREA_MAX_HEIGHT'] ? intval($arParams['TEXTAREA_MAX_HEIGHT']) : '1000'?>,
 		'MIN_HEIGHT': <?echo $arParams['TEXTAREA_MIN_HEIGHT'] ? intval($arParams['TEXTAREA_MIN_HEIGHT']) : '30'?>,
-		'START_TEXT': '<?echo CUtil::JSEscape($arParams['START_TEXT'])?>',
-		'SEARCH_POSITION': <?echo ('Y' == $arParams['FILTER'] ? "'absolute'" : "''")?>,
-		'SEARCH_ZINDEX': 4000
+		'START_TEXT': '<?echo CUtil::JSEscape($arParams['START_TEXT'])?>'
 	}
 });
 </script>

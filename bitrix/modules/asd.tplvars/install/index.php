@@ -37,26 +37,13 @@ class asd_tplvars extends CModule {
 	}
 
 	public function InstallDB() {
-		global $DB, $errors;
-
-		if(!$DB->Query("SELECT 'x' FROM b_asd_option_descr", true))
-			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/'.$this->MODULE_ID.'/install/db/'.strtolower($DB->type).'/install.sql');
-
-		RegisterModule($this->MODULE_ID);
 		RegisterModuleDependences('main', 'OnBeforeEndBufferContent', $this->MODULE_ID, 'CASDTplVars', 'OnBeforeEndBufferContent', 100500);
 		RegisterModuleDependences('main', 'OnPageStart', 'main', '', '', 100, '/modules/asd.tplvars/init.php');
 		CopyDirFiles($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/'.$this->MODULE_ID.'/install/tools/', $_SERVER['DOCUMENT_ROOT'].'/bitrix/tools/', true, true);
+		RegisterModule($this->MODULE_ID);
 	}
 
-	public function UnInstallDB($arParams = array()) {
-		global $DB, $errors;
-
-		if (!isset($arParams['savedata']) || $arParams['savedata'] != 'Y')
-		{
-			$errors = $DB->RunSQLBatch($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/'.$this->MODULE_ID.'/install/db/'.strtolower($DB->type).'/uninstall.sql');
-			COption::RemoveOption($this->MODULE_ID);
-		}
-
+	public function UnInstallDB() {
 		UnRegisterModuleDependences('main', 'OnBeforeEndBufferContent', $this->MODULE_ID, 'CASDTplVars', 'OnBeforeEndBufferContent');
 		UnRegisterModuleDependences('main', 'OnPageStart', 'main', '', '', '/modules/asd.tplvars/init.php');
 		DeleteDirFilesEx('/bitrix/tools/'.$this->MODULE_ID.'/');
@@ -87,23 +74,14 @@ class asd_tplvars extends CModule {
 	}
 
 	public function DoUninstall() {
-		global $APPLICATION, $adminPage, $USER, $adminMenu, $adminChain, $errors;
+		global $APPLICATION, $adminPage, $USER, $adminMenu, $adminChain;
 
 		if ($GLOBALS['APPLICATION']->GetGroupRight('main') < 'W') {
 			return;
 		}
-		$step = (!isset($_REQUEST['step']) ? 1 : (int)$_REQUEST['step']);
 
-		if ($step < 2) {
-			$this->ShowDataSaveForm();
-		} elseif ($step == 2) {
-			$params = array();
-			if (isset($_REQUEST['savedata'])) {
-				$params['savedata'] = (string)$_REQUEST['savedata'];
-			}
-			$this->UnInstallDB($params);
-			$this->ShowForm('OK', GetMessage('MOD_UNINST_OK'));
-		}
+		$this->UnInstallDB();
+		$this->ShowForm('OK', GetMessage('MOD_UNINST_OK'));
 	}
 
 	private function ShowForm($type, $message, $buttonName='') {
@@ -123,11 +101,11 @@ class asd_tplvars extends CModule {
 
 		$GLOBALS['APPLICATION']->SetTitle(GetMessage('ASD_TPLVARS_MODULE_NAME'));
 		include($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_after.php');
-		CAdminMessage::ShowMessage(array('MESSAGE' => $message, 'TYPE' => $type));
+		echo CAdminMessage::ShowMessage(array('MESSAGE' => $message, 'TYPE' => $type));
 		?>
 		<form action="<?= $GLOBALS['APPLICATION']->GetCurPage()?>" method="get">
 		<p>
-			<input type="hidden" name="lang" value="<?= LANGUAGE_ID?>" />
+			<input type="hidden" name="lang" value="<?= LANG?>" />
 			<input type="submit" value="<?= strlen($buttonName) ? $buttonName : GetMessage('MOD_BACK')?>" />
 		</p>
 		</form>
@@ -151,14 +129,11 @@ class asd_tplvars extends CModule {
 		?>
 		<form action="<?= $GLOBALS['APPLICATION']->GetCurPage()?>" method="get">
 			<?= bitrix_sessid_post()?>
-			<input type="hidden" name="lang" value="<?= LANGUAGE_ID?>" />
+			<input type="hidden" name="lang" value="<?= LANG?>" />
 			<input type="hidden" name="id" value="<?= $this->MODULE_ID?>" />
 			<input type="hidden" name="uninstall" value="Y" />
 			<input type="hidden" name="step" value="2" />
 			<?CAdminMessage::ShowMessage(GetMessage('MOD_UNINST_WARN'))?>
-			<p><?echo GetMessage("MOD_UNINST_SAVE")?></p>
-			<input type="hidden" name="savedata" id="savedata_N" value="N" />
-			<p><input type="checkbox" name="savedata" id="savedata" value="Y" checked /><label for="savedata"><?echo GetMessage("MOD_UNINST_SAVE_TABLES")?></label></p>
 			<input type="submit" name="inst" value="<?echo GetMessage('MOD_UNINST_DEL')?>" />
 		</form>
 		<?

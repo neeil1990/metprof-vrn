@@ -18,11 +18,11 @@ else
 
 	<?if ($arResult["CurrentUserPerms"]["UserCanModifyGroup"]):?>
 		<form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
+		<input type="submit" name="save" value="<?= GetMessage("SONET_C10_DO_SAVE") ?>"><br /><br />
 	<?endif;?>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>
-	<div class="sonet-cntnr-group-mods">
 	<table width="100%" class="sonet-user-profile-friends data-table">
 		<tr>
 			<th><?= GetMessage("SONET_C10_SUBTITLE") ?></th>
@@ -174,7 +174,6 @@ else
 			</td>
 		</tr>
 	</table>
-	</div>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<br><?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>

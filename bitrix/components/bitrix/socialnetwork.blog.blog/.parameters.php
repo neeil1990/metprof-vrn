@@ -24,7 +24,15 @@ $arComponentParameters = Array(
 				"DEFAULT" => 25,
 				"PARENT" => "VISUAL",
 			),
-		"DATE_TIME_FORMAT" => CComponentUtil::GetDateTimeFormatField(GetMessage("BC_DATE_TIME_FORMAT"), "VISUAL"),
+		"DATE_TIME_FORMAT" => Array(
+				"PARENT" => "VISUAL",
+				"NAME" => GetMessage("BC_DATE_TIME_FORMAT"),
+				"TYPE" => "LIST",
+				"VALUES" => CBlogTools::GetDateTimeFormat(),
+				"MULTIPLE" => "N",
+				"DEFAULT" => $GLOBALS["DB"]->DateFormatToPHP(CSite::GetDateFormat("FULL")),	
+				"ADDITIONAL_VALUES" => "Y",
+			),		
 		"PATH_TO_BLOG" => Array(
 			"NAME" => GetMessage("BB_PATH_TO_BLOG"),
 			"TYPE" => "STRING",
@@ -65,14 +73,6 @@ $arComponentParameters = Array(
 			"COLS" => 25,
 			"PARENT" => "URL_TEMPLATES",
 		),
-		"PATH_TO_GROUP" => Array(
-			"NAME" => GetMessage("BB_PATH_TO_GROUP"),
-			"TYPE" => "STRING",
-			"MULTIPLE" => "N",
-			"DEFAULT" => "",
-			"COLS" => 25,
-			"PARENT" => "URL_TEMPLATES",
-		),
 		"PATH_TO_SMILE" => Array(
 			"NAME" => GetMessage("BB_PATH_TO_SMILE"),
 			"TYPE" => "STRING",
@@ -80,6 +80,14 @@ $arComponentParameters = Array(
 			"DEFAULT" => "",
 			"COLS" => 25,
 			"PARENT" => "ADDITIONAL_SETTINGS",
+		),
+		"BLOG_VAR" => Array(
+			"NAME" => GetMessage("BB_BLOG_VAR"),
+			"TYPE" => "STRING",
+			"MULTIPLE" => "N",
+			"DEFAULT" => "",
+			"COLS" => 25,
+			"PARENT" => "VARIABLE_ALIASES",
 		),
 		"POST_VAR" => Array(
 			"NAME" => GetMessage("BB_POST_VAR"),
@@ -104,6 +112,14 @@ $arComponentParameters = Array(
 			"DEFAULT" => "",
 			"COLS" => 25,
 			"PARENT" => "VARIABLE_ALIASES",
+		),
+		"BLOG_URL" => Array(
+			"NAME" => GetMessage("BB_BLOG_URL"),
+			"TYPE" => "STRING",
+			"MULTIPLE" => "N",
+			"DEFAULT" => "={\$blog}",
+			"COLS" => 25,
+			"PARENT" => "DATA_SOURCE",
 		),
 		"YEAR" => Array(
 			"NAME" => GetMessage("BB_YEAR"),
@@ -176,43 +192,11 @@ $arComponentParameters = Array(
 			"DEFAULT" => array(),	
 		),
 		"SHOW_RATING" => array(
-			"NAME" => GetMessage("SHOW_RATING"),
-			"TYPE" => "LIST",
-			"VALUES" => Array(
-				"" => GetMessage("SHOW_RATING_CONFIG"),
-				"Y" => GetMessage("MAIN_YES"),
-				"N" => GetMessage("MAIN_NO"),
-			),
-			"MULTIPLE" => "N",
-			"DEFAULT" => "",
 			"PARENT" => "ADDITIONAL_SETTINGS",
+			"NAME" => GetMessage("B_SHOW_RATING"),
+			"TYPE" => "CHECKBOX",
+			"DEFAULT" => "N", 
 		),
-		"RATING_TYPE" => Array(
-			"NAME" => GetMessage("RATING_TYPE"),
-			"TYPE" => "LIST",
-			"VALUES" => Array(
-				"" => GetMessage("RATING_TYPE_CONFIG"),
-				"like" => GetMessage("RATING_TYPE_LIKE_TEXT"),
-				"like_graphic" => GetMessage("RATING_TYPE_LIKE_GRAPHIC"),
-				"standart_text" => GetMessage("RATING_TYPE_STANDART_TEXT"),
-				"standart" => GetMessage("RATING_TYPE_STANDART_GRAPHIC"),
-			),
-			"MULTIPLE" => "N",
-			"DEFAULT" => "",
-			"PARENT" => "ADDITIONAL_SETTINGS",
-		),	
-		"IMAGE_MAX_WIDTH" => Array(
-				"NAME" => GetMessage("BPC_IMAGE_MAX_WIDTH"),
-				"TYPE" => "STRING",
-				"DEFAULT" => COption::GetOptionString('blog', 'image_max_width'),
-				"PARENT" => "VISUAL",
-			),		
-		"IMAGE_MAX_HEIGHT" => Array(
-				"NAME" => GetMessage("BPC_IMAGE_MAX_HEIGHT"),
-				"TYPE" => "STRING",
-				"DEFAULT" => COption::GetOptionString('blog', 'image_max_height'),
-				"PARENT" => "VISUAL",
-			),
 	)
 );
 ?>

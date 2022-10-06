@@ -1,5 +1,5 @@
 <?
-$MESS["CATALOG_BACK"] = "ÐÐ°Ð·Ð°Ð´ Ñƒ Ñ€Ð¾Ð·Ð´Ñ–Ð»";
-$MESS["CATALOG_CHAR"] = "Ð¥Ð°Ñ€Ð°ÐºÑ‚ÐµÑ€Ð¸ÑÑ‚Ð¸ÐºÐ¸";
-$MESS["CR_PRICE"] = "Ð¦Ñ–Ð½Ð°";
+$MESS["CATALOG_BACK"] = "Íàçàä ó ðîçä³ë";
+$MESS["CATALOG_CHAR"] = "Õàðàêòåðèñòèêè";
+$MESS["CR_PRICE"] = "Ö³íà";
 ?>

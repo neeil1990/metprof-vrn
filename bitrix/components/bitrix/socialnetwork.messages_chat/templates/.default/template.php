@@ -1,6 +1,6 @@
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 <?
-$GLOBALS["APPLICATION"]->AddHeadScript("/bitrix/js/main/utils.js");
+$GLOBALS['APPLICATION']->AddHeadString('<script src="/bitrix/js/main/utils.js"></script>', true);
 ?>
 <div class="socnet-chat-body" id="socnet_chat_body">
 <form name="sonet_chat_form" action="" onsubmit="sonet_chat_msg_add(); return false;" onmouseover="if(null != init_form){init_form(this)}" onkeydown="if(null != init_form){init_form(this)}">
@@ -9,7 +9,7 @@ if ($arResult["NEED_AUTH"] == "Y")
 {
 ?>
 	<div class="socnet-chat-warning">
-	<span class="errortext"><?= GetMessage("SONET_C50_T_NEED_AUTH") ?></span>
+	<span class='errortext'><?= GetMessage("SONET_C50_T_NEED_AUTH") ?></span>
 	</div>
 <?
 }
@@ -17,7 +17,7 @@ elseif (strlen($arResult["FatalError"])>0)
 {
 	?>
 	<div class="socnet-chat-warning">
-	<span class="errortext"><?= $arResult["FatalError"] ?></span><br /><br />
+	<span class='errortext'><?= $arResult["FatalError"] ?></span><br /><br />
 	</div>
 	<?
 }
@@ -27,7 +27,7 @@ else
 	{
 		?>
 		<div class="socnet-chat-warning">
-		<span class="errortext"><?= $arResult["ErrorMessage"] ?></span><br /><br />
+		<span class='errortext'><?= $arResult["ErrorMessage"] ?></span><br /><br />
 		</div>
 		<?
 	}
@@ -109,7 +109,7 @@ var sonetReplyPathTemplate = '<?= CUtil::JSEscape($arParams["PATH_TO_MESSAGE_FOR
 codebase="http://download.macromedia.com/pub/shockwave/cabs/flash/swflash.cab#version=8"
 width="1" height="1"
 id="socnet_player">
-	<param name=movie value="/bitrix/components/bitrix/player/mediaplayer/player">
+	<param name=movie value="/bitrix/components/bitrix/player/mediaplayer/player.swf">
 	<param name=quality value="high">
 	<param name=swLiveConnect value="true">
 	<param name=allowScriptAccess value="always">
@@ -119,7 +119,7 @@ id="socnet_player">
 	pluginspage="http://www.macromedia.com/go/getflashplayer"
 	width="1" height="1"
 	id="socnet_player_embed"
-	src="/bitrix/components/bitrix/player/mediaplayer/player"
+	src="/bitrix/components/bitrix/player/mediaplayer/player.swf"
 	flashvars="file=/bitrix/sounds/socialnetwork/incoming_message.mp3&controlbar=none&autostart=false&bufferlength=10">
 	</embed>
 </object>
@@ -172,7 +172,7 @@ endif;
 				<?endif;?>
 				<a class="socnet-button socnet-button-history" href="<?= $arResult["Urls"]["UserMessages"] ?>" target="_blank" title="<?= GetMessage("SONET_C50_T_TO_HISTORY_ALT") ?>"></a>
 				<?if ($arResult["CurrentUserPerms"]["Operations"]["videocall"]):?>
-					<a class="socnet-button socnet-button-videocall" href="<?= $arResult["Urls"]["VideoCall"] ?>" target="_blank" onclick="window.open('<?= $arResult["Urls"]["VideoCall"] ?>', '', 'location=yes,status=no,scrollbars=yes,resizable=yes,width=1000,height=600,top='+Math.floor((screen.height - 600)/2-14)+',left='+Math.floor((screen.width - 1000)/2-5)); return false;" title="<?= GetMessage("SONET_C50_T_TO_VIDEO_CALL_ALT") ?>"></a>
+					<a class="socnet-button socnet-button-videocall" href="<?= $arResult["Urls"]["VideoCall"] ?>" target="_blank" onclick="window.open('<?= $arResult["Urls"]["VideoCall"] ?>', '', 'location=yes,status=no,scrollbars=yes,resizable=yes,width=1000,height=600,top='+Math.floor((screen.height - 600)/2-14)+',left='+Math.floor((screen.width - 1000)/2-5)); return false;" title="<?= GetMessage("SONET_C50_T_TO_VIDEO_CALL_ALT") ?>"></a>				
 				<?endif;?>
 				<a class="socnet-button socnet-button-messages" href="javascript:sonet_load_last_char();" title="<?= GetMessage("SONET_C50_T_LAST_CHAT_ALT") ?>"></a>
 			<?endif;?>
@@ -191,15 +191,15 @@ endif;
 			<div class="form-button button-italic" id="form_i" title="<?=GetMessage("PM_ITAL")?>"></div>
 			<div class="form-button button-underline" id="form_u" title="<?=GetMessage("PM_UNDER")?>"></div>
 			<div class="form-button button-font">
-				<select name="FONT" id="form-font" title="<?=GetMessage("PM_FONT")?>">
-					<option value="0"><?=GetMessage("PM_FONT")?></option>
-					<option value="Arial" style="font-family:Arial">Arial</option>
-					<option value="Times" style="font-family:Times">Times</option>
-					<option value="Courier" style="font-family:Courier">Courier</option>
-					<option value="Impact" style="font-family:Impact">Impact</option>
-					<option value="Geneva" style="font-family:Geneva">Geneva</option>
-					<option value="Optima" style="font-family:Optima">Optima</option>
-					<option value="Verdana" style="font-family:Verdana">Verdana</option>
+				<select name='FONT' id='form-font' title="<?=GetMessage("PM_FONT")?>">
+					<option value='0'><?=GetMessage("PM_FONT")?></option>
+					<option value='Arial' style='font-family:Arial'>Arial</option>
+					<option value='Times' style='font-family:Times'>Times</option>
+					<option value='Courier' style='font-family:Courier'>Courier</option>
+					<option value='Impact' style='font-family:Impact'>Impact</option>
+					<option value='Geneva' style='font-family:Geneva'>Geneva</option>
+					<option value='Optima' style='font-family:Optima'>Optima</option>
+					<option value='Verdana' style='font-family:Verdana'>Verdana</option>
 				</select>
 			</div>
 			<div class="form-button button-color" id="form_palette" title="<?=GetMessage("PM_COLOR")?>"></div>
@@ -217,7 +217,7 @@ foreach($arResult["PrintSmilesList"] as $res)
 	$res_str .= "<img src=\"".$arParams["PATH_TO_SMILE"].$res['IMAGE']."\" alt=\"".$res['NAME']."\" title=\"".$res['NAME']."\" border=\"0\"";
 	if (IntVal($res['IMAGE_WIDTH'])>0) {$res_str .= " width=\"".$res['IMAGE_WIDTH']."\"";}
 	if (IntVal($res['IMAGE_HEIGHT'])>0) {$res_str .= " height=\"".$res['IMAGE_HEIGHT']."\"";}
-	$res_str .= " class=\"chat-smile\"  id=\"".$strTYPING."\" ";
+	$res_str .= " class=\"chat-smile\"  id='".$strTYPING."' ";
 	$res_str .= "/>";
 }
 echo $res_str;
@@ -420,66 +420,63 @@ if(is_array($arResult["Structure"])):
 function socnet_show_section(&$arStructure, &$arResult, $CUR_LEVEL = 1)
 {
 	while(list($key, $department) = each($arStructure)):
-		if($department["DEPTH_LEVEL"]==$CUR_LEVEL):
-			?>
-			<div class="socnet-user-section">
-				<table cellspacing="0">
-				<tr>
-					<?echo str_repeat('<td><div class="socnet-indent"></div></td>', $department["DEPTH_LEVEL"]-1)?>
-					<td><div id="dep_<?=$department["ID"]?>_arrow" class="socnet-arrow socnet-arrow-right" title="<?echo GetMessage("SONET_SECT_TITLE")?>" onclick="sonet_switch_section(this, 'dep_<?=$department["ID"]?>_block');"></div></td>
-					<td><input type="checkbox" name="" value="" id="dep_<?=$department["ID"]?>" onclick="sonet_check_group(this);"></td>
-					<td class="socnet-contact-section" ondblclick="sonet_switch_section(document.getElementById('dep_<?=$department["ID"]?>_arrow'), 'dep_<?=$department["ID"]?>_block');"><?= $department["NAME"]?></td>
-				</tr>
-				</table>
-			</div>
-			<div style="display:none;" id="dep_<?=$department["ID"]?>_block" class="socnet-user-contact-block">
-				<?
-				$bExit = false;
-				if(list($key, $subdepartment) = each($arStructure))
-				{
-					if ($key != (count($arStructure)-1))
-						prev($arStructure);
-					else
-						end($arStructure);
-
-					if($subdepartment["DEPTH_LEVEL"] > $department["DEPTH_LEVEL"])
-						socnet_show_section($arStructure, $arResult, $CUR_LEVEL+1);
-					if($subdepartment["DEPTH_LEVEL"] < $department["DEPTH_LEVEL"])
-						$bExit = true;
-				}
-				?>
-				<?
-				if(is_array($arResult["UsersInStructure"][$department["ID"]])):
-					foreach($arResult["UsersInStructure"][$department["ID"]] as $dep_user):
-						?><div class="socnet-user-contact">
-							<table cellspacing="0">
-							<tr>
-								<?echo str_repeat('<td><div class="socnet-indent"></div></td>', $department["DEPTH_LEVEL"])?>
-								<td><input type="checkbox" name="USER_ID[]" value="<?=$dep_user["USER_ID"]?>" id="dep_user_<?=$dep_user["USER_ID"]?>"></td>
-								<td>
-								<?if($dep_user["SHOW_PROFILE_LINK"]):?>
-									<a class="socnet-status <?=($dep_user["IS_ONLINE"]? 'socnet-online':'socnet-offline')?>" href="<?=$dep_user["USER_PROFILE_URL"]?>" title="<?echo GetMessage("SONET_PROFILE")?>" target="_blank"></a>
-								<?else:?>
-									<div class="socnet-status <?=($dep_user["IS_ONLINE"]? 'socnet-online':'socnet-offline')?>"></div>
-								<?endif;?>
-								</td>
-								<td class="socnet-contact-user"><a href="<?= $dep_user['PATH_TO_MESSAGES_CHAT'] ?>" onclick="sonet_open_chat(this); return false;" title="<?= GetMessage("SONET_C39_SEND_MESSAGE") ?>"><?=$dep_user["USER_NAME_FORMATTED"]?></a></td>
-							</tr>
-							</table>
-						</div><?
-					endforeach;
-				endif;
-				?>
-			</div>
-			<?
-			if($bExit):
-				return;
-			endif;
-
-		else:
+	if($department["DEPTH_LEVEL"]==$CUR_LEVEL):
+?>
+<div class="socnet-user-section">
+<table cellspacing="0">
+<tr>
+<?echo str_repeat('<td><div class="socnet-indent"></div></td>', $department["DEPTH_LEVEL"]-1)?>
+	<td><div id="dep_<?=$department["ID"]?>_arrow" class="socnet-arrow socnet-arrow-right" title="<?echo GetMessage("SONET_SECT_TITLE")?>" onclick="sonet_switch_section(this, 'dep_<?=$department["ID"]?>_block');"></div></td>
+	<td><input type="checkbox" name="" value="" id="dep_<?=$department["ID"]?>" onclick="sonet_check_group(this);"></td>
+	<td class="socnet-contact-section" ondblclick="sonet_switch_section(document.getElementById('dep_<?=$department["ID"]?>_arrow'), 'dep_<?=$department["ID"]?>_block');"><?= $department["NAME"]?></td>
+</tr>
+</table>
+</div>
+<div style="display:none;" id="dep_<?=$department["ID"]?>_block" class="socnet-user-contact-block">
+<?
+		$bExit = false;
+		if(list($key, $subdepartment) = each($arStructure))
+		{
 			prev($arStructure);
+			if($subdepartment["DEPTH_LEVEL"] > $department["DEPTH_LEVEL"])
+				socnet_show_section($arStructure, $arResult, $CUR_LEVEL+1);
+			if($subdepartment["DEPTH_LEVEL"] < $department["DEPTH_LEVEL"])
+				$bExit = true;
+		}
+?>
+<?
+if(is_array($arResult["UsersInStructure"][$department["ID"]])):
+	foreach($arResult["UsersInStructure"][$department["ID"]] as $dep_user):?>
+<div class="socnet-user-contact">
+<table cellspacing="0">
+<tr>
+<?echo str_repeat('<td><div class="socnet-indent"></div></td>', $department["DEPTH_LEVEL"])?>
+	<td><input type="checkbox" name="USER_ID[]" value="<?=$dep_user["USER_ID"]?>" id="dep_user_<?=$dep_user["USER_ID"]?>"></td>
+	<td>
+		<?if($dep_user["SHOW_PROFILE_LINK"]):?>
+			<a class="socnet-status <?=($dep_user["IS_ONLINE"]? 'socnet-online':'socnet-offline')?>" href="<?=$dep_user["USER_PROFILE_URL"]?>" title="<?echo GetMessage("SONET_PROFILE")?>" target="_blank"></a>
+		<?else:?>
+			<div class="socnet-status <?=($dep_user["IS_ONLINE"]? 'socnet-online':'socnet-offline')?>"></div>
+		<?endif;?>
+	</td>
+	<td class="socnet-contact-user"><a href="<?= $dep_user['PATH_TO_MESSAGES_CHAT'] ?>" onclick="sonet_open_chat(this); return false;" title="<?= GetMessage("SONET_C39_SEND_MESSAGE") ?>"><?=$dep_user["USER_NAME_FORMATTED"]?></a></td>
+</tr>
+</table>
+</div>
+<?
+	endforeach;
+endif;
+?>
+</div>
+<?
+		if($bExit):
 			return;
 		endif;
+
+	else:
+		prev($arStructure);
+		return;
+	endif;
 	endwhile;
 }
 ?>

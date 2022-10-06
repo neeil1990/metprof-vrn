@@ -2,7 +2,6 @@
 $MESS["CC_BLS_MODULE_NOT_INSTALLED"] = "Модуль универсальных списков не установлен.";
 $MESS["CC_BLS_WRONG_IBLOCK_TYPE"] = "Неверный тип информационного блока.";
 $MESS["CC_BLS_WRONG_IBLOCK"] = "Указан неверный список.";
-$MESS["CC_BLS_LISTS_FOR_SONET_GROUP_DISABLED"] = "Функционал списков для этой группы отключен.";
 $MESS["CC_BLS_UNKNOWN_ERROR"] = "Неизвестная ошибка.";
 $MESS["CC_BLS_ACCESS_DENIED"] = "Нет прав для просмотра и редактирования списка.";
 $MESS["CC_BLS_PAGE_TITLE"] = "#NAME#: управление разделами";

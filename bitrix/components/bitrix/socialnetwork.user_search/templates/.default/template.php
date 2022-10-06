@@ -37,7 +37,7 @@ function BXSetFilter(currentFilterNew)
 		foreach ($arResult["Params"]["UserSearch"] as $key => $value)
 			echo "<input type=\"hidden\" name=\"".$key."\" value=\"".$value."\" />";
 		?>
-		<input type="hidden" name="current_view" value="<?=htmlspecialcharsbx($arResult['CURRENT_VIEW'])?>" />
+		<input type="hidden" name="current_view" value="<?=htmlspecialchars($arResult['CURRENT_VIEW'])?>" />
 		<input type="hidden" name="current_filter" value="simple" />
 		<table class="bx-selector-table filter-table">
 			<tbody>
@@ -115,7 +115,7 @@ function BXSetFilter(currentFilterNew)
 
 <div class="bx-users-selector-filter" id="bx_users_filter_adv"<?= $arResult["CURRENT_FILTER"] == 'adv' ? '' : ' style="display: none;"'?>>
 	<form action="<?= $arResult["Urls"]["UserSearch"] ?>" class="bx-selector-form filter-form" name="bx_users_filter_adv_form">
-		<input type="hidden" name="current_view" value="<?=htmlspecialcharsbx($arResult['CURRENT_VIEW'])?>" />
+		<input type="hidden" name="current_view" value="<?=htmlspecialchars($arResult['CURRENT_VIEW'])?>" />
 		<input type="hidden" name="current_filter" value="adv" />
 		<table class="bx-selector-table filter-table">
 			<tbody>
@@ -205,7 +205,6 @@ function BXSetFilter(currentFilterNew)
 		<br />
 		<?if ($arResult['CURRENT_VIEW'] == "list"):?>
 			<?foreach ($arResult["SEARCH_RESULT"] as $v):?>
-				<div class="sonet-cntnr-user-search">
 				<table width="100%" class="sonet-user-profile-friends data-table">
 					<tr>
 						<td width="155" nowrap valign="top" align="center">
@@ -277,7 +276,7 @@ function BXSetFilter(currentFilterNew)
 									&& array_key_exists("NAME", $arResult["RATING"]) 
 									&& array_key_exists("RATING_".$arParams["RATING_ID"], $v)
 								):?>
-									<?= htmlspecialcharsbx($arResult["RATING"]["NAME"]) ?>: <span title="<?=CUtil::JSEscape(htmlspecialcharsbx($arResult["RATING"]["NAME"]))?>: <?=$v["RATING_".$arParams["RATING_ID"]]?>"><?=round($v["RATING_".$arParams["RATING_ID"]])?></span><br>
+									<?= htmlspecialchars($arResult["RATING"]["NAME"]) ?>: <span title="<?=CUtil::JSEscape(htmlspecialchars($arResult["RATING"]["NAME"]))?>: <?=$v["RATING_".$arParams["RATING_ID"]]?>"><?=round($v["RATING_".$arParams["RATING_ID"]])?></span><br>
 								<?endif;?>
 							</div>
 						</td>
@@ -294,7 +293,7 @@ function BXSetFilter(currentFilterNew)
 								<?if ($v["CAN_MESSAGE"]):?>
 									<div class="bx-user-control">
 										<ul>
-											<li class="bx-icon bx-icon-message"><a href="<?= $v["MESSAGE_LINK"] ?>" onclick="if (typeof(BX) != 'undefined' && BX.IM) { BXIM.openMessenger(<?=$v["ID"]?>); return false; } else { window.open('<?= $v["MESSAGE_LINK"] ?>', '', 'location=yes,status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false; }"><nobr><?= GetMessage("SONET_C241_T_WRITE") ?></nobr></a></li>
+											<li class="bx-icon bx-icon-message"><a href="<?= $v["MESSAGE_LINK"] ?>" onclick="window.open('<?= $v["MESSAGE_LINK"] ?>', '', 'location=yes,status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false;"><nobr><?= GetMessage("SONET_C241_T_WRITE") ?></nobr></a></li>
 										</ul>
 									</div>
 								<?endif;?>
@@ -303,10 +302,9 @@ function BXSetFilter(currentFilterNew)
 						</td>
 					</tr>
 				</table>
-				</div>				
+				<br />
 			<?endforeach;?>
 		<?elseif ($arResult['CURRENT_VIEW'] == "bigicon"):?>
-			<div class="sonet-cntnr-user-search2">
 			<table width="100%" border="0" class="sonet-user-profile-friend-box">
 			<?
 			$ind = 0;
@@ -346,8 +344,7 @@ function BXSetFilter(currentFilterNew)
 				if ($v["CAN_ADD2FRIENDS"])
 					echo "<a href=\"".$v["ADD_TO_FRIENDS_LINK"]."\">".GetMessage("SONET_C241_T_ADD_FR")."</a><br>";
 				if ($v["CAN_MESSAGE"])
-					echo "<a href=\"".$v["MESSAGE_LINK"]."\" onclick=\"if (typeof(BX) != 'undefined' && BX.IM) { BXIM.openMessenger(".$v["ID"]."); return false; } else { window.open('".$v["MESSAGE_LINK"]."', '', 'status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false; }\">".GetMessage("SONET_C241_T_WRITE")."</a><br>";
-
+					echo "<a href=\"".$v["MESSAGE_LINK"]."\" onclick=\"window.open('".$v["MESSAGE_LINK"]."', '', 'status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false;\">".GetMessage("SONET_C241_T_WRITE")."</a><br>";
 				echo "</td>";
 				if ($ind % 3 == 2)
 					echo "</tr>";
@@ -355,9 +352,8 @@ function BXSetFilter(currentFilterNew)
 			}
 			?>
 			</table>
-			</div>
+			<br />
 		<?elseif ($arResult['CURRENT_VIEW'] == "icon"):?>
-			<div class="sonet-cntnr-user-search3">
 			<table width="100%" border="0" class="sonet-user-profile-friend-box">
 			<?
 			$ind = 0;
@@ -397,8 +393,7 @@ function BXSetFilter(currentFilterNew)
 				if ($v["CAN_ADD2FRIENDS"])
 					echo "<a href=\"".$v["ADD_TO_FRIENDS_LINK"]."\">".GetMessage("SONET_C241_T_ADD_FR")."</a><br>";
 				if ($v["CAN_MESSAGE"])
-					echo "<a href=\"".$v["MESSAGE_LINK"]."\" onclick=\"if (typeof(BX) != 'undefined' && BX.IM) { BXIM.openMessenger(".$v["ID"]."); return false; } else { window.open('".$v["MESSAGE_LINK"]."', '', 'status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false; }\">".GetMessage("SONET_C241_T_WRITE")."</a><br>";
-
+					echo "<a href=\"".$v["MESSAGE_LINK"]."\" onclick=\"window.open('".$v["MESSAGE_LINK"]."', '', 'status=no,scrollbars=yes,resizable=yes,width=700,height=550,top='+Math.floor((screen.height - 550)/2-14)+',left='+Math.floor((screen.width - 700)/2-5)); return false;\">".GetMessage("SONET_C241_T_WRITE")."</a><br>";
 				echo "</td>";
 				if ($ind % 4 == 3)
 					echo "</tr>";
@@ -406,7 +401,7 @@ function BXSetFilter(currentFilterNew)
 			}
 			?>
 			</table>
-			</div>
+			<br />
 		<?endif;?>
 
 		<?if (strlen($arResult["NAV_STRING"]) > 0):?>

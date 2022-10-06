@@ -193,6 +193,16 @@ $arComponentParameters = array(
 				"DEFAULT" => "group/#group_id#/blog/moderation/",
 				"VARIABLES" => array("group_id"),
 			),
+			"group_microblog" => array(
+				"NAME" => GetMessage("SONET_SEF_GROUP_MICROBLOG"),
+				"DEFAULT" => "group/#group_id#/microblog/",
+				"VARIABLES" => array("group_id"),
+			),
+			"group_microblog_post" => array(
+				"NAME" => GetMessage("SONET_SEF_GROUP_MICROBLOG_POST"),
+				"DEFAULT" => "group/#group_id#/microblog/#post_id#/",
+				"VARIABLES" => array("group_id", "post_id"),
+			),
 
 			"group_forum" => array(
 				"NAME" => GetMessage("SONET_SEF_GROUP_FORUM"),
@@ -225,6 +235,21 @@ $arComponentParameters = array(
 			"MULTIPLE" => "N",
 			"DEFAULT" => "/bitrix/images/blog/smile/",
 		),
+		"PATH_TO_FORUM_SMILE" => Array(
+			"PARENT" => "ADDITIONAL_SETTINGS",
+			"NAME" => GetMessage("SONET_PATH_TO_FORUM_SMILE"),
+			"TYPE" => "STRING",
+			"MULTIPLE" => "N",
+			"DEFAULT" => "/bitrix/images/forum/smile/",
+		),
+		"SONET_PATH_TO_FORUM_ICON" => Array(
+			"PARENT" => "ADDITIONAL_SETTINGS",
+			"NAME" => GetMessage("SONET_PATH_TO_FORUM_ICON"),
+			"TYPE" => "STRING",
+			"MULTIPLE" => "N",
+			"DEFAULT" => "/bitrix/images/forum/icon/",
+		),
+
 		"CACHE_TIME"  =>  Array("DEFAULT" => 3600),
 		"SET_TITLE" => Array(),
 		"CACHE_TIME_LONG" => array(
@@ -236,7 +261,7 @@ $arComponentParameters = array(
 			"PARENT" => "CACHE_SETTINGS",
 		),
 		"SET_NAV_CHAIN" => Array(
-			"NAME" => GetMessage("SONET_SET_NAV_CHAIN"),
+		  	"NAME" => GetMessage("SONET_SET_NAV_CHAIN"),
 			"TYPE" => "CHECKBOX",
 			"MULTIPLE" => "N",
 			"VALUE" => "Y",
@@ -244,7 +269,7 @@ $arComponentParameters = array(
 			"PARENT" => "ADDITIONAL_SETTINGS",
 		),
 		"LOG_SUBSCRIBE_ONLY" => Array(
-			"NAME" => GetMessage("SONET_GROUP_LOG_SUBSCRIBE_ONLY"),
+		  	"NAME" => GetMessage("SONET_GROUP_LOG_SUBSCRIBE_ONLY"),
 			"TYPE" => "CHECKBOX",
 			"MULTIPLE" => "N",
 			"VALUE" => "Y",
@@ -252,7 +277,7 @@ $arComponentParameters = array(
 			"PARENT" => "ADDITIONAL_SETTINGS",
 		),
 		"LOG_RSS_TTL" => Array(
-			"NAME" => GetMessage("SONET_GROUP_LOG_RSS_TTL"),
+		  	"NAME" => GetMessage("SONET_GROUP_LOG_RSS_TTL"),
 			"TYPE" => "STRING",
 			"DEFAULT" =>"60",
 			"PARENT" => "ADDITIONAL_SETTINGS",
@@ -288,10 +313,11 @@ $arComponentParameters = array(
 			"VALUES" => CComponentUtil::GetDefaultNameTemplates(),
 			"MULTIPLE" => "N",
 			"ADDITIONAL_VALUES" => "Y",
-			"DEFAULT" => "",
+			"DEFAULT" => GetMessage("SONET_NAME_TEMPLATE_DEFAULT"),
 			"PARENT" => "VISUAL",
 		),
 		"SHOW_LOGIN" => Array(
+			"PARENT" => "BASE",
 			"NAME" => GetMessage("SONET_SHOW_LOGIN"),
 			"TYPE" => "CHECKBOX",
 			"MULTIPLE" => "N",
@@ -411,38 +437,15 @@ $arComponentParameters = array(
 			"COLS" => 25,
 			"PARENT" => "URL_TEMPLATES",
 		),
-		"PATH_TO_USER_LOG_ENTRY" => Array(
-			"NAME" => GetMessage("SONET_PATH_TO_USER_LOG_ENTRY"),
+/*
+		"AJAX_LONG_TIMEOUT" => array(
+			"PARENT" => "ADDITIONAL_SETTINGS",
+			"NAME" => GetMessage("SONET_AJAX_LONG_TIMEOUT"),
 			"TYPE" => "STRING",
-			"MULTIPLE" => "N",
-			"DEFAULT" => "/company/personal/log/#log_id#/",
-			"COLS" => 25,
-			"PARENT" => "URL_TEMPLATES",
+			"DEFAULT" => 60
 		),
-		"PATH_TO_USER_TASKS_TEMPLATES" => array(
-			"NAME" => GetMessage("SONET_SEF_USER_TASKS_TEMPLATES"),
-			"TYPE" => "STRING",
-			"MULTIPLE" => "N",
-			"DEFAULT" => "/company/personal/user/#user_id#/tasks/templates/",
-			"COLS" => 25,
-			"PARENT" => "URL_TEMPLATES",
-		),
-		"PATH_TO_USER_TEMPLATES_TEMPLATE" => array(
-			"NAME" => GetMessage("SONET_SEF_USER_TEMPLATES_TEMPLATE"),
-			"TYPE" => "STRING",
-			"MULTIPLE" => "N",
-			"DEFAULT" => "/company/personal/user/#user_id#/tasks/templates/template/#action#/#template_id#/",
-			"COLS" => 25,
-			"PARENT" => "URL_TEMPLATES",
-		),
-		"PATH_TO_USER_BLOG_POST_IMPORTANT" => array(
-			"NAME" => GetMessage("SONET_SEF_PATH_TO_USER_BLOG_POST_IMPORTANT"),
-			"TYPE" => "STRING",
-			"MULTIPLE" => "N",
-			"DEFAULT" => "user/#user_id#/blog/important/",
-			"COLS" => 25,
-			"PARENT" => "URL_TEMPLATES",
-		),
+		"AJAX_MODE" => Array(),
+*/
 	),
 );
 
@@ -481,242 +484,216 @@ if (CModule::IncludeModule("intranet"))
 {
 	/* *** EVENT CALENDAR *** */
 	$arComponentParameters["GROUPS"]["EVENT_CALENDAR_SETTINGS"] = array("NAME" => GetMessage("SONET_EVENT_CALENDAR_SETTINGS"));
-
-	$calendar2 = (
-		(
-			!IsModuleInstalled("intranet")
-			|| COption::GetOptionString("intranet", "calendar_2", "N") == "Y"
-		)
-		&& CModule::IncludeModule("calendar")
-	);
-	if ($calendar2)
+	$arIBlockType = array();
+	$rsIBlockType = CIBlockType::GetList(array("sort"=>"asc"), array("ACTIVE"=>"Y"));
+	while ($arr=$rsIBlockType->Fetch())
 	{
-		$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_SUPERPOSE"] = Array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_ALLOW_SUPERPOSE"),
-			"TYPE" => "CHECKBOX",
-			"DEFAULT" => "N"
-		);
-		$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_RES_MEETING"] = Array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_ALLOW_RES_MEETING"),
-			"TYPE" => "CHECKBOX",
-			"DEFAULT" => "Y"
-		);
+		if($ar=CIBlockType::GetByIDLang($arr["ID"], LANGUAGE_ID))
+			$arIBlockType[$arr["ID"]] = "[".$arr["ID"]."] ".$ar["NAME"];
 	}
-	else
+
+	$arIBlock=array();
+	$rsIBlock = CIBlock::GetList(Array("sort" => "asc"), Array("TYPE" => $arCurrentValues["CALENDAR_IBLOCK_TYPE"], "ACTIVE"=>"Y"));
+	while($arr=$rsIBlock->Fetch())
+		$arIBlock[$arr["ID"]] = "[".$arr["ID"]."] ".$arr["NAME"];
+
+	$arComponentParameters["PARAMETERS"]["CALENDAR_IBLOCK_TYPE"] = Array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_IBLOCK_TYPE"),
+		"TYPE" => "LIST",
+		"VALUES" => $arIBlockType,
+		"REFRESH" => "Y",
+	);
+	$arComponentParameters["PARAMETERS"]["CALENDAR_GROUP_IBLOCK_ID"] = array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_GROUP_IBLOCK_ID"),
+		"TYPE" => "LIST",
+		"VALUES" => $arIBlock,
+		"REFRESH" => "Y",
+	);
+	$arComponentParameters["PARAMETERS"]["CALENDAR_WEEK_HOLIDAYS"] = array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_WEEK_HOLIDAYS"),
+		"TYPE" => "LIST",
+		"MULTIPLE" => "Y",
+		"VALUES" => array(GetMessage('EC_P_MON_F'),GetMessage('EC_P_TUE_F'),GetMessage('EC_P_WEN_F'),GetMessage('EC_P_THU_F'),GetMessage('EC_P_FRI_F'),GetMessage('EC_P_SAT_F'),GetMessage('EC_P_SAN_F')),
+		"DEFAULT" => array(5,6),
+	);
+	$arComponentParameters["PARAMETERS"]["CALENDAR_YEAR_HOLIDAYS"] = array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_YEAR_HOLIDAYS"),
+		"TYPE" => 'STRING',
+		"ROWS" => 3,
+		"DEFAULT" => '1.01,7.01,23.02,8.03',
+	);
+	$arComponentParameters["PARAMETERS"]["CALENDAR_WORK_TIME_START"] = array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_WORK_TIME_START"),
+		"DEFAULT" => "9"
+	);
+	$arComponentParameters["PARAMETERS"]["CALENDAR_WORK_TIME_END"] = array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_WORK_TIME_END"),
+		"DEFAULT" => "19"
+	);
+	$arComponentParameters["PARAMETERS"]["CALENDAR_USER_IBLOCK_ID"] = array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_USER_IBLOCK_ID"),
+		"TYPE" => "LIST",
+		"VALUES" => $arIBlock
+	);
+
+
+	// SUPERPOSE
+	$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_SUPERPOSE"] = Array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_ALLOW_SUPERPOSE"),
+		"TYPE" => "CHECKBOX",
+		"DEFAULT" => "N",
+		"REFRESH" => "Y",
+	);
+
+	if ($arCurrentValues["CALENDAR_ALLOW_SUPERPOSE"] == 'Y')
 	{
-		$arIBlockType = array();
-		$rsIBlockType = CIBlockType::GetList(array("sort"=>"asc"), array("ACTIVE"=>"Y"));
-		while ($arr=$rsIBlockType->Fetch())
-		{
-			if($ar=CIBlockType::GetByIDLang($arr["ID"], LANGUAGE_ID))
-				$arIBlockType[$arr["ID"]] = "[".$arr["ID"]."] ".$ar["NAME"];
-		}
-
-		$arIBlock=array();
-		$rsIBlock = CIBlock::GetList(Array("sort" => "asc"), Array("TYPE" => $arCurrentValues["CALENDAR_IBLOCK_TYPE"], "ACTIVE"=>"Y"));
-		while($arr=$rsIBlock->Fetch())
-			$arIBlock[$arr["ID"]] = "[".$arr["ID"]."] ".$arr["NAME"];
-
-		$arComponentParameters["PARAMETERS"]["CALENDAR_IBLOCK_TYPE"] = Array(
+		$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_CAL_IDS"] = array(
 			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_IBLOCK_TYPE"),
+			"NAME" => GetMessage("SONET_CALENDAR_SP_CAL_IDS"),
 			"TYPE" => "LIST",
-			"VALUES" => $arIBlockType,
+			"MULTIPLE" => "Y",
+			"VALUES" => $arIBlock
+		);
+
+		// Cur user
+		$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_CUR_USER_CALS"] = Array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_SP_CUR_USER_CALS"),
+			"TYPE" => "CHECKBOX",
+			"DEFAULT" => "Y",
 			"REFRESH" => "Y",
 		);
-		$arComponentParameters["PARAMETERS"]["CALENDAR_GROUP_IBLOCK_ID"] = array(
+		// Users
+		$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_USERS_CALS"] = Array(
 			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_GROUP_IBLOCK_ID"),
+			"NAME" => GetMessage("SONET_CALENDAR_SP_USERS_CALS"),
+			"TYPE" => "CHECKBOX",
+			"DEFAULT" => "Y",
+			"REFRESH" => "Y",
+		);
+		// Groups
+		$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_GROUPS_CALS"] = Array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_SP_GROUPS_CALS"),
+			"TYPE" => "CHECKBOX",
+			"DEFAULT" => "Y",
+			"REFRESH" => "Y",
+		);
+	}
+
+	/* Reserve Meeting Rooms*/
+	$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_RES_MEETING"] = Array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_ALLOW_RES_MEETING"),
+		"TYPE" => "CHECKBOX",
+		"DEFAULT" => "Y",
+		"REFRESH" => "Y",
+	);
+
+	if ($arCurrentValues["CALENDAR_ALLOW_RES_MEETING"] != 'N')
+	{
+		$arComponentParameters["PARAMETERS"]["CALENDAR_RES_MEETING_IBLOCK_ID"] = array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_RES_MEETING_IBLOCK"),
 			"TYPE" => "LIST",
 			"VALUES" => $arIBlock,
 			"REFRESH" => "Y",
 		);
-		$arComponentParameters["PARAMETERS"]["CALENDAR_WEEK_HOLIDAYS"] = array(
+
+		$arComponentParameters["PARAMETERS"]["CALENDAR_PATH_TO_RES_MEETING"] = array(
 			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_WEEK_HOLIDAYS"),
+			"NAME" => GetMessage("SONET_CALENDAR_PATH_TO_RES_MEETING"),
+			"DEFAULT" => "/services/res.php?page=meeting&meeting_id=#id#",
+		);
+
+		/* Access to Reserve Meeting */
+		$arUserGroups = array();
+		$dbGroups = CGroup::GetList($b = "NAME", $o = "ASC", array("ACTIVE" => "Y"));
+		while ($arGroup = $dbGroups->GetNext())
+			$arUserGroups[$arGroup["ID"]] = "[".$arGroup["ID"]."] ".$arGroup["NAME"];
+
+		$arComponentParameters["PARAMETERS"]["CALENDAR_RES_MEETING_USERGROUPS"] = array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_RES_MEETING_USERGROUPS"),
 			"TYPE" => "LIST",
 			"MULTIPLE" => "Y",
-			"VALUES" => array(GetMessage('EC_P_MON_F'),GetMessage('EC_P_TUE_F'),GetMessage('EC_P_WEN_F'),GetMessage('EC_P_THU_F'),GetMessage('EC_P_FRI_F'),GetMessage('EC_P_SAT_F'),GetMessage('EC_P_SAN_F')),
-			"DEFAULT" => array(5,6),
-		);
-		$arComponentParameters["PARAMETERS"]["CALENDAR_YEAR_HOLIDAYS"] = array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_YEAR_HOLIDAYS"),
-			"TYPE" => 'STRING',
-			"ROWS" => 3,
-			"DEFAULT" => '1.01,7.01,23.02,8.03',
-		);
-		$arComponentParameters["PARAMETERS"]["CALENDAR_WORK_TIME_START"] = array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_WORK_TIME_START"),
-			"DEFAULT" => "9"
-		);
-		$arComponentParameters["PARAMETERS"]["CALENDAR_WORK_TIME_END"] = array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_WORK_TIME_END"),
-			"DEFAULT" => "19"
-		);
-		$arComponentParameters["PARAMETERS"]["CALENDAR_USER_IBLOCK_ID"] = array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_USER_IBLOCK_ID"),
-			"TYPE" => "LIST",
-			"VALUES" => $arIBlock
-		);
-
-
-		// SUPERPOSE
-		$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_SUPERPOSE"] = Array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_ALLOW_SUPERPOSE"),
-			"TYPE" => "CHECKBOX",
-			"DEFAULT" => "N",
-			"REFRESH" => "Y",
-		);
-
-		if ($arCurrentValues["CALENDAR_ALLOW_SUPERPOSE"] == 'Y')
-		{
-			$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_CAL_IDS"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_SP_CAL_IDS"),
-				"TYPE" => "LIST",
-				"MULTIPLE" => "Y",
-				"VALUES" => $arIBlock
-			);
-
-			// Cur user
-			$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_CUR_USER_CALS"] = Array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_SP_CUR_USER_CALS"),
-				"TYPE" => "CHECKBOX",
-				"DEFAULT" => "Y",
-				"REFRESH" => "Y",
-			);
-			// Users
-			$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_USERS_CALS"] = Array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_SP_USERS_CALS"),
-				"TYPE" => "CHECKBOX",
-				"DEFAULT" => "Y",
-				"REFRESH" => "Y",
-			);
-			// Groups
-			$arComponentParameters["PARAMETERS"]["CALENDAR_SUPERPOSE_GROUPS_CALS"] = Array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_SP_GROUPS_CALS"),
-				"TYPE" => "CHECKBOX",
-				"DEFAULT" => "Y",
-				"REFRESH" => "Y",
-			);
-		}
-
-		/* Reserve Meeting Rooms*/
-		$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_RES_MEETING"] = Array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_ALLOW_RES_MEETING"),
-			"TYPE" => "CHECKBOX",
-			"DEFAULT" => "Y",
-			"REFRESH" => "Y",
-		);
-
-		if ($arCurrentValues["CALENDAR_ALLOW_RES_MEETING"] != 'N')
-		{
-			$arComponentParameters["PARAMETERS"]["CALENDAR_RES_MEETING_IBLOCK_ID"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_RES_MEETING_IBLOCK"),
-				"TYPE" => "LIST",
-				"VALUES" => $arIBlock,
-				"REFRESH" => "Y",
-			);
-
-			$arComponentParameters["PARAMETERS"]["CALENDAR_PATH_TO_RES_MEETING"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_PATH_TO_RES_MEETING"),
-				"DEFAULT" => "/services/res.php?page=meeting&meeting_id=#id#",
-			);
-
-			/* Access to Reserve Meeting */
-			$arUserGroups = array();
-			$dbGroups = CGroup::GetList($b = "NAME", $o = "ASC", array("ACTIVE" => "Y"));
-			while ($arGroup = $dbGroups->GetNext())
-				$arUserGroups[$arGroup["ID"]] = "[".$arGroup["ID"]."] ".$arGroup["NAME"];
-
-			$arComponentParameters["PARAMETERS"]["CALENDAR_RES_MEETING_USERGROUPS"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_RES_MEETING_USERGROUPS"),
-				"TYPE" => "LIST",
-				"MULTIPLE" => "Y",
-				"VALUES" => $arUserGroups,
-				"DEFAULT" => Array(1)
-			);
-		}
-		/* Reserve Video-Meeting Rooms*/
-		$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_VIDEO_MEETING"] = Array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_ALLOW_VIDEO_MEETING"),
-			"TYPE" => "CHECKBOX",
-			"DEFAULT" => "Y",
-			"REFRESH" => "Y",
-		);
-
-		if ($arCurrentValues["CALENDAR_ALLOW_VIDEO_MEETING"] != 'N')
-		{
-			$arComponentParameters["PARAMETERS"]["CALENDAR_VIDEO_MEETING_IBLOCK_ID"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_VIDEO_MEETING_IBLOCK"),
-				"TYPE" => "LIST",
-				"VALUES" => $arIBlock,
-				"REFRESH" => "Y"
-			);
-
-			$arComponentParameters["PARAMETERS"]["CALENDAR_PATH_TO_VIDEO_MEETING"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_PATH_TO_VIDEO_MEETING"),
-				"DEFAULT" => "/services/video/",
-			);
-			$arComponentParameters["PARAMETERS"]["CALENDAR_PATH_TO_VIDEO_MEETING_DETAIL"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_PATH_TO_VIDEO_MEETING_DETAIL"),
-				"DEFAULT" => "/services/video/detail.php?ID=#conf_id#",
-			);
-
-
-			/* Access to Reserve Video-Meeting */
-			$arUserGroups = array();
-			$dbGroups = CGroup::GetList($b = "NAME", $o = "ASC", array("ACTIVE" => "Y"));
-			while ($arGroup = $dbGroups->GetNext())
-				$arUserGroups[$arGroup["ID"]] = "[".$arGroup["ID"]."] ".$arGroup["NAME"];
-
-			$arComponentParameters["PARAMETERS"]["CALENDAR_VIDEO_MEETING_USERGROUPS"] = array(
-				"PARENT" => "EVENT_CALENDAR_SETTINGS",
-				"NAME" => GetMessage("SONET_CALENDAR_VIDEO_MEETING_USERGROUPS"),
-				"TYPE" => "LIST",
-				"MULTIPLE" => "Y",
-				"VALUES" => $arUserGroups,
-				"DEFAULT" => Array(1)
-			);
-		}
-
-		$arComponentParameters["PARAMETERS"]["CALENDAR_REINVITE_PARAMS_LIST"] = array(
-			"PARENT" => "EVENT_CALENDAR_SETTINGS",
-			"NAME" => GetMessage("SONET_CALENDAR_REINVITE_PARAMS_LIST"),
-			"TYPE" => "LIST",
-			"MULTIPLE" => "Y",
-			"VALUES" => array(
-				'name' => GetMessage('SONET_CALENDAR_EV_NAME'),
-				'desc' => GetMessage('SONET_CALENDAR_EV_DESC'),
-				'from' => GetMessage('SONET_CALENDAR_EV_FROM'),
-				'to' => GetMessage('SONET_CALENDAR_EV_TO'),
-				'location' => GetMessage('SONET_CALENDAR_LOCATION'),
-				'guest_list' => GetMessage('SONET_CALENDAR_GUEST_LIST'),
-				'repeating' => GetMessage('SONET_CALENDAR_REPEATING'),
-				'meet_text' => GetMessage('SONET_CALENDAR_MEET_TEXT'),
-				'importance' => GetMessage('SONET_CALENDAR_IMPORTANCE')
-			),
-			"DEFAULT" => Array("from", "to", "location")
+			"VALUES" => $arUserGroups,
+			"DEFAULT" => Array(1)
 		);
 	}
+	/* Reserve Video-Meeting Rooms*/
+	$arComponentParameters["PARAMETERS"]["CALENDAR_ALLOW_VIDEO_MEETING"] = Array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_ALLOW_VIDEO_MEETING"),
+		"TYPE" => "CHECKBOX",
+		"DEFAULT" => "Y",
+		"REFRESH" => "Y",
+	);
+
+	if ($arCurrentValues["CALENDAR_ALLOW_VIDEO_MEETING"] != 'N')
+	{
+		$arComponentParameters["PARAMETERS"]["CALENDAR_VIDEO_MEETING_IBLOCK_ID"] = array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_VIDEO_MEETING_IBLOCK"),
+			"TYPE" => "LIST",
+			"VALUES" => $arIBlock,
+			"REFRESH" => "Y",
+		);
+
+		$arComponentParameters["PARAMETERS"]["CALENDAR_PATH_TO_VIDEO_MEETING"] = array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_PATH_TO_VIDEO_MEETING"),
+			"DEFAULT" => "/services/video/",
+		);
+		$arComponentParameters["PARAMETERS"]["CALENDAR_PATH_TO_VIDEO_MEETING_DETAIL"] = array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_PATH_TO_VIDEO_MEETING_DETAIL"),
+			"DEFAULT" => "/services/video/detail.php?ID=#conf_id#",
+		);
+
+
+		/* Access to Reserve Video-Meeting */
+		$arUserGroups = array();
+		$dbGroups = CGroup::GetList($b = "NAME", $o = "ASC", array("ACTIVE" => "Y"));
+		while ($arGroup = $dbGroups->GetNext())
+			$arUserGroups[$arGroup["ID"]] = "[".$arGroup["ID"]."] ".$arGroup["NAME"];
+
+		$arComponentParameters["PARAMETERS"]["CALENDAR_VIDEO_MEETING_USERGROUPS"] = array(
+			"PARENT" => "EVENT_CALENDAR_SETTINGS",
+			"NAME" => GetMessage("SONET_CALENDAR_VIDEO_MEETING_USERGROUPS"),
+			"TYPE" => "LIST",
+			"MULTIPLE" => "Y",
+			"VALUES" => $arUserGroups,
+			"DEFAULT" => Array(1)
+		);
+	}
+
+	$arComponentParameters["PARAMETERS"]["CALENDAR_REINVITE_PARAMS_LIST"] = array(
+		"PARENT" => "EVENT_CALENDAR_SETTINGS",
+		"NAME" => GetMessage("SONET_CALENDAR_REINVITE_PARAMS_LIST"),
+		"TYPE" => "LIST",
+		"MULTIPLE" => "Y",
+		"VALUES" => array(
+			'name' => GetMessage('SONET_CALENDAR_EV_NAME'),
+			'desc' => GetMessage('SONET_CALENDAR_EV_DESC'),
+			'from' => GetMessage('SONET_CALENDAR_EV_FROM'),
+			'to' => GetMessage('SONET_CALENDAR_EV_TO'),
+			'location' => GetMessage('SONET_CALENDAR_LOCATION'),
+			'guest_list' => GetMessage('SONET_CALENDAR_GUEST_LIST'),
+			'repeating' => GetMessage('SONET_CALENDAR_REPEATING'),
+			'meet_text' => GetMessage('SONET_CALENDAR_MEET_TEXT'),
+			'importance' => GetMessage('SONET_CALENDAR_IMPORTANCE')
+		),
+		"DEFAULT" => Array("from", "to", "location")
+	);
 	/* *** END **** EVENT CALENDAR *** */
 
 	// Tasks
@@ -754,7 +731,66 @@ if (CModule::IncludeModule("intranet"))
 		"VARIABLES" => array("group_id"),
 	);
 
+	$arIBlockTypeTask = array();
+	$rsIBlockTypeTask = CIBlockType::GetList(array("sort"=>"asc"), array("ACTIVE"=>"Y"));
+	while ($arrTask=$rsIBlockTypeTask->Fetch())
+	{
+		if($arTask=CIBlockType::GetByIDLang($arrTask["ID"], LANGUAGE_ID))
+			$arIBlockTypeTask[$arrTask["ID"]] = "[".$arrTask["ID"]."] ".$arTask["NAME"];
+	}
+
+	$arIBlockTask=array();
+	$rsIBlockTask = CIBlock::GetList(Array("sort" => "asc"), Array("TYPE" => $arCurrentValues["TASK_IBLOCK_TYPE"], "ACTIVE"=>"Y"));
+	while($arrTask=$rsIBlockTask->Fetch())
+		$arIBlockTask[$arrTask["ID"]] = "[".$arrTask["ID"]."] ".$arrTask["NAME"];
+
+	$arTasksFields = array(
+		"ID" => "[ID] ".GetMessage("INTL_TF_ID"),
+		"NAME" => "[NAME] ".GetMessage("INTL_TF_NAME"),
+		"CODE" => "[CODE] ".GetMessage("INTL_TF_CODE"),
+		"XML_ID" => "[XML_ID] ".GetMessage("INTL_TF_XML_ID"),
+		"MODIFIED_BY" => "[MODIFIED_BY] ".GetMessage("INTL_TF_MODIFIED_BY"),
+		"DATE_CREATE" => "[DATE_CREATE] ".GetMessage("INTL_TF_DATE_CREATE"),
+		"CREATED_BY" => "[CREATED_BY] ".GetMessage("INTL_TF_CREATED_BY"),
+		"DATE_ACTIVE_FROM" => "[DATE_ACTIVE_FROM] ".GetMessage("INTL_TF_DATE_ACTIVE_FROM"),
+		"DATE_ACTIVE_TO" => "[DATE_ACTIVE_TO] ".GetMessage("INTL_TF_DATE_ACTIVE_TO"),
+		"IBLOCK_SECTION" => "[IBLOCK_SECTION] ".GetMessage("INTL_TF_IBLOCK_SECTION"),
+		"DETAIL_TEXT" => "[DETAIL_TEXT] ".GetMessage("INTL_TF_DETAIL_TEXT"),
+	);
+
+	$dbTasksCustomProps = CIBlockProperty::GetList(
+		array("sort" => "asc", "name" => "asc"),
+		array("ACTIVE" => "Y", "IBLOCK_ID" => $arCurrentValues["TASK_IBLOCK_ID"])
+	);
+	while ($arTasksCustomProp = $dbTasksCustomProps->Fetch())
+	{
+		$ind = ((StrLen($arTasksCustomProp["CODE"]) > 0) ? $arTasksCustomProp["CODE"] : $arTasksCustomProp["ID"]);
+		$arTasksFields[StrToUpper($ind)] = "[".$ind."] ".$arTasksCustomProp["NAME"];
+	}
+
 	$arComponentParameters["GROUPS"]["TASKS"] = array("NAME" => GetMessage("INT_TASKS_GROUP"));
+
+	$arComponentParameters["PARAMETERS"]["TASK_IBLOCK_TYPE"] = Array(
+		"PARENT" => "TASKS",
+		"NAME" => GetMessage("INTL_TASK_IBLOCK_TYPE"),
+		"TYPE" => "LIST",
+		"VALUES" => $arIBlockTypeTask,
+		"REFRESH" => "Y",
+	);
+	$arComponentParameters["PARAMETERS"]["TASK_IBLOCK_ID"] = array(
+		"PARENT" => "TASKS",
+		"NAME" => GetMessage("INTL_TASK_IBLOCK"),
+		"TYPE" => "LIST",
+		"VALUES" => $arIBlockTask,
+		"REFRESH" => "Y",
+	);
+	$arComponentParameters["PARAMETERS"]["TASKS_FIELDS_SHOW"] = array(
+		"PARENT" => "TASKS",
+		"NAME" => GetMessage("INTL_TASKS_FIELDS_SHOW"),
+		"TYPE" => "LIST",
+		"MULTIPLE" => "Y",
+		"VALUES" => $arTasksFields,
+	);
 
 	if (CModule::IncludeModule("forum"))
 	{
@@ -804,13 +840,7 @@ if(CModule::IncludeModule("iblock"))
 		$arUGroupsEx[$arUGroups["ID"]] = $arUGroups["NAME"];
 	}
 
-	if (
-		IsModuleInstalled("webdav")
-		&& (
-			!IsModuleInstalled("disk")
-			|| !\Bitrix\Main\Config\Option::get('disk', 'successfully_converted', false)
-		)
-	)
+	if (IsModuleInstalled("webdav"))
 	{
 		$arComponentParameters["GROUPS"]["WEBDAV_SETTINGS"] = array(
 			"NAME" => GetMessage("SONET_WEBDAV_SETTINGS"));
@@ -923,112 +953,75 @@ if(CModule::IncludeModule("blog"))
 				"PARENT" => "BLOG_SETTINGS",
 				"REFRESH" => "Y",
 			);
-	$arComponentParameters["PARAMETERS"]["PATH_TO_USER_BLOG_POST"] = array(
+
+	if ($arCurrentValues["ALLOW_POST_MOVE"] == "Y")
+	{
+		$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_POST"] = array(
+		"NAME" => GetMessage("BPE_PATH_TO_BLOG_POST"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "",
+		"PARENT" => "BLOG_SETTINGS",
+	);
+	$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_POST_EDIT"] = array(
+		"NAME" => GetMessage("BPE_PATH_TO_BLOG_POST_EDIT"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "",
+		"PARENT" => "BLOG_SETTINGS",
+	);
+	$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_DRAFT"] = array(
+		"NAME" => GetMessage("BPE_PATH_TO_BLOG_DRAFT"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "",
+		"PARENT" => "BLOG_SETTINGS",
+	);
+	$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_BLOG"] = array(
+		"NAME" => GetMessage("BPE_PATH_TO_BLOG_BLOG"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "",
+		"PARENT" => "BLOG_SETTINGS",
+	);
+	$arComponentParameters["PARAMETERS"]["PATH_TO_USER_POST"] = array(
 		"NAME" => GetMessage("BPE_PATH_TO_USER_POST"),
 		"TYPE" => "STRING",
 		"DEFAULT" => "",
 		"PARENT" => "BLOG_SETTINGS",
 	);
-	$arComponentParameters["PARAMETERS"]["PATH_TO_USER_BLOG_POST_EDIT"] = array(
+	$arComponentParameters["PARAMETERS"]["PATH_TO_USER_POST_EDIT"] = array(
 		"NAME" => GetMessage("BPE_PATH_TO_USER_POST_EDIT"),
 		"TYPE" => "STRING",
 		"DEFAULT" => "",
 		"PARENT" => "BLOG_SETTINGS",
 	);
-
-	if ($arCurrentValues["ALLOW_POST_MOVE"] == "Y")
-	{
-		$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_POST"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_BLOG_POST"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-		$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_POST_EDIT"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_BLOG_POST_EDIT"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-		$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_DRAFT"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_BLOG_DRAFT"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-		$arComponentParameters["PARAMETERS"]["PATH_TO_BLOG_BLOG"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_BLOG_BLOG"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-		$arComponentParameters["PARAMETERS"]["PATH_TO_USER_POST"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_USER_POST"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-		$arComponentParameters["PARAMETERS"]["PATH_TO_USER_POST_EDIT"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_USER_POST_EDIT"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-		$arComponentParameters["PARAMETERS"]["PATH_TO_USER_DRAFT"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_USER_DRAFT"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-		$arComponentParameters["PARAMETERS"]["PATH_TO_USER_BLOG"] = array(
-			"NAME" => GetMessage("BPE_PATH_TO_USER_BLOG"),
-			"TYPE" => "STRING",
-			"DEFAULT" => "",
-			"PARENT" => "BLOG_SETTINGS",
-		);
-	}
-
-	$arComponentParameters["PARAMETERS"]["PATH_TO_USER_BLOG_POST"] = array(
-		"NAME" => GetMessage("BPE_PATH_TO_USER_BLOG_POST"),
+	$arComponentParameters["PARAMETERS"]["PATH_TO_USER_DRAFT"] = array(
+		"NAME" => GetMessage("BPE_PATH_TO_USER_DRAFT"),
 		"TYPE" => "STRING",
 		"DEFAULT" => "",
 		"PARENT" => "BLOG_SETTINGS",
 	);
+	$arComponentParameters["PARAMETERS"]["PATH_TO_USER_BLOG"] = array(
+		"NAME" => GetMessage("BPE_PATH_TO_USER_BLOG"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "",
+		"PARENT" => "BLOG_SETTINGS",
+	);
+	}
 
 	$arComponentParameters["PARAMETERS"]["BLOG_IMAGE_MAX_WIDTH"] = Array(
 				"NAME" => GetMessage("BPC_IMAGE_MAX_WIDTH"),
 				"TYPE" => "STRING",
-				"DEFAULT" => COption::GetOptionString('blog', 'image_max_width'),
+				"DEFAULT" => 800,
 				"PARENT" => "BLOG_SETTINGS",
 			);
 	$arComponentParameters["PARAMETERS"]["BLOG_IMAGE_MAX_HEIGHT"] = Array(
 				"NAME" => GetMessage("BPC_IMAGE_MAX_HEIGHT"),
 				"TYPE" => "STRING",
-				"DEFAULT" => COption::GetOptionString('blog', 'image_max_height'),
-				"PARENT" => "BLOG_SETTINGS",
-			);
-	$arComponentParameters["PARAMETERS"]["BLOG_COMMENT_AJAX_POST"] = Array(
-				"NAME" => GetMessage("BPC_COMMENT_AJAX_POST"),
-				"TYPE" => "CHECKBOX",
-				"DEFAULT" => "N",
+				"DEFAULT" => 800,
 				"PARENT" => "BLOG_SETTINGS",
 			);
 	$arComponentParameters["PARAMETERS"]["BLOG_COMMENT_ALLOW_VIDEO"] = Array(
 				"NAME" => GetMessage("BPC_COMMENT_ALLOW_VIDEO"),
 				"TYPE" => "CHECKBOX",
-				"DEFAULT" => "Y",
-				"PARENT" => "BLOG_SETTINGS",
-			);
-	$arComponentParameters["PARAMETERS"]["BLOG_COMMENT_ALLOW_IMAGE_UPLOAD"] = Array(
-				"NAME" => GetMessage("BPC_ALLOW_IMAGE_UPLOAD"),
-				"TYPE" => "LIST",
-				"VALUES" => Array(
-						"A" => GetMessage("BPC_ALLOW_IMAGE_UPLOAD_A"),
-						"R" => GetMessage("BPC_ALLOW_IMAGE_UPLOAD_R"),
-						"N" => GetMessage("BPC_ALLOW_IMAGE_UPLOAD_N"),
-					),
-				"MULTIPLE" => "N",
-				"DEFAULT" => "A",
+				"DEFAULT" => "N",
 				"PARENT" => "BLOG_SETTINGS",
 			);
 	$arComponentParameters["PARAMETERS"]["BLOG_SHOW_SPAM"] = Array(
@@ -1071,15 +1064,8 @@ if(CModule::IncludeModule("blog"))
 			"PARENT" => "BLOG_SETTINGS",
 		);
 	}
-	$arComponentParameters["PARAMETERS"]["BLOG_USE_CUT"] = Array(
-				"NAME" => GetMessage("BPC_USE_CUT"),
-				"TYPE" => "CHECKBOX",
-				"DEFAULT" => "N",
-				"PARENT" => "BLOG_SETTINGS",
-			);
 }
-
-if (CModule::IncludeModule("forum"))
+if(CModule::IncludeModule("forum"))
 {
 	$arForum = array();
 	$db_res = CForumNew::GetListEx();
@@ -1131,99 +1117,7 @@ if (CModule::IncludeModule("forum"))
 		"MULTIPLE" => "N",
 		"DEFAULT" => "blue",
 		"ADDITIONAL_VALUES" => "Y");
-	$arRes = $GLOBALS["USER_FIELD_MANAGER"]->GetUserFields("FORUM_MESSAGE", 0, LANGUAGE_ID);
-	$F_USER_FIELDS = array();
-	if (!empty($arRes))
-		foreach ($arRes as $key => $val)
-			$F_USER_FIELDS[$val["FIELD_NAME"]] = (empty($val["EDIT_FORM_LABEL"]) ? $val["FIELD_NAME"] : $val["EDIT_FORM_LABEL"]);
-
-	$arComponentParameters["PARAMETERS"]["USER_FIELDS_FORUM"] = array(
-		"PARENT" => "FORUM_SETTINGS",
-		"NAME" => GetMessage("SONET_USER_FIELDS_FORUM"),
-		"TYPE" => "LIST",
-		"VALUES" => $F_USER_FIELDS,
-		"MULTIPLE" => "Y",
-		"DEFAULT" => array("UF_FORUM_MESSAGE_DOC"));
 	}
-
-	if (IsModuleInstalled("vote"))
-	{
-		$arComponentParameters["PARAMETERS"]["SHOW_VOTE"] = array(
-			"PARENT" => "FORUM_SETTINGS",
-			"NAME" => GetMessage("F_SHOW_VOTE"),
-			"TYPE" => "CHECKBOX",
-			"DEFAULT" => "N",
-			"REFRESH" => "Y");
-
-		if ($arCurrentValues["SHOW_VOTE"] == "Y" && CModule::IncludeModule("vote"))
-		{
-			$rVoteChannels = CAllVoteChannel::GetList($by, $order, array('ACTIVE' => 'Y'), $is_filtered);
-			if ($rVoteChannels)
-			{
-				\Bitrix\Main\Localization\Loc::loadLanguageFile($_SERVER["DOCUMENT_ROOT"].BX_PERSONAL_ROOT."/components/bitrix/voting.current/.parameters.php");
-
-				$defaultVoteChannel = -1;
-				while ($arVoteChannel = $rVoteChannels->Fetch())
-				{
-					$arVoteChannels[$arVoteChannel['ID']] = "[".$arVoteChannel["ID"]."]".htmlspecialcharsbx($arVoteChannel['TITLE']);
-					if ($arVoteChannel['SYMBOLIC_NAME'] == 'SOCIALNETWORK')
-						$defaultVoteChannel = $arVoteChannel['ID'];
-				}
-				$arComponentParameters["PARAMETERS"]["VOTE_CHANNEL_ID"] = array(
-					"PARENT" => "FORUM_SETTINGS",
-					"NAME" => GetMessage("F_VOTE_CHANNEL_ID"),
-					"TYPE" => "LIST",
-					"VALUES" => $arVoteChannels,
-					"MULTIPLE" => "N",
-					"DEFAULT" => $defaultVoteChannel);
-
-				$arComponentParameters["PARAMETERS"]["VOTE_TEMPLATE"] = array(
-					"PARENT" => "FORUM_SETTINGS",
-					"NAME" => GetMessage("F_VOTE_TEMPLATE"),
-					"TYPE" => "LIST",
-					"VALUES" => array(
-						".default" => GetMessage("F_VOTE_TEMPLATE_DEFAULT"),
-						"light" => GetMessage("F_VOTE_TEMPLATE_LIGHT"),
-						"main_page" => GetMessage("F_VOTE_TEMPLATE_MAIN_PAGE")),
-					"DEFAULT" => "light",
-					"MULTIPLE" => "N",
-					"ADDITIONAL_VALUES" => "Y");
-				$arComponentParameters["PARAMETERS"]["VOTE_UNIQUE"] = array(
-					"VALUES" => array(
-						"1" => GetMessage("F_VOTE_UNIQUE_SESSION"),
-						"2" => GetMessage("F_VOTE_UNIQUE_COOKIE_ONLY"),
-						"4" => GetMessage("F_VOTE_UNIQUE_IP_ONLY"),
-						"8" => GetMessage("F_VOTE_UNIQUE_USER_ID_ONLY")
-					),
-					"PARENT" => "FORUM_SETTINGS",
-					"NAME" => GetMessage("F_VOTE_UNIQUE"),
-					"TYPE" => "LIST",
-					"MULTIPLE" => "Y",
-					"ADDITIONAL_VALUES" => "N",
-					"DEFAULT" => array(1,2,4,8),
-				);
-				$arComponentParameters["PARAMETERS"]["VOTE_UNIQUE_IP_DELAY"] = array(
-					"DEFAULT" => "10 D",
-					"PARENT" => "FORUM_SETTINGS",
-					"NAME" => GetMessage("F_VOTE_UNIQUE_IP_DELAY"),
-					"TYPE" => "CUSTOM",
-					"JS_FILE" => "/bitrix/js/vote/comp_props.js",
-					"JS_EVENT" => "ComponentPropsVoteIPDelay",
-					"JS_LANG" => array(
-						"SECONDS" => GetMessage("F_VOTE_SECONDS"),
-						"MINUTES" => GetMessage("F_VOTE_MINUTES"),
-						"HOURS" => GetMessage("F_VOTE_HOURS"),
-						"DAYS" => GetMessage("F_VOTE_DAYS"),
-						)
-				);
-			}
-		}
-	}
-	$arComponentParameters["PARAMETERS"]["FORUM_AJAX_POST"] = array(
-		"PARENT" => "FORUM_SETTINGS",
-		"NAME" => GetMessage("F_AJAX_POST"),
-		"TYPE" => "CHECKBOX",
-		"DEFAULT" => "N");
 }
 
 if (CModule::IncludeModule("iblock"))
@@ -1262,9 +1156,10 @@ if (CModule::IncludeModule("iblock"))
 			"NAME" => GetMessage("SONET_IBLOCK_ID").GetMessage("SONET_GROUP"),
 			"TYPE" => "LIST",
 			"VALUES" => $arIBlockGroup);
+
 		$arComponentParameters["PARAMETERS"]["PHOTO_MODERATION"] = array(
 			"PARENT" => "PHOTO_SETTINGS",
-			"NAME" => GetMessage("P_GLOBAL_MODERATE"),
+	        "NAME" => GetMessage("P_GLOBAL_MODERATE"),
 			"TYPE" => "CHECKBOX",
 			"DEFAULT" => "N");
 
@@ -1278,78 +1173,47 @@ if (CModule::IncludeModule("iblock"))
 			"NAME" => GetMessage("IBLOCK_ELEMENTS_PAGE_ELEMENTS"),
 			"TYPE" => "STRING",
 			"DEFAULT" => '50');
-		// $arComponentParameters["PARAMETERS"]["PHOTO_SLIDER_COUNT_CELL"] = array(
-			// "PARENT" => "PHOTO_SETTINGS",
-			// "NAME" => GetMessage("P_SLIDER_COUNT_CELL"),
-			// "TYPE" => "STRING",
-			// "DEFAULT" => "3");
-		// $arComponentParameters["PARAMETERS"]["CELL_COUNT"] = array(
-			// "PARENT" => "PHOTO_SETTINGS",
-			// "NAME" => GetMessage("P_TEMPLATE_CELL_COUNT"),
-			// "TYPE" => "STRING",
-			// "DEFAULT" => "0");
+		$arComponentParameters["PARAMETERS"]["PHOTO_SLIDER_COUNT_CELL"] = array(
+			"PARENT" => "PHOTO_SETTINGS",
+			"NAME" => GetMessage("P_SLIDER_COUNT_CELL"),
+			"TYPE" => "STRING",
+			"DEFAULT" => "3");
+		$arComponentParameters["PARAMETERS"]["CELL_COUNT"] = array(
+			"PARENT" => "PHOTO_SETTINGS",
+			"NAME" => GetMessage("P_TEMPLATE_CELL_COUNT"),
+			"TYPE" => "STRING",
+			"DEFAULT" => "0");
 		$arComponentParameters["PARAMETERS"]["PHOTO_ALBUM_PHOTO_THUMBS_SIZE"] = array(
 			"PARENT" => "PHOTO_SETTINGS",
 			"NAME" => GetMessage("SONET_ALBUM_PHOTO_THUMBS_SIZE"),
 			"TYPE" => "STRING",
-			"DEFAULT" => "120");
-		// $arComponentParameters["PARAMETERS"]["PHOTO_ALBUM_PHOTO_SIZE"] = array(
-			// "PARENT" => "PHOTO_SETTINGS",
-			// "NAME" => GetMessage("SONET_ALBUM_PHOTO_SIZE"),
-			// "TYPE" => "STRING",
-			// "DEFAULT" => "150");
+			"DEFAULT" => "150");
+		$arComponentParameters["PARAMETERS"]["PHOTO_ALBUM_PHOTO_SIZE"] = array(
+			"PARENT" => "PHOTO_SETTINGS",
+			"NAME" => GetMessage("SONET_ALBUM_PHOTO_SIZE"),
+			"TYPE" => "STRING",
+			"DEFAULT" => "150");
 
-		$arComponentParameters["PARAMETERS"]["PHOTO_THUMBNAIL_SIZE"] = array(
+		$arComponentParameters["PARAMETERS"]["PHOTO_THUMBS_SIZE"] = array(
 			"PARENT" => "PHOTO_SETTINGS",
 			"NAME" => GetMessage("SONET_THUMBS_SIZE"),
 			"TYPE" => "STRING",
-			"DEFAULT" => "100");
-		// $arComponentParameters["PARAMETERS"]["PHOTO_PREVIEW_SIZE"] = array(
-			// "PARENT" => "PHOTO_SETTINGS",
-			// "NAME" => GetMessage("SONET_PREVIEW_SIZE"),
-			// "TYPE" => "STRING",
-			// "DEFAULT" => "700");
+			"DEFAULT" => "250");
+		$arComponentParameters["PARAMETERS"]["PHOTO_PREVIEW_SIZE"] = array(
+			"PARENT" => "PHOTO_SETTINGS",
+			"NAME" => GetMessage("SONET_PREVIEW_SIZE"),
+			"TYPE" => "STRING",
+			"DEFAULT" => "700");
 		$arComponentParameters["PARAMETERS"]["PHOTO_ORIGINAL_SIZE"] = array(
 			"PARENT" => "PHOTO_SETTINGS",
 			"NAME" => GetMessage("P_ORIGINAL_SIZE"),
 			"TYPE" => "STRING",
-			"DEFAULT" => "1280");
-
-		if ($arCurrentValues["PHOTO_UPLOADER_TYPE"])
-		{
-			$arComponentParameters["PARAMETERS"]["PHOTO_UPLOADER_TYPE"] = array(
-				"PARENT" => "PHOTO_SETTINGS",
-				"NAME" => GetMessage("P_UPLOADER_TYPE"),
-				"TYPE" => "LIST",
-				"VALUES" => array(
-					"form" => GetMessage("P_UPLOADER_TYPE_FORM_SIMPLE"),
-					"applet" => GetMessage("P_UPLOADER_TYPE_APPLET"),
-					"flash" => GetMessage("P_UPLOADER_TYPE_FLASH")
-				),
-				"DEFAULT" => "form",
-				"HIDDEN" => $arCurrentValues["PHOTO_UPLOADER_TYPE"] == "form" ? "Y" : "N",
-				"REFRESH" => "Y"
-			);
-		}
-
-		if ($arCurrentValues["PHOTO_UPLOADER_TYPE"] == "applet")
-		{
-			$arComponentParameters["PARAMETERS"]["PHOTO_APPLET_LAYOUT"] = array(
-					"PARENT" => "UPLOADER",
-					"NAME" => GetMessage("P_APPLET_LAYOUT"),
-					"TYPE" => "LIST",
-					"VALUES" => array(
-						"extended" => GetMessage("P_APPLET_LAYOUT_EXTENDED"),
-						"simple" => GetMessage("P_APPLET_LAYOUT_SIMPLE"),
-					),
-					"DEFAULT" => "extended");
-		}
-
+			"DEFAULT" => "0");
 		$arComponentParameters["PARAMETERS"]["PHOTO_WATERMARK_MIN_PICTURE_SIZE"] = array(
 			"PARENT" => "PHOTO_SETTINGS",
 			"NAME" => GetMessage("SONET_WATERMARK_MIN_PICTURE_SIZE"),
 			"TYPE" => "STRING",
-			"DEFAULT" => "400");
+			"DEFAULT" => "200");
 
 		$arFiles = array(
 			"" => "...");
@@ -1457,16 +1321,13 @@ if (CModule::IncludeModule("iblock"))
 			"bc" => GetMessage("P_WATERMARK_POSITION_BC"),
 			"br" => GetMessage("P_WATERMARK_POSITION_BR")),
 		"DEFAULT" => "mc");
-
-			if ($arCurrentValues["PHOTO_WATERMARK_TYPE"] != "TEXT")
-				$arComponentParameters["PARAMETERS"]["PHOTO_WATERMARK_TRANSPARENCY"] = array(
-					"PARENT" => "PHOTO_SETTINGS",
-					"NAME" => GetMessage("P_WATERMARK_TRANSPARENCY"),
-					"TYPE" => "STRING",
-					"DEFAULT" => "20"
-				);
+		$arComponentParameters["PARAMETERS"]["PHOTO_WATERMARK_TRANSPARENCY"] = array(
+		"PARENT" => "PHOTO_SETTINGS",
+		"NAME" => GetMessage("P_WATERMARK_TRANSPARENCY"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "20");
 		}
-		$arComponentParameters["PARAMETERS"]["PHOTO_UPLOAD_MAX_FILESIZE"] = array(
+		$arComponentParameters["PARAMETERS"]["PHOTO_PHOTO_UPLOAD_MAX_FILESIZE"] = array(
 			"PARENT" => "PHOTO_SETTINGS",
 			"NAME" => str_replace("#upload_max_filesize#", ini_get('upload_max_filesize'), GetMessage("SONET_UPLOAD_MAX_FILESIZE")),
 			"TYPE" => "STRING",
@@ -1477,8 +1338,7 @@ if (CModule::IncludeModule("iblock"))
 			"NAME" => GetMessage("SONET_USE_RATING"),
 			"TYPE" => "CHECKBOX",
 			"DEFAULT" => "N",
-			"REFRESH" => "Y"
-		);
+			"REFRESH" => "Y");
 
 		if($arCurrentValues["PHOTO_USE_RATING"]=="Y")
 		{
@@ -1505,8 +1365,7 @@ if (CModule::IncludeModule("iblock"))
 				),
 				"DEFAULT" => "rating");
 		}
-
-		if (IsModuleInstalled("blog") || IsModuleInstalled("forum"))
+		if (IsModuleInstalled("forum"))
 		{
 			$arComponentParameters["PARAMETERS"]["PHOTO_USE_COMMENTS"] = array(
 					"PARENT" => "PHOTO_SETTINGS",
@@ -1517,105 +1376,33 @@ if (CModule::IncludeModule("iblock"))
 
 			if ($arCurrentValues["PHOTO_USE_COMMENTS"]=="Y")
 			{
-				$arr = array();
-				if (IsModuleInstalled("blog"))
-					$arr["blog"] = GetMessage("SONET_PHOTO_COMMENTS_TYPE_BLOG");
-				if (IsModuleInstalled("forum"))
-					$arr["forum"] = GetMessage("SONET_PHOTO_COMMENTS_TYPE_FORUM");
-
-				$arComponentParameters["PARAMETERS"]["PHOTO_COMMENTS_TYPE"] = Array(
+				$arForum = array();
+				$fid = 0;
+				if (CModule::IncludeModule("forum"))
+				{
+					$db_res = CForumNew::GetList(array(), array());
+					if ($db_res && ($res = $db_res->GetNext()))
+					{
+						do
+						{
+							$arForum[intVal($res["ID"])] = $res["NAME"];
+							$fid = intVal($res["ID"]);
+						}while ($res = $db_res->GetNext());
+					}
+				}
+				$arComponentParameters["PARAMETERS"]["PHOTO_FORUM_ID"] = Array(
 					"PARENT" => "PHOTO_SETTINGS",
-					"NAME" => GetMessage("SONET_PHOTO_COMMENTS_TYPE"),
+					"NAME" => GetMessage("SONET_FID"),
 					"TYPE" => "LIST",
-					"VALUES" => $arr,
-					"DEFAULT" => "forum",
-					"REFRESH" => "Y"
-				);
-
-				$arCurrentValues["PHOTO_COMMENTS_TYPE"] = ($arCurrentValues["PHOTO_COMMENTS_TYPE"] == "blog" ? "blog" : "forum");
-
-				if (IsModuleInstalled("blog") && $arCurrentValues["PHOTO_COMMENTS_TYPE"]=="blog")
-				{
-					$arBlogs = array();
-					if(CModule::IncludeModule("blog"))
-					{
-						$rsBlog = CBlog::GetList();
-						while($arBlog=$rsBlog->Fetch())
-						{
-							$arBlogs[$arBlog["URL"]] = $arBlog["NAME"];
-							$url = $arBlog["URL"];
-						}
-					}
-
-					$arComponentParameters["PARAMETERS"]["PHOTO_BLOG_URL"] = Array(
-						"PARENT" => "PHOTO_SETTINGS",
-						"NAME" => GetMessage("SONET_PHOTO_BLOG_URL"),
-						"TYPE" => "LIST",
-						"VALUES" => $arBlogs,
-						"DEFAULT" => $url
-					);
-					$arComponentParameters["PARAMETERS"]["PHOTO_COMMENTS_COUNT"] = Array(
-						"PARENT" => "PHOTO_SETTINGS",
-						"NAME" => GetMessage("SONET_PHOTO_COMMENTS_COUNT"),
-						"TYPE" => "STRING",
-						"DEFAULT" => 25
-					);
-					$arComponentParameters["PARAMETERS"]["PHOTO_PATH_TO_BLOG"] = Array(
-						"PARENT" => "PHOTO_SETTINGS",
-						"NAME" => GetMessage("SONET_PHOTO_PATH_TO_BLOG"),
-						"TYPE" => "STRING",
-						"DEFAULT" => ""
-					);
-				}
-				elseif (IsModuleInstalled("forum") && $arCurrentValues["PHOTO_COMMENTS_TYPE"]=="forum")
-				{
-					$arForum = array();
-					$fid = 0;
-					if (CModule::IncludeModule("forum"))
-					{
-						$db_res = CForumNew::GetList(array(), array());
-						if ($db_res && ($res = $db_res->GetNext()))
-						{
-							do
-							{
-								$arForum[intVal($res["ID"])] = $res["NAME"];
-								$fid = intVal($res["ID"]);
-							}while ($res = $db_res->GetNext());
-						}
-					}
-					$arComponentParameters["PARAMETERS"]["PHOTO_FORUM_ID"] = Array(
-						"PARENT" => "PHOTO_SETTINGS",
-						"NAME" => GetMessage("SONET_FID"),
-						"TYPE" => "LIST",
-						"VALUES" => $arForum,
-						"DEFAULT" => $fid
-					);
-					$arComponentParameters["PARAMETERS"]["PHOTO_USE_CAPTCHA"] = Array(
-						"PARENT" => "PHOTO_SETTINGS",
-						"NAME" => GetMessage("SONET_USE_CAPTCHA"),
-						"TYPE" => "CHECKBOX",
-						"MULTIPLE" => "N",
-						"DEFAULT" => "Y"
-					);
-				}
+					"VALUES" => $arForum,
+					"DEFAULT" => $fid);
+				$arComponentParameters["PARAMETERS"]["PHOTO_USE_CAPTCHA"] = Array(
+					"PARENT" => "PHOTO_SETTINGS",
+					"NAME" => GetMessage("SONET_USE_CAPTCHA"),
+					"TYPE" => "CHECKBOX",
+					"MULTIPLE" => "N",
+					"DEFAULT" => "Y");
 			}
-
-			$arComponentParameters["PARAMETERS"]["LOG_PHOTO_COUNT"] = Array(
-				"NAME" => GetMessage("SONET_LOG_PHOTO_COUNT"),
-				"TYPE" => "STRING",
-				"MULTIPLE" => "N",
-				"DEFAULT" => "6",
-				"COLS" => 2,
-				"PARENT" => "PHOTO_SETTINGS",
-			);
-			$arComponentParameters["PARAMETERS"]["LOG_PHOTO_THUMBNAIL_SIZE"] = Array(
-				"NAME" => GetMessage("SONET_LOG_PHOTO_THUMBNAIL_SIZE"),
-				"TYPE" => "STRING",
-				"MULTIPLE" => "N",
-				"DEFAULT" => "48",
-				"COLS" => 4,
-				"PARENT" => "PHOTO_SETTINGS",
-			);
 		}
 	}
 }
@@ -1680,60 +1467,8 @@ if (IsModuleInstalled("search"))
 		"NAME" => GetMessage("SONET_SEARCH_FILTER_DATE_NAME"),
 		"TYPE" => "STRING",
 		"DEFAULT" => "sonet_search_filter_date");
-	$arComponentParameters["PARAMETERS"]["SEARCH_RESTART"] = Array(
-		"PARENT" => "SEARCH_SETTINGS",
-		"NAME" => GetMessage("SONET_SEARCH_RESTART"),
-		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
-		"DEFAULT" => "N");
-	$arComponentParameters["PARAMETERS"]["SEARCH_USE_LANGUAGE_GUESS"] = Array(
-		"PARENT" => "SEARCH_SETTINGS",
-		"NAME" => GetMessage("SONET_SEARCH_USE_LANGUAGE_GUESS"),
-		"TYPE" => "CHECKBOX",
-		"MULTIPLE" => "N",
-		"DEFAULT" => "Y");
 }
 
-$arComponentParameters["PARAMETERS"]["GROUP_USE_KEYWORDS"] = Array(
-	"PARENT" => "VISUAL",
-	"NAME" => GetMessage("SONET_GROUP_USE_KEYWORDS"),
-	"TYPE" => "CHECKBOX",
-	"DEFAULT" => "Y",
-);
-
-$arComponentParameters["PARAMETERS"]["GROUP_THUMBNAIL_SIZE"] = Array(
-	"PARENT" => "VISUAL",
-	"NAME" => GetMessage("SONET_GROUP_THUMBNAIL_SIZE"),
-	"TYPE" => "STRING",
-	"MULTIPLE" => "N",
-	"DEFAULT" => "",
-	"COLS" => 3,
-);
-
-$arComponentParameters["PARAMETERS"]["LOG_THUMBNAIL_SIZE"] = Array(
-	"PARENT" => "VISUAL",
-	"NAME" => GetMessage("SONET_LOG_THUMBNAIL_SIZE"),
-	"TYPE" => "STRING",
-	"MULTIPLE" => "N",
-	"DEFAULT" => "",
-	"COLS" => 3,
-);
-
-$arComponentParameters["PARAMETERS"]["LOG_COMMENT_THUMBNAIL_SIZE"] = Array(
-	"PARENT" => "VISUAL",
-	"NAME" => GetMessage("SONET_LOG_COMMENT_THUMBNAIL_SIZE"),
-	"TYPE" => "STRING",
-	"MULTIPLE" => "N",
-	"DEFAULT" => "",
-	"COLS" => 3,
-);
-
-$arComponentParameters["PARAMETERS"]["LOG_NEW_TEMPLATE"] = Array(
-	"PARENT" => "VISUAL",
-	"NAME" => GetMessage("SONET_LOG_NEW_TEMPLATE"),
-	"TYPE" => "CHECKBOX",
-	"DEFAULT" => "N",
-);
 
 if (IsModuleInstalled('intranet'))
 {
@@ -1745,12 +1480,12 @@ if (IsModuleInstalled('intranet'))
 }
 
 $arSMThemesMessages = array(
-	"grey" => GetMessage("SONET_SM_THEME_GREY"),
-	"red" => GetMessage("SONET_SM_THEME_RED"),
-	"green" => GetMessage("SONET_SM_THEME_GREEN"),
-	"blue" => GetMessage("SONET_SM_THEME_BLUE"),
-	"lightblue" => GetMessage("SONET_SM_THEME_LIGHTBLUE"),
-	"brown" => GetMessage("SONET_SM_THEME_BROWN"),
+		"grey" => GetMessage("SONET_SM_THEME_GREY"),
+		"red" => GetMessage("SONET_SM_THEME_RED"),
+		"green" => GetMessage("SONET_SM_THEME_GREEN"),
+		"blue" => GetMessage("SONET_SM_THEME_BLUE"),
+		"lightblue" => GetMessage("SONET_SM_THEME_LIGHTBLUE"),
+		"brown" => GetMessage("SONET_SM_THEME_BROWN"),
 );
 
 $arSMThemes = array();
@@ -1765,6 +1500,7 @@ if (is_dir($dir) && $directory = opendir($dir)):
 endif;
 
 $tmp_site = ($_REQUEST["site"] <> '' ? $_REQUEST["site"] : ($_REQUEST["src_site"] <> '' ? $_REQUEST["src_site"] : false));
+
 
 $dbSiteRes = CSite::GetTemplateList($tmp_site);
 while($arSiteRes = $dbSiteRes->Fetch())
@@ -1826,21 +1562,76 @@ if ($arCurrentValues["USE_MAIN_MENU"] == 'Y')
 	);
 }
 
-$arComponentParameters["PARAMETERS"]["SHOW_RATING"] = array(
-	"PARENT" => "VISUAL",
-	"NAME" => GetMessage("SHOW_RATING"),
-	"TYPE" => "LIST",
-	"VALUES" => Array(
-		"" => GetMessage("SHOW_RATING_CONFIG"),
-		"Y" => GetMessage("MAIN_YES"),
-		"N" => GetMessage("MAIN_NO"),
-	),
+$arComponentParameters["PARAMETERS"]["USE_SHARE"] = Array(
+	"NAME" => GetMessage("SONET_USE_SHARE"),
+	"TYPE" => "CHECKBOX",
 	"MULTIPLE" => "N",
-	"DEFAULT" => "",
-	"REFRESH" => "Y"
+	"VALUE" => "Y",
+	"DEFAULT" =>"N",
+	"REFRESH" => "Y",
+	"PARENT" => "VISUAL",
 );
 
-if ($arCurrentValues["SHOW_RATING"] != "N")
+if ($arCurrentValues["USE_SHARE"] == "Y")
+{
+	$arComponentParameters["PARAMETERS"]["SHARE_HIDE"] = array(
+		"NAME" => GetMessage("SONET_SHARE_HIDE"),
+		"TYPE" => "CHECKBOX",
+		"VALUE" => "Y",
+		"DEFAULT" => "N",
+		"PARENT" => "VISUAL",
+	);
+
+	$arComponentParameters["PARAMETERS"]["SHARE_TEMPLATE"] = array(
+		"NAME" => GetMessage("SONET_SHARE_TEMPLATE"),
+		"DEFAULT" => "",
+		"TYPE" => "STRING",
+		"MULTIPLE" => "N",
+		"COLS" => 25,
+		"REFRESH"=> "Y",
+		"PARENT" => "VISUAL",
+	);
+
+	if (strlen(trim($arCurrentValues["SHARE_TEMPLATE"])) <= 0)
+		$shareComponentTemlate = false;
+	else
+		$shareComponentTemlate = trim($arCurrentValues["SHARE_TEMPLATE"]);
+
+	include_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/components/bitrix/main.share/util.php");
+
+	$arHandlers = __bx_share_get_handlers($shareComponentTemlate);
+
+	$arComponentParameters["PARAMETERS"]["SHARE_HANDLERS"] = array(
+		"NAME" => GetMessage("SONET_SHARE_SYSTEM"),
+		"TYPE" => "LIST",
+		"MULTIPLE" => "Y",
+		"VALUES" => $arHandlers["HANDLERS"],
+		"DEFAULT" => $arHandlers["HANDLERS_DEFAULT"],
+		"PARENT" => "VISUAL",
+	);
+
+	$arComponentParameters["PARAMETERS"]["SHARE_SHORTEN_URL_LOGIN"] = array(
+		"NAME" => GetMessage("SONET_SHARE_SHORTEN_URL_LOGIN"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "",
+		"PARENT" => "VISUAL",
+	);
+
+	$arComponentParameters["PARAMETERS"]["SHARE_SHORTEN_URL_KEY"] = array(
+		"NAME" => GetMessage("SONET_SHARE_SHORTEN_URL_KEY"),
+		"TYPE" => "STRING",
+		"DEFAULT" => "",
+		"PARENT" => "VISUAL",
+	);
+}
+$arComponentParameters["PARAMETERS"]["SHOW_RATING"] = array(
+	"PARENT" => "VISUAL",
+	"NAME" => GetMessage("SONET_SHOW_RATING"),
+	"TYPE" => "CHECKBOX",
+	"DEFAULT" => "N",
+	"REFRESH" => "Y"
+);
+if ($arCurrentValues["SHOW_RATING"] == "Y")
 {
 	$arRatingsList = array();
 	$db_res = CRatings::GetList($aSort = array("ID" => "ASC"), array("ACTIVE" => "Y", "ENTITY_ID" => "USER"));
@@ -1853,22 +1644,8 @@ if ($arCurrentValues["SHOW_RATING"] != "N")
 		"TYPE" => "LIST",
 		"VALUES" => $arRatingsList,
 		"DEFAULT" => "",
-		"MULTIPLE" => "Y"
-	);
-
-	$arComponentParameters["PARAMETERS"]["RATING_TYPE"] = array(
-		"NAME" => GetMessage("RATING_TYPE"),
-		"TYPE" => "LIST",
-		"VALUES" => Array(
-			"" => GetMessage("RATING_TYPE_CONFIG"),
-			"like" => GetMessage("RATING_TYPE_LIKE_TEXT"),
-			"like_graphic" => GetMessage("RATING_TYPE_LIKE_GRAPHIC"),
-			"standart_text" => GetMessage("RATING_TYPE_STANDART_TEXT"),
-			"standart" => GetMessage("RATING_TYPE_STANDART_GRAPHIC"),
-		),
-		"MULTIPLE" => "N",
-		"DEFAULT" => "",
-		"PARENT" => "VISUAL",
+		"REFRESH" => "Y"
 	);
 }
+
 ?>

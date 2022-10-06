@@ -1,15 +1,13 @@
 <?
 define("NO_KEEP_STATISTIC", true);
-define("NO_AGENT_STATISTIC", true);
 define("BX_STATISTIC_BUFFER_USED", false);
 define("NO_LANG_FILES", true);
 define("NOT_CHECK_PERMISSIONS", true);
-define("PUBLIC_AJAX_MODE", true);
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/bx_root.php");
 
 $cuid = IntVal($_REQUEST["cuid"]);
-$site_id = (isset($_REQUEST["site"]) && is_string($_REQUEST["site"])) ? trim($_REQUEST["site"]) : "";
+$site = trim($_REQUEST["site"]);
 
 if (isset($_REQUEST["is"]))
 	$ImageSize = intval($_REQUEST["is"]);
@@ -19,43 +17,25 @@ else
 if ($ImageSize <= 0)
 	$ImageSize = 42;
 
-require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-use Bitrix\Main\Localization\Loc;
+$abs_path = $_SERVER["DOCUMENT_ROOT"].BX_PERSONAL_ROOT."/managed_flags/socnet/c/".IntVal($cuid / 1000)."/".$cuid;
 
-if ($GLOBALS["USER"]->IsAuthorized())
-	$log_cnt = CUserCounter::GetValueByUserID($GLOBALS["USER"]->GetID(), $site);
-
-if(
-	$CACHE_MANAGER->Read(86400*30, "socnet_cm_".$cuid)
-	&& $CACHE_MANAGER->Read(86400*30, "socnet_cf_".$cuid)
-	&& $CACHE_MANAGER->Read(86400*30, "socnet_cg_".$cuid)
+if (
+	!file_exists($abs_path."_m")
+	&& !file_exists($abs_path."_f")
+	&& !file_exists($abs_path."_g")
 )
-{
-	if (intval($log_cnt) > 0)
-	{
-		$arData = array(
-			array("LOG_CNT" => $log_cnt)
-		);
-		echo CUtil::PhpToJSObject($arData);
-
-		define('PUBLIC_AJAX_MODE', true);
-	}
-
-	require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");		
 	die();
-}
+
+require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
 
 $rsSites = CSite::GetByID($site);
 if ($arSite = $rsSites->Fetch())
 {
 	$DateTimeFormat = $arSite["FORMAT_DATETIME"];
-	define("LANGUAGE_ID", $arSite["LANGUAGE_ID"]);
-	Loc::loadLanguageFile(__FILE__);
+	__IncludeLang(dirname(__FILE__)."/lang/".$arSite["LANGUAGE_ID"]."/get_message_2.php");	
 }
 else
-{
 	die();
-}
 
 if(CModule::IncludeModule("compression"))
 	CCompress::Disable2048Spaces();
@@ -79,7 +59,7 @@ if(CModule::IncludeModule("socialnetwork"))
 	if (strlen(trim($_REQUEST["nt"])) > 0)
 		$arParams["NAME_TEMPLATE"] = Trim($GLOBALS["APPLICATION"]->UnJSEscape($_REQUEST["nt"]));
 	else
-		$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+		$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 
 	$arParams["TITLE_NAME_TEMPLATE"] = str_replace(
 		array("#NOBR#", "#/NOBR#"), 
@@ -123,8 +103,6 @@ if(CModule::IncludeModule("socialnetwork"))
 		$bGet = true;
 		if (intval($last_message_ts) > 0)
 		{
-			$last_message_ts += CTimeZone::GetOffset();
-			
 			$bGet = false;
 			// get all new (from UserOption) messages of all types
 			
@@ -200,7 +178,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arFilter,
 				false,
 				array("nTopCount" => 50),
-				array("ID", "FIRST_USER_ID", "MESSAGE", "FIRST_USER_NAME", "DATE_CREATE", "DATE_UPDATE", "FIRST_USER_LAST_NAME", "FIRST_USER_SECOND_NAME", "FIRST_USER_LOGIN", "FIRST_USER_PERSONAL_PHOTO", "FIRST_USER_PERSONAL_GENDER", "FIRST_USER_IS_ONLINE")
+				array("ID", "FIRST_USER_ID", "MESSAGE", "FIRST_USER_NAME", "DATE_CREATE", "DATE_UPDATE", "FIRST_USER_LAST_NAME", "FIRST_USER_SECOND_NAME", "FIRST_USER_LOGIN", "FIRST_USER_PERSONAL_PHOTO", "FIRST_USER_PERSONAL_GENDER")
 			);
 			while ($arUserRequests = $dbUserRequests->GetNext())
 			{
@@ -208,7 +186,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arTmpData["TYPE"] = "FR";
 
 				$pu = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserRequests["FIRST_USER_ID"]));
-				$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FIRST_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin($site));
+				$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FIRST_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
 
 				$arTmpData["IMAGE_USER"] = "/bitrix/images/1.gif";
 				if (intval($arUserRequests["FIRST_USER_PERSONAL_PHOTO"]) <= 0)
@@ -255,7 +233,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arTmpData["NAME_USER_TITLE"] = CUser::FormatName($arParams["TITLE_NAME_TEMPLATE"], $arTmpUser, $bUseLogin);
 				$arTmpData["URL_USER"] = $pu;
 				$arTmpData["CAN_VIEW_USER"] = ($canViewProfile ? "Y" : "N");
-				$arTmpData["IS_ONLINE"] = $arUserRequests["FIRST_USER_IS_ONLINE"];
+				$arTmpData["IS_ONLINE"] = (CSocNetUser::IsOnLine($arUserRequests["FIRST_USER_ID"]) ? "Y" : "N");
 				$arTmpData["DATE"] = $arUserRequests["DATE_UPDATE"];
 				$arTmpData["DATE_TIMESTAMP"] = MakeTimeStamp($arUserRequests["DATE_CREATE"], $DateTimeFormat);
 
@@ -331,7 +309,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arTmpData["TYPE"] = "GR";
 
 				$pu = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserRequests["INITIATED_BY_USER_ID"]));
-				$canViewProfileU = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["INITIATED_BY_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin($site));
+				$canViewProfileU = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["INITIATED_BY_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
 
 				$arTmpData["IMAGE_USER"] = "/bitrix/images/1.gif";
 
@@ -367,7 +345,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				}
 
 				$pg = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_GROUP"], array("group_id" => $arUserRequests["GROUP_ID"]));
-				$canViewProfileG = (CSocNetUser::IsCurrentUserModuleAdmin($site) || ($arUserRequests["GROUP_VISIBLE"] == "Y"));
+				$canViewProfileG = (CSocNetUser::IsCurrentUserModuleAdmin() || ($arUserRequests["GROUP_VISIBLE"] == "Y"));
 
 				$arTmpData["IMAGE_GROUP"] = "/bitrix/images/1.gif";
 
@@ -458,7 +436,6 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arData[] = $arTmpData;
 			} // while
 
-
 			$arFilter = array(
 				"TO_USER_ID" => $GLOBALS["USER"]->GetID(),
 				"DATE_VIEW" => "",
@@ -473,7 +450,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arFilter,
 				false,
 				array("nTopCount" => 50),
-				array("ID", "FROM_USER_ID", "TITLE", "MESSAGE", "DATE_CREATE", "MESSAGE_TYPE", "FROM_USER_NAME", "FROM_USER_LAST_NAME", "FROM_USER_SECOND_NAME", "FROM_USER_LOGIN", "FROM_USER_PERSONAL_PHOTO", "FROM_USER_PERSONAL_GENDER", "FROM_USER_IS_ONLINE", "IS_LOG")
+				array("ID", "FROM_USER_ID", "TITLE", "MESSAGE", "DATE_CREATE", "MESSAGE_TYPE", "FROM_USER_NAME", "FROM_USER_LAST_NAME", "FROM_USER_SECOND_NAME", "FROM_USER_LOGIN", "FROM_USER_PERSONAL_PHOTO", "FROM_USER_PERSONAL_GENDER", "IS_LOG")
 			);
 			while ($arUserRequests = $dbUserRequests->GetNext())
 			{
@@ -483,8 +460,8 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arTmpData["MESSAGE_TYPE"] = $arUserRequests["MESSAGE_TYPE"];
 
 				$pu = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserRequests["FROM_USER_ID"]));
-				$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FROM_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin($site));
-				$canAnsver = (IsModuleInstalled("im") || CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FROM_USER_ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin($site)));
+				$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FROM_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
+				$canAnsver = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FROM_USER_ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin());
 
 				$arTmpData["IMAGE_USER"] = "/bitrix/images/1.gif";
 
@@ -532,7 +509,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arTmpData["NAME_USER_TITLE"] = CUser::FormatName($arParams["TITLE_NAME_TEMPLATE"], $arTmpUser, $bUseLogin);
 				$arTmpData["URL_USER"] = $pu;
 				$arTmpData["CAN_VIEW_USER"] = ($canViewProfile ? "Y" : "N");
-				$arTmpData["IS_ONLINE"] = $arUserRequests["FROM_USER_IS_ONLINE"];
+				$arTmpData["IS_ONLINE"] = (CSocNetUser::IsOnLine($arUserRequests["FROM_USER_ID"]) ? "Y" : "N");
 				$arTmpData["DATE"] = $arUserRequests["DATE_CREATE"];
 				$arTmpData["DATE_TIMESTAMP"] = MakeTimeStamp($arUserRequests["DATE_CREATE"], $DateTimeFormat);
 				$arTmpData["DATE_DATE_FORMATTED"] = ConvertTimeStamp($arTmpData["DATE_TIMESTAMP"], "SHORT", $site);
@@ -576,7 +553,7 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arTmpData["URL_MESSAGE"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_MESSAGE_FORM_MESS"], array("user_id" => $arUserRequests["FROM_USER_ID"], "message_id" => $arUserRequests["ID"]));
 				$arTmpData["URL_BAN"] = "EventType=Message&userID=".$arUserRequests["FROM_USER_ID"]."&action=ban";
 				$arTmpData["CAN_ANSWER"] = (($arUserRequests["MESSAGE_TYPE"] == SONET_MESSAGE_PRIVATE && $canAnsver) ? "Y" : "N");
-				$arTmpData["CAN_BAN"] = ((!CSocNetUser::IsUserModuleAdmin($arUserRequests["FROM_USER_ID"], $site) && $arUserRequests["MESSAGE_TYPE"] == SONET_MESSAGE_PRIVATE) ? "Y" : "N");
+				$arTmpData["CAN_BAN"] = ((!CSocNetUser::IsUserModuleAdmin($arUserRequests["FROM_USER_ID"]) && $arUserRequests["MESSAGE_TYPE"] == SONET_MESSAGE_PRIVATE) ? "Y" : "N");
 
 				if ($arTmpData["CAN_ANSWER"] == "Y")
 				{
@@ -602,16 +579,6 @@ if(CModule::IncludeModule("socialnetwork"))
 				$arData[] = $arTmpData;
 			} // while
 		} // if bGet
-	}
-
-	if (
-		count($arData) <= 0
-		|| $arData[0] != "*"
-	)
-	{
-		CSocNetMessages::__SpeedFileCheckMessages($GLOBALS["USER"]->GetID());
-		CSocNetUserToGroup::__SpeedFileCheckMessages($GLOBALS["USER"]->GetID());
-		CSocNetUserRelations::__SpeedFileCheckMessages($GLOBALS["USER"]->GetID());
 	}
 
 	global	$tmpSite;
@@ -643,19 +610,10 @@ if(CModule::IncludeModule("socialnetwork"))
 			$arData[0]["POS_LEFT"] = $arDialogPos["left"];
 			$arData[0]["POS_TOP"] = $arDialogPos["top"];
 		}
-
-		if (intval($log_cnt) > 0)
-			$arData[0]["LOG_CNT"] = $log_cnt;
 	}
-	else
-	{
-		$arData = array(
-			array("LOG_CNT" => $log_cnt)
-		);
-	}
-
 	echo CUtil::PhpToJSObject($arData);
 }
 
+define('PUBLIC_AJAX_MODE', true);
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/epilog_after.php");
 ?>

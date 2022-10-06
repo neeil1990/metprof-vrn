@@ -24,22 +24,6 @@ global $order, $by;
 	$arParams["ENTITY"] = trim(empty($arParams["ENTITY"]) ? $_REQUEST["entity"] : $arParams["ENTITY"]);
 	$arParams["DOCUMENT_TYPE"] = trim(empty($arParams["DOCUMENT_TYPE"]) ? $_REQUEST["document_type"] : $arParams["DOCUMENT_TYPE"]);
 	$arParams["DOCUMENT_ID"] = trim(empty($arParams["DOCUMENT_ID"]) ? $_REQUEST["document_id"] : $arParams["DOCUMENT_ID"]);
-
-	if (isset($arParams["TASK_ID"]))
-	{
-		$arTask = CBPStateService::GetWorkflowState($arParams["TASK_ID"]);
-		if (!empty($arTask))
-		{
-			$arResult["TASK"] = $arTask;
-		}
-		else
-		{
-			if (isset($arParams["TASK_LIST_URL"]))
-			{
-				LocalRedirect($arParams["TASK_LIST_URL"]);
-			}
-		}
-	}
 //***************** URL ********************************************/
 	$arParams["back_url"] = (!empty($arParams["back_url"]) ? $arParams["back_url"] : (!empty($_REQUEST["back_url"]) ? urldecode($_REQUEST["back_url"]) : ""));
 	
@@ -56,7 +40,7 @@ global $order, $by;
 			$arParams[strToUpper($URL)."_URL"] = $APPLICATION->GetCurPage();
 		endif;
 		$arParams["~".strToUpper($URL)."_URL"] = $arParams[strToUpper($URL)."_URL"];
-		$arParams[strToUpper($URL)."_URL"] = htmlspecialcharsbx($arParams["~".strToUpper($URL)."_URL"]);
+		$arParams[strToUpper($URL)."_URL"] = htmlspecialchars($arParams["~".strToUpper($URL)."_URL"]);
 	}
 /***************** ADDITIONAL **************************************/
 /***************** STANDART ****************************************/
@@ -94,8 +78,6 @@ if (empty($arError))
 	$arDocumentStates = CBPDocument::GetDocumentStates(
 		$arParams["DOCUMENT_TYPE"],
 		$arParams["DOCUMENT_ID"]);
-
-	$arResult['DOCUMENT_STATES'] = $arDocumentStates;
 
 	if (!CBPDocument::CanUserOperateDocument(
 		CBPCanUserOperateOperation::ViewWorkflow,
@@ -192,38 +174,14 @@ else
 		}
 		else 
 		{
-			$ar = array();
-			if (isset($arDocumentStates[$_REQUEST['id']]['WORKFLOW_STATUS']) && $arDocumentStates[$_REQUEST['id']]['WORKFLOW_STATUS'] !== null)
-			{
-				CBPDocument::TerminateWorkflow(
-					$_REQUEST["id"],
-					$arParams["DOCUMENT_ID"],
-					$ar
-				);
-			}
-
-			if (count($ar) > 0)
-			{
-				$str = "";
-				foreach ($ar as $a)
-					$str .= $a["message"];
-				$arError[] = array(
-					"id" => "stop_bizproc",
-					"text" => $str);
-			}
-			else
-			{
-				CBPTaskService::DeleteByWorkflow($_REQUEST["id"]);
-				CBPTrackingService::DeleteByWorkflow($_REQUEST["id"]);
-				CBPStateService::DeleteWorkflow($_REQUEST["id"]);
-			}
+			CBPTrackingService::DeleteByWorkflow($_REQUEST["id"]);
+			CBPStateService::DeleteWorkflow($_REQUEST["id"]);
 		}
 	}
 	elseif ($_SERVER['REQUEST_METHOD'] == "POST" && intval($_REQUEST["bizproc_index"]) > 0)
 	{
 		$arBizProcWorkflowId = array();
 		$bizprocIndex = intval($_REQUEST["bizproc_index"]);
-		$needUpdateStatesList = false;
 		for ($i = 1; $i <= $bizprocIndex; $i++)
 		{
 			$bpId = trim($_REQUEST["bizproc_id_".$i]);
@@ -244,7 +202,6 @@ else
 					$bpId = $arBizProcWorkflowId[$bpTemplateId];
 				}
 
-				$needUpdateStatesList = true;
 				$arErrorTmp = array();
 				CBPDocument::SendExternalEvent(
 					$bpId,
@@ -263,23 +220,17 @@ else
 				}
 			}
 		}
-		if ($needUpdateStatesList && empty($arError))
-			$arResult['DOCUMENT_STATES'] = CBPDocument::GetDocumentStates($arParams["DOCUMENT_TYPE"], $arParams["DOCUMENT_ID"]);
-
 	}
-		
-	if (!empty($arError))
-	{
+	
+	
+	if (!empty($arError)):
 		$e = new CAdminException($arError);
 		$arResult["ERROR_MESSAGE"] = $e->GetString();
-	}
-	else
-	{
+	else:
 		$url = (!empty($arParams["back_url"]) ? $arParams["back_url"] : $APPLICATION->GetCurPageParam("", array("action", "id", "sessid")));
 		$url = (empty($_POST["apply"]) ? $url : $APPLICATION->GetCurPageParam("", array("action", "id", "sessid")));
-		if (isset($_REQUEST['action']))
-			LocalRedirect($url);
-	}
+		LocalRedirect($url);
+	endif;
 }
 /********************************************************************
 				/Action

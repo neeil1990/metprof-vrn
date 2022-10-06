@@ -1,8 +1,8 @@
 <?
-$MESS["IBLOCK_DETAIL_URL"] = "URL, Ñ‰Ð¾ Ð²ÐµÐ´Ðµ Ð½Ð° ÑÑ‚Ð¾Ñ€Ñ–Ð½ÐºÑƒ Ð· Ð²Ð¼Ñ–ÑÑ‚Ð¾Ð¼ ÐµÐ»ÐµÐ¼ÐµÐ½Ñ‚Ð° Ñ€Ð¾Ð·Ð´Ñ–Ð»Ñƒ";
-$MESS["IBLOCK_TYPE"] = "Ð¢Ð¸Ð¿ Ñ–Ð½Ñ„Ð¾Ð±Ð»Ð¾ÐºÐ°";
-$MESS["IBLOCK_IBLOCK"] = "Ð†Ð½Ñ„Ð¾Ð±Ð»Ð¾Ðº";
-$MESS["IBLOCK_ANY"] = "(Ð±ÑƒÐ´ÑŒ-ÑÐºÐ¸Ð¹)";
-$MESS["IBLOCK_SECTION_ID"] = "ID Ñ€Ð¾Ð·Ð´Ñ–Ð»Ñƒ";
-$MESS["CP_BPR_CACHE_GROUPS"] = "Ð’Ñ€Ð°Ñ…Ð¾Ð²ÑƒÐ²Ð°Ñ‚Ð¸ Ð¿Ñ€Ð°Ð²Ð° Ð´Ð¾ÑÑ‚ÑƒÐ¿Ñƒ";
+$MESS["IBLOCK_DETAIL_URL"] = "URL, ùî âåäå íà ñòîð³íêó ç âì³ñòîì åëåìåíòà ðîçä³ëó";
+$MESS["IBLOCK_TYPE"] = "Òèï ³íôîáëîêà";
+$MESS["IBLOCK_IBLOCK"] = "²íôîáëîê";
+$MESS["IBLOCK_ANY"] = "(áóäü-ÿêèé)";
+$MESS["IBLOCK_SECTION_ID"] = "ID ðîçä³ëó";
+$MESS["CP_BPR_CACHE_GROUPS"] = "Âðàõîâóâàòè ïðàâà äîñòóïó";
 ?>

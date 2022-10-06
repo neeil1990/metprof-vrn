@@ -8,13 +8,16 @@
 		this.viewEventUrl = this.config.viewEventUrlTemplate;
 		this.viewEventUrl = this.viewEventUrl.replace(/#user_id#/ig, this.userId);
 		this.viewEventUrl = this.viewEventUrl.replace(/#event_id#/ig, this.config.eventId);
+		this.bx = window.top.BX || window.BX;
 
 		if (this.config.EVENT.DATE_FROM && this.config.EVENT.RRULE)
 		{
 			this.viewEventUrl += '&EVENT_DATE=' + BX.formatDate(BX.parseDate(this.config.EVENT.DATE_FROM), BX.message('FORMAT_DATE'));
 		}
 
-		BX.ready(BX.proxy(this.Init, this));
+		this.getCalendarUtils().then(function(){
+			this.bx.ready(this.Init.bind(this));
+		}.bind(this));
 	};
 
 	window.ViewEventManager.prototype = {
@@ -23,7 +26,6 @@
 			this.pViewIconLink = BX('feed-event-view-icon-link-' + this.id);
 			this.pViewLink = BX('feed-event-view-link-' + this.id);
 			this.pViewLink.href = this.pViewIconLink.href = this.viewEventUrl;
-
 			this.pFrom = BX('feed-event-view-from-' + this.id);
 
 			var event = this.config.EVENT;
@@ -54,13 +56,10 @@
 			this.InitPopups();
 
 			// Invite controls
-			var status = null;
-			if (event.IS_MEETING && this.config.attendees[this.userId])
+			this.ShowUserStatus(event.IS_MEETING && this.config.attendees[this.userId] ? this.config.attendees[this.userId].STATUS : false);
+
+			if (BX('bx-feed-cal-view-files-' + this.id))
 			{
-				status = this.config.attendees[this.userId].STATUS;
-
-				this.ShowUserStatus(status);
-
 				BX.viewElementBind(
 					'bx-feed-cal-view-files-' + this.id,
 					{showTitle: true},
@@ -68,10 +67,6 @@
 						return BX.type.isElementNode(node) && (node.getAttribute('data-bx-viewer') || node.getAttribute('data-bx-image'));
 					}
 				);
-			}
-			else
-			{
-				this.ShowUserStatus(false);
 			}
 		},
 
@@ -89,22 +84,23 @@
 			{
 				this.pMoreAttLinkY.onclick = function()
 				{
-					if (!_this.popupNotifyMoreY)
+					if (_this.popupNotifyMoreY)
 					{
-						_this.popupNotifyMoreY = new BX.PopupWindow('bx_event_attendees_window_y_' + _this.id + '_' + rand, _this.pMoreAttLinkY,
-							{
-								zIndex: 100,
-								lightShadow : true,
-								offsetTop: -2,
-								offsetLeft: 3,
-								autoHide: true,
-								closeByEsc: true,
-								bindOptions: {position: "top"},
-								content : _this.pMoreAttPopupContY
-							}
-						);
-						_this.popupNotifyMoreY.setAngle({});
+						_this.popupNotifyMoreY.destroy();
 					}
+					_this.popupNotifyMoreY = new BX.PopupWindow('bx_event_attendees_window_y_' + _this.id + '_' + rand, _this.pMoreAttLinkY,
+						{
+							zIndex: 100,
+							lightShadow : true,
+							offsetTop: -2,
+							offsetLeft: 3,
+							autoHide: true,
+							closeByEsc: true,
+							bindOptions: {position: "top"},
+							content : _this.pMoreAttPopupContY
+						}
+					);
+					_this.popupNotifyMoreY.setAngle({});
 					_this.popupNotifyMoreY.show();
 					_this.pMoreAttPopupContY.style.display = "block";
 				}
@@ -114,22 +110,24 @@
 			{
 				this.pMoreAttLinkN.onclick = function()
 				{
-					if (!_this.popupNotifyMoreN)
+					if (_this.popupNotifyMoreN)
 					{
-						_this.popupNotifyMoreN = new BX.PopupWindow('bx_event_attendees_window_n_' + _this.id + '_' + rand, _this.pMoreAttLinkN,
-							{
-								zIndex: 100,
-								lightShadow : true,
-								offsetTop: -2,
-								offsetLeft: 3,
-								autoHide: true,
-								closeByEsc: true,
-								bindOptions: {position: "top"},
-								content : _this.pMoreAttPopupContN
-							}
-						);
-						_this.popupNotifyMoreN.setAngle({});
+						_this.popupNotifyMoreN.destroy();
 					}
+
+					_this.popupNotifyMoreN = new BX.PopupWindow('bx_event_attendees_window_n_' + _this.id + '_' + rand, _this.pMoreAttLinkN,
+						{
+							zIndex: 100,
+							lightShadow : true,
+							offsetTop: -2,
+							offsetLeft: 3,
+							autoHide: true,
+							closeByEsc: true,
+							bindOptions: {position: "top"},
+							content : _this.pMoreAttPopupContN
+						}
+					);
+					_this.popupNotifyMoreN.setAngle({});
 					_this.popupNotifyMoreN.show();
 					_this.pMoreAttPopupContN.style.display = "block";
 				}
@@ -162,7 +160,7 @@
 					// Put to popup
 					popupContent += '<a href="' + att.URL + '" target="_blank" class="bxcal-att-popup-img bxcal-att-popup-att-full">' +
 						'<span class="bxcal-att-popup-avatar">' +
-							(att.AVATAR_SRC ? '<img src="' + att.AVATAR_SRC + '" width="' + avatarSize + '" height="' + avatarSize + '" class="bxcal-att-popup-img-not-empty" />' : '') +
+							(att.AVATAR ? '<img src="' + att.AVATAR + '" width="' + avatarSize + '" height="' + avatarSize + '" class="bxcal-att-popup-img-not-empty" />' : '') +
 						'</span>' +
 						'<span class="bxcal-att-popup-name">' + BX.util.htmlspecialchars(att.DISPLAY_NAME) + '</span>' +
 					'</a>';
@@ -171,7 +169,7 @@
 				{
 					attCellContent += '<a title="' + BX.util.htmlspecialchars(att.DISPLAY_NAME) + '" href="' + att.URL + '" target="_blank" class="bxcal-att-popup-img">' +
 						'<span class="bxcal-att-popup-avatar">' +
-							(att.AVATAR_SRC ? '<img src="' + att.AVATAR_SRC + '" width="' + avatarSize + '" height="' + avatarSize + '" class="bxcal-att-popup-img-not-empty" />' : '') +
+							(att.AVATAR ? '<img src="' + att.AVATAR + '" width="' + avatarSize + '" height="' + avatarSize + '" class="bxcal-att-popup-img-not-empty" />' : '') +
 						'</span>' +
 					'</a>';
 				}
@@ -355,46 +353,55 @@
 			);
 		},
 
-		GetFromHtml: function(DT_FROM_TS, DT_SKIP_TIME)
+		GetFromHtml: function(dateFromTimestamp, isFullDay)
 		{
-			var
-				fromDate = new Date(DT_FROM_TS),
-				dateFormat = BX.date.convertBitrixFormat(BX.message('FORMAT_DATE')),
-				timeFormat = BX.message('FORMAT_DATETIME'),
-				timeFormat2 = BX.util.trim(timeFormat.replace(BX.message('FORMAT_DATE'), '')),
-				html;
+			var dateFormat = this.config.culture
+				? this.config.culture.date_format
+				: this.bx.date.convertBitrixFormat(BX.message('FORMAT_DATE'))
+			;
 
-			if (timeFormat2 == dateFormat)
-				timeFormat = "HH:MI";
-			else
-				timeFormat = timeFormat2.replace(/:SS/ig, '');
-			timeFormat = BX.date.convertBitrixFormat(timeFormat);
+			var fromDate = new Date(dateFromTimestamp);
+			var html = this.bx.date.format([
+				["today", "today"],
+				["tommorow", "tommorow"],
+				["yesterday", "yesterday"],
+				["" , dateFormat]
+			], fromDate);
 
-			if (DT_SKIP_TIME == 'Y')
+			if (isFullDay !== 'Y')
 			{
-				html = BX.date.format([
-					["today", "today"],
-					["tommorow", "tommorow"],
-					["yesterday", "yesterday"],
-					["" , dateFormat]
-				], fromDate);
-			}
-			else
-			{
-				html = BX.date.format([
-					["today", "today"],
-					["tommorow", "tommorow"],
-					["yesterday", "yesterday"],
-					["" , dateFormat]
-				], fromDate);
-
-				html += ', ' + BX.date.format(timeFormat, fromDate);
+				html += ', ' + this.bx.date.format(this.bx.Calendar.Util.getTimeFormatShort(), fromDate);
 			}
 
 			return html;
-		}
+		},
+
+		getCalendarUtils: function()
+		{
+			return new Promise(function(reslve){
+				if (this.bx.Calendar && this.bx.Calendar.Util)
+				{
+					reslve(this.bx.Calendar.Util);
+				}
+				else
+				{
+					var extensionName = 'calendar.util';
+					this.bx.Runtime.loadExtension(extensionName)
+						.then(function()
+							{
+								if (this.bx.Calendar.Util)
+								{
+									reslve(this.bx.Calendar.Util);
+								}
+								else
+								{
+									console.error('Extension ' + extensionName + ' not found');
+								}
+							}.bind(this)
+						);
+				}
+			}.bind(this));
+		},
 	};
 
 })(window);
-
-

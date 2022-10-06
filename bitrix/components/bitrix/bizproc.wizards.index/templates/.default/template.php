@@ -49,7 +49,7 @@ else
 					if ($arResult["AdminAccess"])
 					{
 						?>
-						<div class="bpcw-item-menu-container" onmouseover="this.firstChild.style.display='block';" onmouseout="this.firstChild.style.display='none';" onclick="jsUtils.Redirect([], '<?= Cutil::JSEscape(htmlspecialcharsbx($arBlock["LIST_URL"])) ?>');"><div class="bpcw-item-menu" style="display:none;" onmouseout="this.style.display='none';"><a rel="nofollow" href="<?= htmlspecialcharsbx($arBlock["EDIT_URL"]) ?>" class="bpcw-item-menu-edit" onclick="jsUtils.PreventDefault(event); jsUtils.Redirect([], '<?= Cutil::JSEscape(htmlspecialcharsbx($arBlock["EDIT_URL"])) ?>'); return false;" title="<?= GetMessage("BPWC_WICT_EDIT") ?>"><span style="display:none">Edit</span></a><a rel="nofollow" href="javascript:if(confirm('<?= GetMessageJS("BPWC_WICT_DELETE_PROMT") ?>'))jsUtils.Redirect([], '<?= Cutil::JSEscape(htmlspecialcharsbx($arBlock["DELETE_URL"])) ?>')" class="bpcw-item-menu-delete" onclick="jsUtils.PreventDefault(event); if(confirm('<?= GetMessageJS("BPWC_WICT_DELETE_PROMT") ?>'))jsUtils.Redirect([], '<?= Cutil::JSEscape(htmlspecialcharsbx($arBlock["DELETE_URL"])) ?>'); return false;"  title="<?= GetMessage("BPWC_WICT_DELETE") ?>"><span style="display:none">Delete</span></a></div></div>
+						<div class="bpcw-item-menu-container" onmouseover="this.firstChild.style.display='block';" onmouseout="this.firstChild.style.display='none';" onclick="jsUtils.Redirect([], '<?= $arBlock["LIST_URL"] ?>');"><div class="bpcw-item-menu" style="display:none;" onmouseout="this.style.display='none';"><a rel="nofollow" href="<?= $arBlock["EDIT_URL"] ?>" class="bpcw-item-menu-edit" onclick="jsUtils.PreventDefault(event); jsUtils.Redirect([], '<?= $arBlock["EDIT_URL"] ?>'); return false;" title="<?= GetMessage("BPWC_WICT_EDIT") ?>"><span style="display:none">Edit</span></a><a rel="nofollow" href="javascript:if(confirm('<?= GetMessage("BPWC_WICT_DELETE_PROMT") ?>'))jsUtils.Redirect([], '<?= $arBlock["DELETE_URL"] ?>')" class="bpcw-item-menu-delete" onclick="jsUtils.PreventDefault(event); if(confirm('<?= GetMessage("BPWC_WICT_DELETE_PROMT") ?>'))jsUtils.Redirect([], '<?= $arBlock["DELETE_URL"] ?>'); return false;"  title="<?= GetMessage("BPWC_WICT_DELETE") ?>"><span style="display:none">Delete</span></a></div></div>
 						<?
 					}
 					?>
@@ -58,11 +58,11 @@ else
 						<div style="height:160px;">
 						<?= CFile::ShowImage($arBlock["PICTURE"], 150, 150, null, $arBlock["LIST_URL"]) ?>
 						</div>
-						<a href="<?= htmlspecialcharsbx($arBlock["LIST_URL"]) ?>"><b><?= $arBlock["NAME"] ?></b></a><br><br>
+						<a href="<?= $arBlock["LIST_URL"] ?>"><b><?= $arBlock["NAME"] ?></b></a><br><br>
 						<?
 						if (strlen($arBlock["START_URL"]) > 0)
 						{
-							?><a href="<?= htmlspecialcharsbx($arBlock["START_URL"]) ?>"><?= (strlen($arBlock["CreateTitle"]) > 0) ? $arBlock["CreateTitle"] : GetMessage("BPWC_WICT_CREATE") ?></a><?
+							?><a href="<?= $arBlock["START_URL"] ?>"><?= (strlen($arBlock["CreateTitle"]) > 0) ? $arBlock["CreateTitle"] : GetMessage("BPWC_WICT_CREATE") ?></a><?
 						}
 						?>
 					</div>

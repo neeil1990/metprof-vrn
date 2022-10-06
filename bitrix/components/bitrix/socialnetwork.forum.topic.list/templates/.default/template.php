@@ -5,7 +5,7 @@ if (!$this->__component->__parent || empty($this->__component->__parent->__name)
 	$GLOBALS['APPLICATION']->SetAdditionalCSS('/bitrix/components/bitrix/forum/templates/.default/styles/additional.css');
 endif;
 IncludeAJAX();
-$GLOBALS["APPLICATION"]->AddHeadScript("/bitrix/js/main/utils.js");
+$GLOBALS['APPLICATION']->AddHeadString('<script src="/bitrix/js/main/utils.js"></script>', true);
 $GLOBALS['APPLICATION']->AddHeadString('<script src="/bitrix/components/bitrix/forum.interface/templates/.default/script.js"></script>', true);
 $GLOBALS['APPLICATION']->AddHeadString('<script src="/bitrix/components/bitrix/forum.interface/templates/popup/script.js"></script>', true);
 
@@ -101,7 +101,7 @@ endif;
 if (empty($arResult["TOPICS"])):
 ?>
 			<tbody>
-				<tr class="forum-row-first forum-row-last forum-row-odd">
+ 				<tr class="forum-row-first forum-row-last forum-row-odd">
 					<td class="forum-column-alone">
 						<div class="forum-empty-message"><?=GetMessage("F_NO_TOPICS_HERE")?><br />
 <?
@@ -114,7 +114,7 @@ endif;
 					</td>
 				</tr>
 			</tbody>
-			<tfoot>
+ 			<tfoot>
 				<tr>
 					<td class="forum-column-footer">
 						<div class="forum-footer-inner">&nbsp;</div>
@@ -127,13 +127,13 @@ else:
 			<thead>
 				<tr>
 					<th class="forum-column-title" colspan="2"><div class="forum-head-title"><span><?=GetMessage("F_HEAD_TOPICS")?></span></div></th>
-<?
-if ($arParams["SHOW_AUTHOR_COLUMN"] == "Y"):
-?>
-	<th class="forum-column-replies"><span><?=GetMessage("F_HEAD_AUTHOR")?></span></th>
-<?
-endif;
-?>
+ <?
+ if ($arParams["SHOW_AUTHOR_COLUMN"] == "Y"):
+ ?>
+ 	<th class="forum-column-replies"><span><?=GetMessage("F_HEAD_AUTHOR")?></span></th>
+ <?
+ endif;
+ ?>
 					<th class="forum-column-replies"><span><?=GetMessage("F_HEAD_POSTS")?></span></th>
 					<th class="forum-column-views"><span><?=GetMessage("F_HEAD_VIEWS")?></span></th>
 					<th class="forum-column-lastpost"><span><?=GetMessage("F_HEAD_LAST_POST")?></span></th>
@@ -146,14 +146,14 @@ $iCount = 0;
 foreach ($arResult["TOPICS"] as $res):
 	$iCount++;
 ?>
-				<tr class="<?=($iCount == 1 ? "forum-row-first " : "")?><?
-					?><?=($iCount == count($arResult["TOPICS"]) ? "forum-row-last " : "")?><?
-					?><?=($iCount%2 == 1 ? "forum-row-odd " : "forum-row-even ")?><?
-					?><?=(intVal($res["SORT"]) != 150 ? "forum-row-sticky " : "")?><?
-					?><?=($res["STATE"] != "Y" && $res["STATE"] != "L" ? "forum-row-closed " : "")?><?
-					?><?=($res["TopicStatus"] == "MOVED" ? "forum-row-moved " : "")?><?
-					?><?=($res["APPROVED"] != "Y" ? " forum-row-hidden ": "")?><?
-					?>">
+ 				<tr class="<?=($iCount == 1 ? "forum-row-first " : "")?><?
+ 					?><?=($iCount == count($arResult["TOPICS"]) ? "forum-row-last " : "")?><?
+ 					?><?=($iCount%2 == 1 ? "forum-row-odd " : "forum-row-even ")?><?
+ 					?><?=(intVal($res["SORT"]) != 150 ? "forum-row-sticky " : "")?><?
+ 					?><?=($res["STATE"] != "Y" && $res["STATE"] != "L" ? "forum-row-closed " : "")?><?
+ 					?><?=($res["TopicStatus"] == "MOVED" ? "forum-row-moved " : "")?><?
+ 					?><?=($res["APPROVED"] != "Y" ? " forum-row-hidden ": "")?><?
+ 					?>">
 					<td class="forum-column-icon">
 						<div class="forum-icon-container">
 							<div class="forum-icon <?
@@ -380,9 +380,9 @@ endif;
 <script>
 if (typeof oText != "object")
 		var oText = {};
-oText['empty_action'] = '<?=GetMessageJS("JS_NO_ACTION")?>';
-oText['empty_topics'] = '<?=GetMessageJS("JS_NO_TOPICS")?>';
-oText['del_topics'] = '<?=GetMessage("JS_DEL_TOPICS")?>';
+oText['empty_action'] = '<?=CUtil::addslashes(GetMessage("JS_NO_ACTION"))?>';
+oText['empty_topics'] = '<?=CUtil::addslashes(GetMessage("JS_NO_TOPICS"))?>';
+oText['del_topics'] = '<?=CUtil::addslashes(GetMessage("JS_DEL_TOPICS"))?>';
 </script>
 
 <?if($arResult["EMAIL_INTEGRATION"] || is_array($arResult["MAILBOXES"])):?>
@@ -393,7 +393,7 @@ oText['del_topics'] = '<?=GetMessage("JS_DEL_TOPICS")?>';
 <span style="color:red"><?echo GetMessage("FTL_EMAIL_MAIL_OFF")?> </span>
 <?endif;?>
 <?if(is_array($arResult["MAILBOXES"])):?>
-| <a href="javascript:void(0);" onclick="return ShowEMailSettings()"><?echo GetMessage("FTL_EMAIL_MAIL_SET")?></a>
+| <a href="javascript:void()" onclick="return ShowEMailSettings()"><?echo GetMessage("FTL_EMAIL_MAIL_SET")?></a>
 <?endif?>
 <?
 if($arResult["EMAIL_INTEGRATION"]):

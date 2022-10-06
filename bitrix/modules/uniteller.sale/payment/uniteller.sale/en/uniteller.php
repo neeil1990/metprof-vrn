@@ -1,12 +1,12 @@
-<?php
+п»ї<?php
 /**
- * Массив языковых констант.
+ * РњР°СЃСЃРёРІ СЏР·С‹РєРѕРІС‹С… РєРѕРЅСЃС‚Р°РЅС‚.
  * @author r.smoliarenko
  * @author r.sarazhyn
  */
 global $MESS;
 
-// Для админки.
+// Р”Р»СЏ Р°РґРјРёРЅРєРё.
 $MESS['SALE_UNITELLER_DESCRIPTION'] = '<a href=\'http://www.uniteller.ru\' target=\'_blank\'>http://www.uniteller.ru</a>';
 $MESS['SALE_UNITELLER_DESC'] = 'Description of the payment system Uniteller';
 $MESS['SALE_UNITELLER_SHOP_IDP'] = 'Shop ID';
@@ -64,7 +64,7 @@ $MESS['SALE_UNITELLER_COUNTRY_DESC'] = 'Maximum 3 characters';
 $MESS['SALE_UNITELLER_STATE'] = 'Code State Region';
 $MESS['SALE_UNITELLER_STATE_DESC'] = 'Maximum 3 characters';
 
-// Для чека и обновления статусов.
+// Р”Р»СЏ С‡РµРєР° Рё РѕР±РЅРѕРІР»РµРЅРёСЏ СЃС‚Р°С‚СѓСЃРѕРІ.
 $MESS['SASP_AS000'] = 'SUCCESSFUL AUTHORIZATION';
 $MESS['SASP_AS100'] = 'AUTHORIZATION DENIAL';
 $MESS['SASP_AS101'] = 'AUTHORIZATION DENIAL. Invalid card number ';
@@ -77,7 +77,7 @@ $MESS['SASP_AS109'] = 'AUTHORIZATION DENIAL. The limit for Uniteller operations 
 $MESS['SASP_AS200'] = 'REPEAT AUTHORIZATION ';
 $MESS['SASP_AS998'] = 'SYSTEM ERROR. Please, contact Uniteller';
 
-// Для чека.
+// Р”Р»СЏ С‡РµРєР°.
 $MESS['SALE_UNITELLER_MERCH_NAME'] = 'Merchant name: ';
 $MESS['SALE_UNITELLER_MERCH_NAME_LAT'] = 'Merchant e-Shop name in Latin, assigned by Uniteller: ';
 $MESS['SALE_UNITELLER_MERCH_UNIQ_URL'] = 'Merchant URL: ';
@@ -93,7 +93,7 @@ $MESS['SALE_UNITELLER_ERROR'] = 'This order does not any corresponding payment i
 $MESS['SALE_UNITELLER_PRINT_CHECK'] = 'Print check';
 $MESS['SALE_UNITELLER_CLOSE_WINDOW'] = 'Close window';
 
-// Для страницы оплаты.
+// Р”Р»СЏ СЃС‚СЂР°РЅРёС†С‹ РѕРїР»Р°С‚С‹.
 $MESS['SUSP_DESC_TITLE'] = 'Description of the payment system: ';
 $MESS['SUSP_ORDER_SUM'] = 'Total: ';
 $MESS['SUSP_ACCOUNT_NO'] = 'Order no.';

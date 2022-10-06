@@ -110,7 +110,7 @@ else
 					}
 					?> style="position: relative;"><nobr><?
 					if($arResult["PERMISSION"] > "R"):
-						?><a href="<?=$arFeature["Url"]?>" onClick="if (!window.___BXMenu.bWasDraggedRecently) { location.href='<?=$arFeature["Url"]?>'; } return BX.PreventDefault(arguments[0]||window.event);" class="bx-sm-header" style="cursor:pointer;" onmousedown="return getMenuHolder('<?=AddSlashes($arResult["ID"])?>').DragStart('<?=$arFeature["feature"]?>', event)"><?
+						?><a href="<?=$arFeature["Url"]?>" onClick="if (!window.___BXMenu.bWasDraggedRecently) { location.href='<?=$arFeature["Url"]?>'; } else { return BX.PreventDefault(arguments[0]||window.event); }" class="bx-sm-header" style="cursor:pointer;" onmousedown="return getMenuHolder('<?=AddSlashes($arResult["ID"])?>').DragStart('<?=$arFeature["feature"]?>', event)"><?
 					else:
 						?><a href="<?=$arFeature["Url"]?>" class="bx-sm-header"><?
 					endif;
@@ -140,9 +140,10 @@ else
 	?></tr>
 	</table>
 	</td>
-	<td width="0%" valign="top"><?
-	if (count($allFeaturesAdd) > 0):
-	?><div id="ddmenuaddholder"><table cellspacing="0" cellpadding="0" width="100%">
+	<td width="0%" valign="top">
+	<div id="ddmenuaddholder">
+	<?if (count($allFeaturesAdd) > 0):?>	
+	<table cellspacing="0" cellpadding="0" width="100%">
 	<tr>	
 		<td>
 		<div class="ddmenu" onMouseOver="getMenuHolder('<?=AddSlashes($arResult["ID"])?>').ShowHolder('ddmenuadd', this);" onMouseMove="getMenuHolder('<?=AddSlashes($arResult["ID"])?>').ShowHolder('ddmenuadd', this);"  onClick="getMenuHolder('<?=AddSlashes($arResult["ID"])?>').ShowHolder('ddmenuadd', this);">
@@ -188,7 +189,7 @@ else
 					?> style="position: relative;"><nobr>
 						<?
 						if($arResult["PERMISSION"] > "R"):
-							?><a href="<?=$arFeature["Url"]?>" onClick="if (!window.___BXMenu.bWasDraggedRecently) { location.href='<?=$arFeature["Url"]?>'; } return BX.PreventDefault(arguments[0]||window.event);" class="bx-sm-header" style="cursor:pointer;" onmousedown="return getMenuHolder('<?=AddSlashes($arResult["ID"])?>').DragStart('<?=$arFeature["feature"]?>', event)"><?
+							?><a href="<?=$arFeature["Url"]?>" onClick="if (!window.___BXMenu.bWasDraggedRecently) { location.href='<?=$arFeature["Url"]?>'; } else { return BX.PreventDefault(arguments[0]||window.event); }" class="bx-sm-header" style="cursor:pointer;" onmousedown="return getMenuHolder('<?=AddSlashes($arResult["ID"])?>').DragStart('<?=$arFeature["feature"]?>', event)"><?
 						else:
 							?><a href="<?=$arFeature["Url"]?>" class="bx-sm-header"><?
 						endif;
@@ -221,9 +222,10 @@ else
 		</div></div>
 		</td>
 	</tr>	
-	</table></div><?
-	endif;
-	?></td>
+	</table>
+	<?endif;?>
+	</div>
+	</td>
 	<?if (count($allFeaturesAdd) > 0):?>
 	<td width="0%" class="bx-sm-separator"><div style="width: 3px;"></div></td>	
 	<?

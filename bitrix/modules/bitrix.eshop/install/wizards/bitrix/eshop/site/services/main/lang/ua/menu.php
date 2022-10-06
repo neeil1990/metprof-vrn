@@ -1,4 +1,4 @@
 <?
-$MESS["WIZ_MENU_TOP_DEFAULT"] = "Ð’ÐµÑ€Ñ…Ð½Ñ” Ð¼ÐµÐ½ÑŽ";
-$MESS["WIZ_MENU_LIGHT_TOP"] = "Ð“Ð¾Ð»Ð¾Ð²Ð½Ðµ Ð»Ñ–Ð²Ðµ Ð¼ÐµÐ½ÑŽ";
+$MESS["WIZ_MENU_TOP_DEFAULT"] = "Âåðõíº ìåíþ";
+$MESS["WIZ_MENU_LIGHT_TOP"] = "Ãîëîâíå ë³âå ìåíþ";
 ?>

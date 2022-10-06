@@ -1,24 +1,18 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-$sTplDir = trim(preg_replace("'[\\\\/]+'", "/", (dirname(__FILE__)."/user_files_")));
-
-if (empty($arParams["FORM_ID"]))
-    $arParams["FORM_ID"] = "webdavForm".$arParams["FILES_USER_IBLOCK_ID"];
-
-include($sTplDir."tab_section.php");
-
-if ($arResult["VARIABLES"]["PERMISSION"] > "W")
-	include($sTplDir."tab_permissions.php");
-
-$APPLICATION->IncludeComponent(
-    "bitrix:main.interface.form",
-    "",
-    array(
-        "FORM_ID" => $arParams["FORM_ID"],
-        "SHOW_FORM_TAG" => "N",
-        "TABS" => $this->__component->arResult['TABS'],
-        "DATA" => $this->__component->arResult['DATA'],
-		"SHOW_SETTINGS" => false
-    ),
-    ($this->__component->__parent ? $this->__component->__parent : $component)
-); 
-?>
+?><?$APPLICATION->IncludeComponent("bitrix:webdav.section.edit", ".default", Array(
+	"OBJECT"	=>	$arParams["OBJECT"], 
+	"SECTION_ID"	=>	$arResult["VARIABLES"]["SECTION_ID"],
+	"PERMISSION"	=>	$arResult["VARIABLES"]["PERMISSION"],
+	"ACTION"	=>	$arResult["VARIABLES"]["ACTION"],
+	
+	"SECTIONS_URL" => $arResult["~PATH_TO_USER_FILES"],
+	"SECTION_EDIT_URL" => $arResult["~PATH_TO_USER_FILES_SECTION_EDIT"],
+	"USER_VIEW_URL" => $arResult["~PATH_TO_USER"],
+		
+	"SET_TITLE"	=>	$arParams["SET_TITLE"],
+	"STR_TITLE" => $arResult["VARIABLES"]["STR_TITLE"],
+	"CACHE_TYPE"	=>	$arParams["CACHE_TYPE"],
+	"CACHE_TIME"	=>	$arParams["CACHE_TIME"],
+	"DISPLAY_PANEL"	=>	$arParams["DISPLAY_PANEL"]),
+	$component
+);?>

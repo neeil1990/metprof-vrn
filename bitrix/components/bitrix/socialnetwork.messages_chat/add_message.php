@@ -57,7 +57,7 @@ if (CModule::IncludeModule("socialnetwork"))
 				{
 					foreach($aUserId as $userID)
 					{
-						if (!CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $userID, "message", CSocNetUser::IsCurrentUserModuleAdmin(false)))
+						if (!CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $userID, "message", CSocNetUser::IsCurrentUserModuleAdmin()))
 						{
 							echo GetMessage("SONET_C50_CANT_WRITE").".";
 						}

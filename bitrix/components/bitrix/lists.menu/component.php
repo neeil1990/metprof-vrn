@@ -1,19 +1,6 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
-/** @global CMain $APPLICATION */
-/** @global CUser $USER */
-/** @global CDatabase $DB */
-/** @var CBitrixComponent $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @var string $componentName */
-/** @var string $componentPath */
-/** @var string $componentTemplate */
-/** @var string $parentComponentName */
-/** @var string $parentComponentPath */
-/** @var string $parentComponentTemplate */
-$this->setFrameMode(false);
-/** @var CCacheManager $CACHE_MANAGER */
+
 global $CACHE_MANAGER;
 
 $arParams["LIST_ID"] = intval($arParams["LIST_ID"]);
@@ -41,7 +28,7 @@ if($this->StartResultCache(false, $arUserGroups))
 			$arFilter = array(
 				"ACTIVE" => "Y",
 				"SITE_ID" => SITE_ID,
-				"=TYPE" => $arParams["~IBLOCK_TYPE_ID"],
+				"TYPE" => $arParams["~IBLOCK_TYPE_ID"],
 				"CHECK_PERMISSIONS" => ($CAN_EDIT? "N": "Y"), //This cancels iblock permissions for trusted users
 			);
 
@@ -99,7 +86,7 @@ $aMenuLinksNew = array();
 foreach($arResult["LISTS"] as $i => $arList)
 {
 	$aMenuLinksNew[] = array(
-		$arList["~NAME"],
+		htmlspecialchars($arList["~NAME"]),
 		$arList["LIST_URL"],
 		$arList["LINKS"],
 	);

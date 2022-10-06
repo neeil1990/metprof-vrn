@@ -27,5 +27,4 @@ $MESS["WZ_DEFAULT"] = "Изящный";
 $MESS["WZ_SELECT_SECTIONS"] = "Список разделов для привязки";
 $MESS["SECTIONS_TO_CATEGORIES"] = "Включить привязки";
 $MESS["WZ_GRP_SECTIONS_TO_CATEGORIES"] = "Привязка разделов мастера к категориям техподдержки";
-$MESS['SUP_SHOW_USER_FIELD'] = "Показывать пользовательские поля";
 ?>

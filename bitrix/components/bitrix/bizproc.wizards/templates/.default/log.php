@@ -22,7 +22,6 @@ $APPLICATION->IncludeComponent(
 		"SET_NAV_CHAIN" => $arParams["SET_NAV_CHAIN"],
 		"ITEMS_COUNT" => $arParams["ITEMS_COUNT"],
 		"ADMIN_ACCESS" => $arParams["ADMIN_ACCESS"],
-		"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"]
 	),
 	$component
 );

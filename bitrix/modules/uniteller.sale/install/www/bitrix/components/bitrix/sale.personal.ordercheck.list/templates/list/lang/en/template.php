@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS ['P_PAY_SYS'] = "Payment and shipping methods";
 $MESS ['P_DELIVERY'] = "Shipping method:";
 $MESS ['STPOL_CUR_ORDERS'] = "View current orders";

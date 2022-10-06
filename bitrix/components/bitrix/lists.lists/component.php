@@ -1,23 +1,5 @@
 <?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
-/** @global CMain $APPLICATION */
-/** @global CUser $USER */
-/** @global CDatabase $DB */
-/** @var CBitrixComponent $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @var string $componentName */
-/** @var string $componentPath */
-/** @var string $componentTemplate */
-/** @var string $parentComponentName */
-/** @var string $parentComponentPath */
-/** @var string $parentComponentTemplate */
-$this->setFrameMode(false);
-
-if($arParams["IBLOCK_TYPE_ID"] == COption::GetOptionString("lists", "livefeed_iblock_type_id"))
-	$APPLICATION->SetTitle(GetMessage("CC_BLL_TITLE_TEXT_CLAIM"));
-else
-	$APPLICATION->SetTitle(GetMessage("CC_BLL_TITLE_TEXT_LISTS"));
 
 if(!CModule::IncludeModule('lists'))
 {
@@ -40,9 +22,6 @@ if($lists_perm < 0)
 		return;
 	case CListPermissions::WRONG_IBLOCK:
 		ShowError(GetMessage("CC_BLL_WRONG_IBLOCK"));
-		return;
-	case CListPermissions::LISTS_FOR_SONET_GROUP_DISABLED:
-		ShowError(GetMessage("CC_BLL_LISTS_FOR_SONET_GROUP_DISABLED"));
 		return;
 	default:
 		ShowError(GetMessage("CC_BLL_UNKNOWN_ERROR"));
@@ -67,17 +46,17 @@ $arResult["~LISTS_URL"] = str_replace(
 	array("0", $arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LISTS_URL"]
 );
-$arResult["LISTS_URL"] = htmlspecialcharsbx($arResult["~LISTS_URL"]);
+$arResult["LISTS_URL"] = htmlspecialchars($arResult["~LISTS_URL"]);
 
 $arResult["~LIST_EDIT_URL"] = str_replace(
 	array("#list_id#", "#group_id#"),
 	array("0", $arParams["SOCNET_GROUP_ID"]),
 	$arParams["~LIST_EDIT_URL"]
 );
-$arResult["LIST_EDIT_URL"] = htmlspecialcharsbx($arResult["~LIST_EDIT_URL"]);
+$arResult["LIST_EDIT_URL"] = htmlspecialchars($arResult["~LIST_EDIT_URL"]);
 
 global $CACHE_MANAGER;
-if($this->StartResultCache(0/*disable cache because it's individual for each user*/, $USER->GetUserGroupArray()))
+if($this->StartResultCache(false, $USER->GetUserGroupArray()))
 {
 	$CACHE_MANAGER->StartTagCache($this->GetCachePath());
 	$CACHE_MANAGER->RegisterTag("lists_list_any");
@@ -88,14 +67,12 @@ if($this->StartResultCache(0/*disable cache because it's individual for each use
 	);
 	$arFilter = array(
 		"ACTIVE" => "Y",
+		"SITE_ID" => SITE_ID,
 		"TYPE" => $arParams["~IBLOCK_TYPE_ID"],
-		"CHECK_PERMISSIONS" => ($lists_perm >= CListPermissions::IS_ADMIN || $arParams["SOCNET_GROUP_ID"]? "N": "Y"), //This cancels iblock permissions for trusted users
+		"CHECK_PERMISSIONS" => ($arParams["CAN_EDIT"] || $arParams["SOCNET_GROUP_ID"]? "N": "Y"), //This cancels iblock permissions for trusted users
 	);
 	if($arParams["SOCNET_GROUP_ID"])
 		$arFilter["=SOCNET_GROUP_ID"] = $arParams["SOCNET_GROUP_ID"];
-	else
-		$arFilter["SITE_ID"] = SITE_ID;
-
 	$arResult["ITEMS"] = array();
 	$rsLists = CIBlock::GetList($arOrder, $arFilter);
 	while($ar = $rsLists->GetNext())
@@ -105,14 +82,14 @@ if($this->StartResultCache(0/*disable cache because it's individual for each use
 			array($ar["ID"], "0", $arParams["SOCNET_GROUP_ID"]),
 			$arParams["~LIST_URL"]
 		), array("list_section_id" => ""));
-		$ar["LIST_URL"] = htmlspecialcharsbx($ar["~LIST_URL"]);
+		$ar["LIST_URL"] = htmlspecialchars($ar["~LIST_URL"]);
 
 		$ar["~LIST_EDIT_URL"] = str_replace(
 			array("#list_id#", "#group_id#"),
 			array($ar["ID"], $arParams["SOCNET_GROUP_ID"]),
 			$arParams["~LIST_EDIT_URL"]
 		);
-		$ar["LIST_EDIT_URL"] = htmlspecialcharsbx($ar["~LIST_EDIT_URL"]);
+		$ar["LIST_EDIT_URL"] = htmlspecialchars($ar["~LIST_EDIT_URL"]);
 
 		$arResult["ITEMS"][] = $ar;
 	}
@@ -120,3 +97,8 @@ if($this->StartResultCache(0/*disable cache because it's individual for each use
 	$CACHE_MANAGER->EndTagCache();
 	$this->IncludeComponentTemplate();
 }
+
+if(isset($arParams["TITLE_TEXT"]))
+	$APPLICATION->SetTitle($arParams["TITLE_TEXT"]);
+
+?>

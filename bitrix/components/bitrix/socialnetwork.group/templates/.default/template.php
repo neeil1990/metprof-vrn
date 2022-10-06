@@ -2,36 +2,25 @@
 <?
 if(strlen($arResult["FatalError"])>0)
 {
-	?><span class='errortext'><?=$arResult["FatalError"]?></span><br /><br /><?
+	?>
+	<span class='errortext'><?=$arResult["FatalError"]?></span><br /><br />
+	<?
 }
 else
 {
 	if(strlen($arResult["ErrorMessage"])>0)
 	{
-		?><span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br /><?
+		?>
+		<span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br />
+		<?
 	}
-
-	?><?
-	$APPLICATION->IncludeComponent(
-		"bitrix:socialnetwork.group.iframe.popup",
-		".default",
-		array(
-			"PATH_TO_GROUP" => $arParams["PATH_TO_GROUP"],
-			"PATH_TO_GROUP_EDIT" => htmlspecialcharsback($arResult["Urls"]["Edit"]).(strpos($arResult["Urls"]["Edit"], "?") === false ? "?" : "&")."tab=edit",
-			"PATH_TO_GROUP_INVITE" => htmlspecialcharsback($arResult["Urls"]["Edit"]).(strpos($arResult["Urls"]["Edit"], "?") === false ? "?" : "&")."tab=invite",
-			"ON_GROUP_ADDED" => "BX.DoNothing",
-			"ON_GROUP_CHANGED" => "BX.DoNothing",
-			"ON_GROUP_DELETED" => "BX.DoNothing"
-		),
-		null,
-		array("HIDE_ICONS" => "Y")
-	);
-	?><?
-
+	?>
+	<?
+	
 	if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite())
-		$sSiteID = "_extranet";
+		$sExtranet = "_extranet";
 	else
-		$sSiteID = "_".SITE_ID;
+		$sExtranet = "";
 
 	$bCanEdit = false;		
 	if ($arParams['CAN_OWNER_EDIT_DESKTOP']	!= "N" || $GLOBALS["USER"]->IsAdmin() || CSocNetUser::IsCurrentUserModuleAdmin())
@@ -39,8 +28,8 @@ else
 	
 	$arDesktopParams = Array(
 			"MODE" => "SG",	
-			"ID" => "sonet_group".$sSiteID."_".$arResult["Group"]["ID"],
-			"DEFAULT_ID" => "sonet_group".$sSiteID,
+			"ID" => "sonet_group".$sExtranet."_".$arResult["Group"]["ID"],
+			"DEFAULT_ID" => "sonet_group".$sExtranet,
 			"SOCNET_GROUP_ID" => $arParams["GROUP_ID"],
 			"THUMBNAIL_LIST_SIZE" => $arParams["THUMBNAIL_LIST_SIZE"],
 			"PATH_TO_MESSAGES_CHAT" => $arParams["~PATH_TO_MESSAGES_CHAT"],
@@ -75,9 +64,7 @@ else
 			"G_SONET_GROUP_DESC_NUMBER_OF_MEMBERS" => $arResult["Group"]["NUMBER_OF_MEMBERS"],
 			"G_SONET_GROUP_DESC_PROPERTIES_SHOW" => $arResult["GroupProperties"]["SHOW"],
 			"G_SONET_GROUP_DESC_PROPERTIES_DATA" => $arResult["GroupProperties"]["DATA"],
-			"G_SONET_GROUP_DESC_REQUEST_SENT" => $arResult["bShowRequestSentMessage"],
 
-			"G_SONET_GROUP_LINKS_NAME" => $arResult["Group"]["~NAME"],
 			"G_SONET_GROUP_LINKS_SHOW_FEATURES" => ($arParams["USE_MAIN_MENU"] == "Y" ? "Y" : "N"),
 			"G_SONET_GROUP_LINKS_IMAGE" => $arResult["Group"]["IMAGE_ID_IMG"],
 			"G_SONET_GROUP_LINKS_CAN_SPAM_GROUP" => $arResult["CurrentUserPerms"]["UserCanSpamGroup"],
@@ -85,9 +72,8 @@ else
 			"G_SONET_GROUP_LINKS_CAN_MODERATE_GROUP" => $arResult["CurrentUserPerms"]["UserCanModerateGroup"],
 			"G_SONET_GROUP_LINKS_CAN_INITIATE" => $arResult["CurrentUserPerms"]["UserCanInitiate"],
 			"G_SONET_GROUP_LINKS_USER_ROLE" => $arResult["CurrentUserPerms"]["UserRole"],
-			"G_SONET_GROUP_LINKS_INITIATED_BY_TYPE" => $arResult["CurrentUserPerms"]["InitiatedByType"],
+			"G_SONET_GROUP_LINKS_INITIATED_BY_TYPE" => $arResult["CurrentUserPerms"]["InitiatedByType"],			
 			"G_SONET_GROUP_LINKS_USER_IS_MEMBER" => $arResult["CurrentUserPerms"]["UserIsMember"],
-			"G_SONET_GROUP_LINKS_USER_IS_AUTO_MEMBER" => $arResult["CurrentUserPerms"]["UserIsAutoMember"],
 			"G_SONET_GROUP_LINKS_USER_IS_OWNER" => $arResult["CurrentUserPerms"]["UserIsOwner"],
 			"G_SONET_GROUP_LINKS_HIDE_ARCHIVE_LINKS" => $arResult["HideArchiveLinks"],
 			"G_SONET_GROUP_LINKS_URL_MESSAGE_TO_GROUP" => htmlspecialcharsback($arResult["Urls"]["MessageToGroup"]),
@@ -104,7 +90,7 @@ else
 			"G_SONET_GROUP_LINKS_URL_USER_LEAVE_GROUP" => htmlspecialcharsback($arResult["Urls"]["UserLeaveGroup"]),
 			"G_SONET_GROUP_LINKS_URL_SUBSCRIBE" => htmlspecialcharsback($arResult["Urls"]["Subscribe"]),
 			"G_SONET_GROUP_LINKS_OPENED" => $arResult["Group"]["OPENED"],
-			"G_SONET_GROUP_LINKS_USE_BAN" => $arParams["GROUP_USE_BAN"],
+			"G_SONET_GROUP_LINKS_USE_BAN" => $arParams["GROUP_USE_BAN"],			
 			
 			"G_SONET_GROUP_MODS_MODERATORS_LIST" => $arResult["Moderators"]["List"],
 			"G_SONET_GROUP_MODS_CACHE_TYPE" => $arParams["CACHE_TYPE"],
@@ -125,10 +111,7 @@ else
 			"G_UPDATES_ENTITY_PATH_TO_GROUP" => $arParams["PATH_TO_GROUP"],
 			"G_UPDATES_ENTITY_ITEMS_COUNT" => 10,
 			"G_UPDATES_ENTITY_LIST_URL" => $arParams["~PATH_TO_USER_LOG"],
-			"G_UPDATES_ENTITY_PATH_TO_GROUP_LOG" => $arResult["Urls"]["GroupLog"],
-			"G_UPDATES_ENTITY_SUBSCRIBE_ONLY" => $arParams["LOG_SUBSCRIBE_ONLY"],
-			"G_UPDATES_ENTITY_PATH_TO_USER_BLOG_POST" => $arParams["PATH_TO_POST"],
-			"G_UPDATES_ENTITY_PATH_TO_USER_BLOG_POST_EDIT" => $arParams["PATH_TO_POST_EDIT"],
+			"G_UPDATES_ENTITY_SUBSCRIBE_ONLY" => $arParams["LOG_SUBSCRIBE_ONLY"],			
 			
 			"G_SONET_GROUP_TAGS_PAGE_ELEMENTS" => $arParams["SEARCH_TAGS_PAGE_ELEMENTS"],
 			"G_SONET_GROUP_TAGS_PERIOD" => $arParams["SEARCH_TAGS_PERIOD"],
@@ -149,7 +132,6 @@ else
 		$arDesktopParams["G_SONET_BLOG_TITLE"] = $arResult["BLOG"]["TITLE"];
 		$arDesktopParams["G_SONET_BLOG_TEMPLATE_NAME"] = ".default";
 		$arDesktopParams["G_SONET_BLOG_PATH_TO_BLOG"] = $arParams["~PATH_TO_BLOG"];
-		$arDesktopParams["G_SONET_BLOG_PATH_TO_POST"] = $arParams["~PATH_TO_POST"];
 		$arDesktopParams["G_SONET_BLOG_PATH_TO_GROUP_BLOG_POST"] = $arParams["~PATH_TO_GROUP_BLOG_POST"];
 		$arDesktopParams["G_SONET_BLOG_PATH_TO_GROUP_BLOG"] = $arParams["~PATH_TO_GROUP_BLOG"];
 		$arDesktopParams["G_SONET_BLOG_PATH_TO_USER"] = $arParams["~PATH_TO_USER"];
@@ -191,6 +173,7 @@ else
 		$arDesktopParams["G_TASKS_SHOW_TITLE"] = "N";
 		$arDesktopParams["G_TASKS_SHOW_FOOTER"] = "N";
 		$arDesktopParams["G_TASKS_TEMPLATE_NAME"] = ".default";
+		$arDesktopParams["G_TASKS_IBLOCK_ID"] = $arParams["TASK_IBLOCK_ID"];
 		$arDesktopParams["G_TASKS_OWNER_ID"] = $arResult["Group"]["ID"];
 		$arDesktopParams["G_TASKS_TASK_TYPE"] = 'group';
 		$arDesktopParams["G_TASKS_ITEMS_COUNT"] = 10;
@@ -202,7 +185,8 @@ else
 		$arDesktopParams["G_TASKS_PATH_TO_GROUP_TASKS"] = $arParams["PATH_TO_GROUP_TASKS"];
 		$arDesktopParams["G_TASKS_PATH_TO_GROUP_TASKS_TASK"] = $arParams["PATH_TO_GROUP_TASKS_TASK"];
 		$arDesktopParams["G_TASKS_PATH_TO_GROUP_TASKS_VIEW"] = $arParams["PATH_TO_GROUP_TASKS_VIEW"];
-		$arDesktopParams["G_TASKS_FORUM_ID"] = $arParams["TASK_FORUM_ID"];
+		$arDesktopParams["G_TASKS_TASKS_FIELDS_SHOW"] = $arParams["TASKS_FIELDS_SHOW"];
+		$arDesktopParams["G_TASKS_FORUM_ID"] = $arParams["TASK_FORUM_ID"];		
 	}
 	else
 		$arDesktopParams["G_TASKS_SHOW"] = "N";		

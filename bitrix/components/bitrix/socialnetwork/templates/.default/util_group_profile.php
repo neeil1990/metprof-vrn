@@ -1,4 +1,5 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
+
 <?
 $arGroup = $APPLICATION->IncludeComponent(
 	"bitrix:socialnetwork.group", 
@@ -29,7 +30,6 @@ $arGroup = $APPLICATION->IncludeComponent(
 		"USER_ID" => $arResult["VARIABLES"]["user_id"],
 		"GROUP_ID" => $arResult["VARIABLES"]["group_id"],
 		"ITEMS_COUNT" => $arParams["ITEM_MAIN_COUNT"],
-		"GROUP_PROPERTY" => $arResult["GROUP_PROPERTY"]
 	),
 	$component,
 	array("HIDE_ICONS" => "Y") 

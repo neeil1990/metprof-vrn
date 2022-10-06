@@ -58,9 +58,8 @@ div.bx-user-control li.bx-icon-action {
 	display: block;
 	padding-left: 22px;
 	clear: both;
-	background-image: url(images/icons_all5.gif?1);
+	background-image: url(images/icons_all5.gif);
 	background-repeat: no-repeat;
-	white-space:nowrap;
 }
 
 div.bx-user-control li.bx-icon-message {background-position: 0 0;}
@@ -72,60 +71,6 @@ div.bx-user-control li.bx-icon-profile{background-position: 0 -100px;}
 div.bx-user-control li.bx-icon-privacy{background-position: 0 -120px;}
 div.bx-user-control li.bx-icon-settings{background-position: 0 -140px;}
 div.bx-user-control li.bx-icon-video-call{background-position: 0 -160px;}
-
-div.bx-user-control li.bx-icon-passwords{background-position: 0 -200px;}
-div.bx-user-control li.bx-icon-security{background-position: 0 -180px;}
-div.bx-user-control li.bx-icon-codes{background-position: 0 -220px;}
-
 div.bx-user-control li.bx-icon-subscribe{background-image: url(images/subscribe.gif);}
-div.bx-user-control li.bx-icon-requests{background-image: url(images/request.gif);}
 
 table.sonet-user-profile-groups ul{margin:0 0 12px 6px; padding-left:10px; list-style-type:square;}
-
-
-.user-profile-mail-link-block {
-	height: 42px;
-	line-height: 42px;
-	position: relative;
-}
-
-.user-profile-short-link {
-	color: #000000;
-	display: inline-block;
-	max-width: 100px;
-	overflow: hidden;
-	vertical-align: top;
-	text-overflow: ellipsis;
-	white-space: nowrap;
-}
-
-
-.user-profile-show-link-btn {
-	display: inline-block;
-	margin-top: 1px;
-	font-size: 12px;
-	line-height: normal;
-}
-
-.user-profile-link-input {
-	border: 1px solid #d9dbde;
-	height: 40px;
-	font-size: 14px;
-	font-family: "Helvetica Neue", Helvetica, Arial, sans-serif;
-	line-height: 40px;
-	margin-left: -10px;
-	max-width: 220px;
-	left: 0;
-	top: 100px;
-	opacity: 0;
-	position: absolute;
-	padding: 0 9px;
-	width: 0;
-}
-
-
-.user-profile-show-input .user-profile-link-input {
-	position: static;
-	-webkit-transition: width 0.25s linear;
-	transition: width 0.25s linear;
-}

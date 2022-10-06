@@ -19,29 +19,21 @@ else
 		<?
 	}
 
-	$sSiteID = "_".(
-		CModule::IncludeModule('extranet')
-		&& CExtranet::IsExtranetSite()
-			? "extranet"
-			: SITE_ID
-	);
-
-	$bCanEdit = (
-		$arParams['CAN_OWNER_EDIT_DESKTOP']	!= "N"
-		|| $GLOBALS["USER"]->IsAdmin()
-		|| CSocNetUser::IsCurrentUserModuleAdmin()
-	);
-
+	if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite())
+		$sExtranet = "_extranet";
+	else
+		$sExtranet = "";
+		
+	$bCanEdit = false;		
+	if ($arParams['CAN_OWNER_EDIT_DESKTOP']	!= "N" || $GLOBALS["USER"]->IsAdmin() || CSocNetUser::IsCurrentUserModuleAdmin())
+		$bCanEdit = true;
+		
 	$arDesktopParams = Array(
 			"MODE" => "SU",
-			"USER_ID" => $arResult["User"]["ID"],
-			"USER_ACTIVE" => $arResult["User"]["ACTIVE"],
-			"USER_TYPE" => $arResult["User"]["TYPE"],
-			"ID" => "sonet_user".$sSiteID."_".$arResult["User"]["ID"],
-			"DEFAULT_ID" => "sonet_user".$sSiteID,
+			"USER_ID" => $arResult["User"]["ID"],			
+			"ID" => "sonet_user".$sExtranet."_".$arResult["User"]["ID"],
+			"DEFAULT_ID" => "sonet_user".$sExtranet,
 			"THUMBNAIL_LIST_SIZE" => $arParams["THUMBNAIL_LIST_SIZE"],
-			"LOG_AVATAR_SIZE" => $arParams["LOG_AVATAR_SIZE"],
-			"LOG_AVATAR_SIZE_COMMENT" => $arParams["LOG_AVATAR_SIZE_COMMENT"],
 			"PATH_TO_MESSAGES_CHAT" => $arParams["~PATH_TO_MESSAGES_CHAT"],
 			"PATH_TO_VIDEO_CALL" => $arParams["~PATH_TO_VIDEO_CALL"],
 			"PATH_TO_CONPANY_DEPARTMENT" => $arParams["~PATH_TO_CONPANY_DEPARTMENT"],
@@ -54,8 +46,7 @@ else
 			"SHOW_LOGIN" => $arParams["SHOW_LOGIN"],
 			"CACHE_TIME" => $arParams["CACHE_TIME"],
 			"CACHE_TYPE" => $arParams["CACHE_TYPE"],
-			"SHOW_RATING" => $arParams["SHOW_RATING"],
-			"RATING_TYPE" => $arParams["RATING_TYPE"],
+			
 			"TYPE" => "sonet_user",
 			"CAN_EDIT" => (($arResult["CurrentUserPerms"]["Operations"]["modifyuser"] && $bCanEdit) ? "Y" : "N"),
 			"COLUMNS" => "2",
@@ -73,13 +64,8 @@ else
 			"G_SONET_USER_LINKS_IS_ABSENT" => $arResult['IS_ABSENT'],
 			"G_SONET_USER_LINKS_IS_HONOURED" => $arResult['IS_HONOURED'],
 			"G_SONET_USER_LINKS_IS_CURRENT_USER" => $arResult["CurrentUserPerms"]["IsCurrentUser"],
-			"G_SONET_USER_LINKS_RELATION" => $arResult["CurrentUserPerms"]["Relation"],
-			"G_SONET_USER_LINKS_CAN_MESSAGE" => (
-				!IsModuleInstalled('mail')
-				|| $arResult["User"]["EXTERNAL_AUTH_ID"] != 'email'
-					? $arResult["CurrentUserPerms"]["Operations"]["message"]
-					: false
-			),
+			"G_SONET_USER_LINKS_RELATION" => $arResult["CurrentUserPerms"]["Relation"],			
+			"G_SONET_USER_LINKS_CAN_MESSAGE" => $arResult["CurrentUserPerms"]["Operations"]["message"],
 			"G_SONET_USER_LINKS_CAN_INVITE_GROUP" => $arResult["CurrentUserPerms"]["Operations"]["invitegroup"],
 			"G_SONET_USER_LINKS_CAN_VIEW_PROFILE" => $arResult["CurrentUserPerms"]["Operations"]["viewprofile"],
 			"G_SONET_USER_LINKS_CAN_MODIFY_USER" => $arResult["CurrentUserPerms"]["Operations"]["modifyuser"],
@@ -90,20 +76,12 @@ else
 			"G_SONET_USER_LINKS_URL_FRIENDS_ADD" => htmlspecialcharsback($arResult["Urls"]["FriendsAdd"]),
 			"G_SONET_USER_LINKS_URL_REQUEST_GROUP" => htmlspecialcharsback($arResult["Urls"]["RequestGroup"]),
 			"G_SONET_USER_LINKS_URL_SUBSCRIBE" => htmlspecialcharsback($arResult["Urls"]["Subscribe"]),
-			"G_SONET_USER_LINKS_URL_LOG_SETTINGS" => htmlspecialcharsback($arResult["Urls"]["SubscribeList"]),
 			"G_SONET_USER_LINKS_URL_EDIT" => htmlspecialcharsback($arResult["Urls"]["Edit"]),
 			"G_SONET_USER_LINKS_URL_SETTINGS" => htmlspecialcharsback($arResult["Urls"]["Settings"]),
 			"G_SONET_USER_LINKS_URL_FEATURES" => htmlspecialcharsback($arResult["Urls"]["Features"]),
-			"G_SONET_USER_LINKS_URL_EXTMAIL" => htmlspecialcharsback($arResult["Urls"]["ExternalMail"]),
-			"G_SONET_USER_LINKS_URL_REQUESTS" => htmlspecialcharsback($arResult["Urls"]["UserRequests"]),
 			"G_SONET_USER_LINKS_URL_SUBSCRIBE_LIST" => htmlspecialcharsback($arResult["Urls"]["SubscribeList"]),
 			"G_SONET_USER_LINKS_CAN_VIDEOCALL" => $arResult["CurrentUserPerms"]["Operations"]["videocall"],
 			"G_SONET_USER_LINKS_URL_VIDEOCALL" => htmlspecialcharsback($arResult["Urls"]["VideoCall"]),
-			"G_SONET_USER_LINKS_URL_SECURITY" => htmlspecialcharsback($arResult["Urls"]["Security"]),
-			"G_SONET_USER_LINKS_URL_PASSWORDS" => htmlspecialcharsback($arResult["Urls"]["Passwords"]),
-			"G_SONET_USER_LINKS_URL_SYNCHRONIZE" => htmlspecialcharsback($arResult["Urls"]["Synchronize"]),
-			"G_SONET_USER_LINKS_URL_CODES" => htmlspecialcharsback($arResult["Urls"]["Codes"]),
-			"G_SONET_USER_OTP" => $arResult["User"]["OTP"],
 
 			"G_SONET_USER_GROUPS_IS_CURRENT_USER" => $arResult["CurrentUserPerms"]["IsCurrentUser"],
 			"G_SONET_USER_GROUPS_GROUPS_LIST" => $arResult["Groups"]["ListFull"],
@@ -122,11 +100,10 @@ else
 			"G_SONET_USER_TAGS_FONT_MIN" => $arParams["SEARCH_TAGS_FONT_MIN"],
 			"G_SONET_USER_TAGS_COLOR_NEW" => $arParams["SEARCH_TAGS_COLOR_NEW"],
 			"G_SONET_USER_TAGS_COLOR_OLD" => $arParams["SEARCH_TAGS_COLOR_OLD"],
-			"G_SONET_USER_ACTIVITY_PATH_TO_POST" => $arParams["~PATH_TO_POST"],
-			"G_SONET_USER_ACTIVITY_PATH_TO_POST_EDIT" => $arParams["~PATH_TO_POST_EDIT"],
+			
 			"G_SONET_USER_ACTIVITY_LIST_URL" => htmlspecialcharsback($arResult["Urls"]["Log"])
 	);
-
+		
 	if (CSocNetUser::IsFriendsAllowed() && (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite()))
 	{
 		$arDesktopParams["G_SONET_USER_FRIENDS_FRIENDS_COUNT"] = $arResult["Friends"]["Count"];
@@ -160,8 +137,6 @@ else
 		$arDesktopParams["G_SONET_USER_DESC_FIELDS_PERSONAL_DATA"] = $arResult["UserFieldsPersonal"]["DATA"];
 		$arDesktopParams["G_SONET_USER_DESC_PROPERTIES_PERSONAL_SHOW"] = $arResult["UserPropertiesPersonal"]["SHOW"];
 		$arDesktopParams["G_SONET_USER_DESC_PROPERTIES_PERSONAL_DATA"] = $arResult["UserPropertiesPersonal"]["DATA"];
-		$arDesktopParams["G_SONET_USER_DESC_OTP"] = $arResult["User"]["OTP"];
-		$arDesktopParams["G_SONET_USER_DESC_EMAIL_FORWARD_TO"] = (isset($arResult["User"]["EMAIL_FORWARD_TO"]) ? $arResult["User"]["EMAIL_FORWARD_TO"] : array());
 
 		if (
 			array_key_exists("RATING_ID_ARR", $arParams)
@@ -187,11 +162,6 @@ else
 			$arDesktopParams["G_SONET_USER_DESC_DEPARTMENTS"] = $arResult["DEPARTMENTS"];
 		}
 
-		if (CModule::IncludeModule('mail'))
-		{
-			$arDesktopParams["G_SONET_USER_LINKS_EXTERNAL_AUTH_ID"] = $arResult["User"]["EXTERNAL_AUTH_ID"];
-		}
-
 		if($arResult["tasks"]["SHOW"])
 		{
 			$arDesktopParams["G_TASKS_TITLE"] = $arResult["ActiveFeatures"]["tasks"];
@@ -199,6 +169,7 @@ else
 			$arDesktopParams["G_TASKS_SHOW_TITLE"] = "N";
 			$arDesktopParams["G_TASKS_SHOW_FOOTER"] = "N";
 			$arDesktopParams["G_TASKS_TEMPLATE_NAME"] = ".default";
+			$arDesktopParams["G_TASKS_IBLOCK_ID"] = $arParams["TASK_IBLOCK_ID"];
 			$arDesktopParams["G_TASKS_OWNER_ID"] = $arResult["User"]["ID"];
 			$arDesktopParams["G_TASKS_TASK_TYPE"] = 'user';
 			$arDesktopParams["G_TASKS_ITEMS_COUNT"] = 10;
@@ -213,7 +184,8 @@ else
 			$arDesktopParams["G_TASKS_PATH_TO_USER_TASKS"] = $arParams["PATH_TO_USER_TASKS"];
 			$arDesktopParams["G_TASKS_PATH_TO_USER_TASKS_TASK"] = $arParams["PATH_TO_USER_TASKS_TASK"];
 			$arDesktopParams["G_TASKS_PATH_TO_USER_TASKS_VIEW"] = $arParams["PATH_TO_USER_TASKS_VIEW"];
-			$arDesktopParams["G_TASKS_FORUM_ID"] = $arParams["TASK_FORUM_ID"];
+			$arDesktopParams["G_TASKS_TASKS_FIELDS_SHOW"] = $arParams["TASKS_FIELDS_SHOW"];
+			$arDesktopParams["G_TASKS_FORUM_ID"] = $arParams["TASK_FORUM_ID"];		
 		}
 		else
 			$arDesktopParams["G_TASKS_SHOW"] = "N";

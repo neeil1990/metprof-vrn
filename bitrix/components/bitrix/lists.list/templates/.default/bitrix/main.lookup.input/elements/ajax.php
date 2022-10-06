@@ -1,51 +1,42 @@
 <?
 define("STOP_STATISTICS", true);
-define("BX_SECURITY_SHOW_MESSAGE", true);
-
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_before.php");
-\Bitrix\Main\Localization\Loc::loadMessages(__FILE__);
 
 if(!CModule::IncludeModule('lists'))
-{
-	ShowError(GetMessage("CT_BMLI_MODULE_NOT_INSTALLED"));
 	die();
-}
+
+__IncludeLang(dirname(__FILE__).'/lang/'.LANGUAGE_ID.'/'.basename(__FILE__));
 
 CUtil::JSPostUnescape();
 
-$iblock_id = intval($_REQUEST["IBLOCK_ID"]);
+$arListsPerm = CLists::GetPermission($_REQUEST["IBLOCK_TYPE_ID"]);
+if(!count($arListsPerm))
+	die();
 
-$lists_perm = CListPermissions::CheckAccess(
-	$USER,
-	$_REQUEST["IBLOCK_TYPE_ID"],
-	$iblock_id,
-	$_REQUEST["SOCNET_GROUP_ID"]
-);
-if($lists_perm < 0)
+//Check permissions for add or edit iblock
+$USER_GROUPS = $USER->GetUserGroupArray();
+$CAN_EDIT = count(array_intersect($arListsPerm, $USER_GROUPS)) > 0;
+
+//Check then iblock belongs to proper type
+$iblock_id = intval($_REQUEST["IBLOCK_ID"]);
+$arIBlock = false;
+if($iblock_id)
 {
-	switch($lists_perm)
-	{
-	case CListPermissions::WRONG_IBLOCK_TYPE:
-		ShowError(GetMessage("CT_BMLI_WRONG_IBLOCK_TYPE"));
+	$arIBlock = CIBlock::GetArrayByID($iblock_id);
+	if($arIBlock["IBLOCK_TYPE_ID"] != $_REQUEST["IBLOCK_TYPE_ID"])
 		die();
-	case CListPermissions::WRONG_IBLOCK:
-		ShowError(GetMessage("CT_BMLI_WRONG_IBLOCK"));
-		die();
-	default:
-		ShowError(GetMessage("CT_BMLI_UNKNOWN_ERROR"));
-		die();
-	}
 }
-elseif(
-	$lists_perm < CListPermissions::CAN_READ
-	&& !CIBlockRights::UserHasRightTo($iblock_id, $iblock_id, "element_read")
-)
+else
 {
-	ShowError(GetMessage("CT_BMLI_ACCESS_DENIED"));
 	die();
 }
 
-$arIBlock = CIBlock::GetArrayByID($iblock_id);
+if(!$arParams['CAN_EDIT'])
+{
+	$IBLOCK_PERM = CIBlock::GetPermission($arIBlock["ID"]);
+	if($IBLOCK_PERM < "R")
+		die();
+}
 
 if($_REQUEST['MODE'] == 'SEARCH')
 {
@@ -76,7 +67,7 @@ if($_REQUEST['MODE'] == 'SEARCH')
 				);
 
 				Header('Content-Type: application/x-javascript; charset='.LANG_CHARSET);
-				echo CUtil::PhpToJsObject($arResult);
+				echo CUtil::PhpToJsObject($arUsers);
 				die();
 			}
 		}

@@ -1,12 +1,14 @@
 // # # #  #  #  # Planner for Event Calendar  # # #  #  #  #
 ;(function(window) {
-function CalendarPlanner(params)
+function CalendarPlanner(params, initialUpdateParams)
 {
 	if (!params)
+	{
 		params = {};
+	}
 	this.config = params;
 	this.id = params.id;
-	this.userId = params.userId;
+	this.userId = params.userId || BX.message('USER_ID');
 	this.shown = false;
 	this.built = false;
 	this.dayLength = 86400000;
@@ -16,6 +18,8 @@ function CalendarPlanner(params)
 	this.proposeTimeLimit = 60; // in days
 	this.expandTimelineDelay = 600;
 	this.limitScaleSizeMode = false;
+	this.globalAnimation = true;
+	this.checkTimeCache = {};
 
 	this.DATE_FORMAT = BX.date.convertBitrixFormat(BX.message("FORMAT_DATE"));
 	this.DATETIME_FORMAT = BX.date.convertBitrixFormat(BX.message("FORMAT_DATETIME"));
@@ -24,7 +28,7 @@ function CalendarPlanner(params)
 	else
 		this.TIME_FORMAT = BX.date.convertBitrixFormat(this.bAMPM ? 'H:MI:SS T' : 'HH:MI:SS');
 	this.TIME_FORMAT_SHORT = this.TIME_FORMAT.replace(':s', '');
-	this.SCALE_TIME_FORMAT = BX.isAmPmMode() ? 'g a' : 'G:i';
+	this.SCALE_TIME_FORMAT = BX.isAmPmMode() ? 'g a' : 'G';
 
 	this.entryStatusMap = {
 		h : 'user-status-h',
@@ -43,13 +47,31 @@ function CalendarPlanner(params)
 	BX.addCustomEvent('OnCalendarPlannerDoUninstall', BX.proxy(this.DoUninstall, this));
 
 	//BX.addCustomEvent('OnCalendarPlannerDoProposeTime', BX.proxy(this.DoProposeTime, this));
+	if (initialUpdateParams)
+	{
+		initialUpdateParams.plannerId = this.id;
+		if (initialUpdateParams.selector)
+		{
+			if (initialUpdateParams.selector.from && !initialUpdateParams.selector.from.getTime)
+			{
+				initialUpdateParams.selector.from = BX.parseDate(initialUpdateParams.selector.from);
+			}
+			if (initialUpdateParams.selector.to && !initialUpdateParams.selector.to.getTime)
+			{
+				initialUpdateParams.selector.to = BX.parseDate(initialUpdateParams.selector.to);
+			}
+		}
+		this.globalAnimation = false;
+		this.DoUpdate(initialUpdateParams);
+		setTimeout(BX.delegate(function(){this.globalAnimation = true;}, this), 2000);
+	}
 }
 
 CalendarPlanner.prototype =
 {
 	Show: function(animation)
 	{
-		if (!this.compactMode)
+		if (!this.compactMode || this.globalAnimation === false)
 			animation = false;
 
 		if (this.hideAnimation)
@@ -58,9 +80,14 @@ CalendarPlanner.prototype =
 			this.hideAnimation = null;
 		}
 
+		this.outerWrap = BX(this.id);
+
+		if (!this.outerWrap)
+			return;
+
 		if (!this.built)
 		{
-			this.Build();
+			this.build();
 			this.BindEventHandlers();
 		}
 		else
@@ -135,7 +162,6 @@ CalendarPlanner.prototype =
 
 	Hide: function(animation)
 	{
-		//animation = false;
 		if (this.showAnimation)
 		{
 			this.showAnimation.stop();
@@ -228,13 +254,20 @@ CalendarPlanner.prototype =
 			this.height = this.minHeight = compactHeight;
 		}
 
+		// Select mode
+		if (params.selectEntriesMode !== undefined)
+			this.selectMode = !!params.selectEntriesMode;
+		else if (this.selectMode === undefined)
+			this.selectMode = false;
+
+
 		this.scaleLimitOffsetLeft = parseInt(params.scaleLimitOffsetLeft) || this.scaleLimitOffsetLeft || 3;
 		this.scaleLimitOffsetRight = parseInt(params.scaleLimitOffsetRight) || this.scaleLimitOffsetRight || 5;
 
 		this.maxTimelineSize = parseInt(params.maxTimelineSize) || this.maxTimelineSize || 20;
 
 		this.minEntryRows = parseInt(params.minEntryRows) || this.minEntryRows || 3;
-		this.maxEntryRows = parseInt(params.maxEntryRows) || this.maxEntryRows || 10;
+		this.maxEntryRows = parseInt(params.maxEntryRows) || this.maxEntryRows || 30;
 
 		this.width = parseInt(params.width) || this.width || 700;
 		this.height = parseInt(params.height) || this.height || 84;
@@ -251,14 +284,18 @@ CalendarPlanner.prototype =
 		this.weekHolidays = params.weekHolidays || this.weekHolidays || [];
 		this.yearHolidays = params.yearHolidays || this.yearHolidays || [];
 		this.accuracy = params.accuracy || this.accuracy || 300; // 5 min
-		this.selectorAccuracy = parseInt(params.selectorAccuracy) || this.selectorAccuracy || 300; // 6 min
+		this.clickSelectorScaleAccuracy = params.clickSelectorScaleAccuracy || this.accuracy; // 5 min
+		this.selectorAccuracy = parseInt(params.selectorAccuracy) || this.selectorAccuracy || 300; // 5 min
 		this.entriesListWidth = parseInt(params.entriesListWidth) || this.entriesListWidth || 200;
 		this.timelineCellWidth = params.timelineCellWidth || this.timelineCellWidth || 40;
 
-		if (this.scaleType == '1day' && this.timelineCellWidth < 90)
+		this.showEntiesHeader = params.showEntiesHeader === undefined ? true : !!params.showEntiesHeader;
+		this.showEntryName = params.showEntryName === undefined ? true : !!params.showEntryName;
+
+		if (this.scaleType == '1day' && this.timelineCellWidth < 100)
 		{
 			this.timelineCellWidthOrig = this.timelineCellWidth;
-			this.timelineCellWidth = 90;
+			this.timelineCellWidth = 100;
 		}
 		else if(this.timelineCellWidthOrig && this.scaleType != '1day')
 		{
@@ -291,7 +328,7 @@ CalendarPlanner.prototype =
 
 		if (params.scaleDateTo !== undefined)
 		{
-			this.scaleDateTo = typeof params.scaleDateTo == 'string' ? BX.parseDate(params.scaleDateTo) : params.scaleDateTo;
+			this.scaleDateTo = BX.type.isString(params.scaleDateTo) ? BX.parseDate(params.scaleDateTo) : params.scaleDateTo;
 		}
 		else if (!this.scaleDateTo)
 		{
@@ -304,7 +341,7 @@ CalendarPlanner.prototype =
 				this.scaleDateTo = new Date(new Date().getTime() + this.dayLength * this.scaleLimitOffsetRight /* days after */);
 			}
 		}
-		this.scaleDateTo.setHours(this.scaleType == '1day' ? 0 : this.shownScaleTimeTo, 0, 0, 0);
+		this.scaleDateTo.setHours(this.scaleType === '1day' ? 0 : this.shownScaleTimeTo, 0, 0, 0);
 	},
 
 	SetLoadedDataLimits: function(from, to)
@@ -335,7 +372,7 @@ CalendarPlanner.prototype =
 				this.scaleDateTo.setHours(this.shownScaleTimeTo, 0,0,0);
 		}
 
-		this.checkSelectorPosition = this.shownScaleTimeFrom != 0 || this.shownScaleTimeTo != 24;
+		this.checkSelectorPosition = this.shownScaleTimeFrom !== 0 || this.shownScaleTimeTo !== 24;
 	},
 
 	AdjustCellWidth: function()
@@ -346,9 +383,8 @@ CalendarPlanner.prototype =
 		}
 	},
 
-	Build: function()
+	build: function()
 	{
-		this.outerWrap = BX(this.id);
 		this.outerWrap.style.width = this.width + 'px';
 
 		// Left part - list of users and other resourses
@@ -356,46 +392,63 @@ CalendarPlanner.prototype =
 
 		// Timeline with accessibility information
 		this.mainContWrap = this.outerWrap.appendChild(BX.create("DIV", {
-			props: {className: 'calendar-planner-main-container'}, style: {
+			props: {className: 'calendar-planner-main-container calendar-planner-main-container-resource'}, style: {
 				minHeight: this.minHeight + 'px', height: this.height + 'px', width: this.width + 'px'
 			}
 		}));
 
-		if (this.readonly)
-			BX.addClass(this.mainContWrap, 'calendar-planner-readonly');
+		if (!this.showEntryName)
+		{
+			BX.addClass(this.mainContWrap, 'calendar-planner-entry-icons-only');
+		}
 
-		if (this.compactMode)
-			BX.addClass(this.mainContWrap, 'calendar-planner-compact');
+		if (this.readonly)
+		{
+			BX.addClass(this.mainContWrap, 'calendar-planner-readonly');
+		}
 
 		this.entriesListOuterWrap = this.mainContWrap.appendChild(BX.create("DIV", {
-			props: {className: 'calendar-planner-user-container'}, style: {
-				width: entriesListWidth + 'px', height: this.height + 'px'
+			props: {className: 'calendar-planner-user-container'},
+			style: {
+				width: entriesListWidth + 'px',
+				height: this.height + 'px'
 			}
 		}));
+
 		this.PreventSelection(this.entriesListOuterWrap);
 		if (this.compactMode)
+		{
+			BX.addClass(this.mainContWrap, 'calendar-planner-compact');
 			this.entriesListOuterWrap.style.display = 'none';
+		}
 
-		if (this.scaleType == '1day')
+		if (this.scaleType === '1day')
+		{
 			BX.addClass(this.entriesListOuterWrap, 'calendar-planner-no-daytitle');
+		}
 		else
+		{
 			BX.removeClass(this.entriesListOuterWrap, 'calendar-planner-no-daytitle');
+		}
 
-		this.entriesListHeader = this.entriesListOuterWrap.appendChild(
-				BX.create("DIV", {props: {className: 'calendar-planner-header'}})
-			).appendChild(
-				BX.create("DIV", {props: {className: 'calendar-planner-general-info'}})
-			).appendChild(
-				BX.create("DIV", {props: {className: 'calendar-planner-users-header'}})
-			);
+		if (this.showEntiesHeader !== false)
+		{
+			this.entriesListHeader = this.entriesListOuterWrap.appendChild(
+					BX.create("DIV", {props: {className: 'calendar-planner-header'}})
+				).appendChild(
+					BX.create("DIV", {props: {className: 'calendar-planner-general-info'}})
+				).appendChild(
+					BX.create("DIV", {props: {className: 'calendar-planner-users-header'}})
+				);
 
-		this.entriesListTitleCounter = this.entriesListHeader.appendChild(BX.create("span", {props: {className: 'calendar-planner-users-item'}, text: BX.message('EC_PL_ATTENDEES_TITLE') + ' '})).appendChild(BX.create("span"));
 
+			this.entriesListTitleCounter = this.entriesListHeader.appendChild(BX.create("span", {
+				props: {className: 'calendar-planner-users-item'},
+				text: BX.message('EC_PL_ATTENDEES_TITLE') + ' '
+			})).appendChild(BX.create("span"));
+		}
 		//this.goToNowButton = this.entriesListHeader.appendChild(BX.create("span", {props: {className: 'calendar-planner-add-icon', title: BX.message('EC_PL_GOTO_NOW')}}));
 
-		this.settingsButton = this.entriesListHeader.appendChild(BX.create("span", {props: {className: 'calendar-planner-settings-icon', title: BX.message('EC_PL_SETTINGS')}}));
-
-		BX.bind(this.settingsButton, 'click', BX.proxy(this.ShowSettingsPopup, this));
 
 		this.entriesListWrap = this.entriesListOuterWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-user-container-inner'}}));
 
@@ -425,10 +478,9 @@ CalendarPlanner.prototype =
 		this.accessibilityWrap = this.timelineDataCont.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-acc-wrap'}}));
 
 		// Selector
-		var selHtml = this.BuildSelector();
-		this.selector = selHtml.selector;
-		this.selectorTitle = selHtml.selectorTitle;
-		this.selectorProposeIcon = selHtml.selectorProposeIcon;
+		this.selector = this.buildSelector();
+		this.selectorTitle = this.selector.selectorTitle;
+		this.selectorProposeIcon = this.selector.selectorProposeIcon;
 
 //	<div class="calendar-planner-time-arrow-left">
 //		<span class="calendar-planner-time-arrow-left-item"></span>
@@ -439,25 +491,63 @@ CalendarPlanner.prototype =
 //		<span class="calendar-planner-time-arrow-right-item"></span>
 //	</div>
 
+		if (this.selectMode)
+		{
+			this.selectedEntriesWrap = this.mainContWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-timeline-select-entries-wrap'}}));
+
+			this.hoverRow = this.mainContWrap.appendChild(BX.create("DIV", {
+				props: {className: 'calendar-planner-timeline-hover-row'},
+				style: {
+					top: 0,
+					width: parseInt(this.mainContWrap.offsetWidth) + 'px'
+				}
+			}));
+
+			BX.unbind(document, 'mousemove', BX.proxy(this.mouseMoveHandler, this));
+			BX.bind(document, 'mousemove', BX.proxy(this.mouseMoveHandler, this));
+		}
+
+		if (!this.compactMode)
+		{
+			this.settingsButton = this.mainContWrap.appendChild(BX.create("div", {
+				props: {
+					className: 'calendar-planner-settings-icon-container',
+					title: BX.message('EC_PL_SETTINGS_SCALE')
+				},
+				html: '<span class="calendar-planner-settings-title">' + BX.message('EC_PL_SETTINGS_SCALE') + '</span><span class="calendar-planner-settings-icon"></span>'
+			}));
+			BX.bind(this.settingsButton, 'click', BX.proxy(this.ShowSettingsPopup, this));
+		}
+
 		this.built = true;
 	},
 
-	BuildSelector: function()
+	buildSelector: function()
 	{
-		// Selector
-		var selector = this.timelineDataCont.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-timeline-selector'}, html: '<span data-bx-planner-meta="selector-resize-left" class="calendar-planner-timeline-drag-left"></span><span class="calendar-planner-timeline-selector-grip"></span><span data-bx-planner-meta="selector-resize-right" class="calendar-planner-timeline-drag-right"></span>'}));
-		selector.setAttribute('data-bx-planner-meta', 'selector');
+		var
+			result,
+			wrap = this.timelineDataCont.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-timeline-selector'}, html: '<span data-bx-planner-meta="selector-resize-left" class="calendar-planner-timeline-drag-left"></span><span class="calendar-planner-timeline-selector-grip"></span><span data-bx-planner-meta="selector-resize-right" class="calendar-planner-timeline-drag-right"></span>'}));
+		wrap.setAttribute('data-bx-planner-meta', 'selector');
 
 		// prefent draging selector and activating uploader controll in livefeed
-		selector.ondrag = BX.False;
-		selector.ondragstart = BX.False;
+		wrap.ondrag = BX.False;
+		wrap.ondragstart = BX.False;
 
-		var selectorTitle = selector.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-selector-notice'}, style: {display: 'none'}}));
+		var selectorTitle = this.mainContWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-selector-notice'}, style: {display: 'none'}}));
 
-		return {
-			selector: selector,
+		result = {
+			wrap: wrap,
 			selectorTitle: selectorTitle
 		};
+
+		if (this.selectMode)
+		{
+			result.controlWrap = wrap.appendChild(BX.create("DIV", {
+				props: {className: 'calendar-planner-selector-control'}
+			}));
+		}
+
+		return result;
 	},
 
 	BuildTimeline: function()
@@ -475,7 +565,7 @@ CalendarPlanner.prototype =
 
 		for (var i = 0; i < this.scaleData.length; i++)
 		{
-			if (this.showTimelineDayTitle && this.scaleType != '1day')
+			if (this.showTimelineDayTitle && this.scaleType !== '1day')
 			{
 				if (this.scaleDayTitles[this.scaleData[i].daystamp])
 				{
@@ -487,7 +577,8 @@ CalendarPlanner.prototype =
 
 					dayTitle = outerDayCont.appendChild(BX.create("DIV", {
 						props: {className: 'calendar-planner-time-day-title'},
-						text: BX.date.format('d F, l', this.scaleData[i].timestamp / 1000)
+						html: '<span>' + BX.date.format('d F, l', this.scaleData[i].timestamp / 1000) + '</span>' +
+							'<div class="calendar-planner-time-day-border"></div>'
 					}));
 
 					cont = outerDayCont.appendChild(BX.create("DIV", {
@@ -495,6 +586,7 @@ CalendarPlanner.prototype =
 					}));
 
 					this.scaleDayTitles[this.scaleData[i].daystamp] = cont;
+
 				}
 			}
 
@@ -514,12 +606,19 @@ CalendarPlanner.prototype =
 				},
 				html: this.scaleData[i].title != '' ? '<i>' + this.scaleData[i].title + '</i>' : this.scaleData[i].title
 			}));
+
+			if (this.scaleType !== '1day' && this.scaleData[i + 1] && this.scaleData[i + 1].dayStart)
+			{
+				cont.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-timeline-border'}}));
+			}
 		}
-		this.MapDatePos();
+		var mapDatePosRes = this.MapDatePos();
+		this.datePosMap = mapDatePosRes.datePosMap;
+		this.posDateMap = mapDatePosRes.posDateMap;
 
 		var timelineOffset = this.timelineScaleCont.offsetWidth;
 		this.timelineInnerWrap.style.width = timelineOffset + 'px';
-		this.entriesListWrap.style.top = (parseInt(this.timelineDataCont.offsetTop) + 12) + 'px';
+		this.entriesListWrap.style.top = (parseInt(this.timelineDataCont.offsetTop) + 10) + 'px';
 		this.CheckRebuildTimeout(timelineOffset);
 	},
 
@@ -568,12 +667,14 @@ CalendarPlanner.prototype =
 		this.BuildTimeline();
 		this.ClearAccessibilityData();
 		this.UpdateData({accessibility: this.accessibility, entries: this.entries});
-		//this.entriesListWrap.style.top = (parseInt(this.timelineDataCont.offsetTop) + 10) + 'px';
 		this.AdjustPlannerHeight();
 		this.ResizePlannerWidth(this.width);
 
 		if (params.updateSelector !== false)
+		{
 			this.UpdateSelector(params.selectorParams || false);
+		}
+		this.clearCacheTime();
 	},
 
 	GetScaleData: function()
@@ -585,8 +686,8 @@ CalendarPlanner.prototype =
 			ts, scaleFrom, scaleTo,
 			time, daystamp, title,
 			curDaystamp = false,
-			timeFrom = this.scaleType == '1day' ? 0 : parseInt(this.shownScaleTimeFrom),
-			timeTo = this.scaleType == '1day' ? 0 : parseInt(this.shownScaleTimeTo);
+			timeFrom = this.scaleType === '1day' ? 0 : parseInt(this.shownScaleTimeFrom),
+			timeTo = this.scaleType === '1day' ? 0 : parseInt(this.shownScaleTimeTo);
 
 		this.scaleDateFrom.setHours(timeFrom, 0, 0, 0);
 		this.scaleDateTo.setHours(timeTo, 0, 0, 0);
@@ -630,12 +731,14 @@ CalendarPlanner.prototype =
 	UpdateData:  function(params)
 	{
 		if (!params.accessibility)
+		{
 			params.accessibility = {};
+		}
 
 		this.accessibility = params.accessibility;
 		this.entries = params.entries;
 
-		var i, k, entry, acc;
+		var i, k, entry, acc, userId = this.userId;
 		// Compact mode
 		if (this.compactMode)
 		{
@@ -670,69 +773,92 @@ CalendarPlanner.prototype =
 			// Enties without accessibilitity data should be in the end of the array
 			// But first in the list will be meeting room
 			// And second (or first) will be owner-host of the event
-			params.entries.sort(function(a, b)
+
+			if (params.entries && params.entries.length)
 			{
-				if (a.type == 'room' || (a.status == 'h' && b.type !== 'room'))
-					return -1;
-				if (b.type == 'room' || (b.status == 'h' && a.type !== 'room'))
-					return 1;
+				params.entries.sort(function(a, b)
+				{
+					if (b.status === 'h' || b.id == userId && a.status !== 'h')
+					{
+						return 1;
+					}
+					if (a.status === 'h' || a.id == userId && b.status !== 'h')
+					{
+						return  -1;
+					}
+					return 0;
+				});
+
+				if (this.selectedEntriesWrap)
+				{
+					BX.cleanNode(this.selectedEntriesWrap);
+
+					if (this.selector && this.selector.controlWrap)
+					{
+						BX.cleanNode(this.selector.controlWrap);
+					}
+				}
 
 				var
-					l1 = params.accessibility[a.id] ? params.accessibility[a.id].length : 0,
-					l2 = params.accessibility[b.id] ? params.accessibility[b.id].length : 0;
-				return l2 - l1;
-			});
+					cutData = [],
+					usersCount = 0,
+					cutAmount = 0,
+					dispDataCount = 0,
+					cutDataTitle = [];
 
-			var
-				cutData = [],
-				usersCount = 0,
-				cutAmount = 0,
-				dispDataCount = 0,
-				cutDataTitle = [];
-
-			for (i = 0; i < params.entries.length; i++)
-			{
-				entry = params.entries[i];
-				acc = params.accessibility[entry.id] || [];
-
-				if (entry.type == 'user')
-					usersCount++;
-
-				if (this.minEntryRows && i < this.minEntryRows)
+				for (i = 0; i < params.entries.length; i++)
 				{
-					dispDataCount++;
-					this.DisplayEntryRow(entry, acc);
-				}
-				else
-				{
-					cutAmount++;
-					cutDataTitle.push(entry.name);
-					if (acc.length > 0)
+					entry = params.entries[i];
+					acc = params.accessibility[entry.id] || [];
+					entry.uid = this.getEntryUniqueId(entry);
+
+					if (entry.type === 'user')
+						usersCount++;
+
+					if (this.minEntryRows && (i < this.minEntryRows || params.entries.length === this.minEntryRows + 1))
 					{
-						for (k = 0; k < acc.length; k++)
+						dispDataCount++;
+						this.displayEntryRow(entry, acc);
+					}
+					else
+					{
+						cutAmount++;
+						cutDataTitle.push(entry.name);
+						if (acc.length > 0)
 						{
-							cutData.push(this.HandleAccessibilityEntry(acc[k]));
+							for (k = 0; k < acc.length; k++)
+							{
+								cutData.push(this.HandleAccessibilityEntry(acc[k]));
+							}
 						}
 					}
 				}
-			}
 
-			// Update entries title count
-			this.entriesListTitleCounter.innerHTML = '(' + usersCount + ')';
-
-			if (cutAmount > 0)
-			{
-				if (dispDataCount == this.maxEntryRows)
+				// Update entries title count
+				if (this.entriesListTitleCounter)
 				{
-					this.DisplayEntryRow({name: BX.message('EC_PL_ATTENDEES_LAST') + ' (' + cutAmount + ')', type: 'lastUsers', title: cutDataTitle.join(', ')}, cutData);
+					this.entriesListTitleCounter.innerHTML = usersCount > this.maxEntryRows ? '(' + usersCount + ')' : '';
 				}
-				else
+
+				if (cutAmount > 0)
 				{
-					this.DisplayEntryRow({name: BX.message('EC_PL_ATTENDEES_SHOW_MORE') + ' (' + cutAmount + ')', type: 'moreLink'}, cutData);
+					if (dispDataCount === this.maxEntryRows)
+					{
+						this.displayEntryRow({name: BX.message('EC_PL_ATTENDEES_LAST') + ' (' + cutAmount + ')', type: 'lastUsers', title: cutDataTitle.join(', ')}, cutData);
+					}
+					else
+					{
+						this.displayEntryRow({name: BX.message('EC_PL_ATTENDEES_SHOW_MORE') + ' (' + cutAmount + ')', type: 'moreLink'}, cutData);
+					}
 				}
 			}
 		}
 		this.AdjustPlannerHeight();
+
+		BX.onCustomEvent('OnCalendarPlannerUpdated', [this, {
+			plannerId: this.id,
+			entries: this.entries
+		}]);
 	},
 
 	ClearAccessibilityData:  function()
@@ -760,9 +886,9 @@ CalendarPlanner.prototype =
 		if (!entry.toReal)
 		{
 			// Full day
-			if ((entry.toTimestamp - entry.fromTimestamp) % this.dayLength == 0
+			if ((entry.toTimestamp - entry.fromTimestamp) % this.dayLength === 0
 				&&
-				BX.date.format('H:i', entry.toTimestamp / 1000) == '00:00'
+				BX.date.format('H:i', entry.toTimestamp / 1000) === '00:00'
 			)
 			{
 				entry.toReal = new Date(entry.to.getTime() + this.dayLength);
@@ -786,8 +912,8 @@ CalendarPlanner.prototype =
 			hidden = false,
 			fromTimestamp = entry.fromTimestamp,
 			toTimestamp = entry.toTimestampReal || entry.toTimestamp,
-			shownScaleTimeFrom = this.scaleType == '1day' ? 0 : this.shownScaleTimeFrom,
-			shownScaleTimeTo = this.scaleType == '1day' ? 24 : this.shownScaleTimeTo,
+			shownScaleTimeFrom = this.scaleType === '1day' ? 0 : this.shownScaleTimeFrom,
+			shownScaleTimeTo = this.scaleType === '1day' ? 24 : this.shownScaleTimeTo,
 			from = new Date(fromTimestamp),
 			to = new Date(toTimestamp);
 
@@ -831,12 +957,19 @@ CalendarPlanner.prototype =
 				toPos = this.GetPosByDate(to);
 
 			entry.node = wrap.appendChild(BX.create("DIV", {
-				props: {className: 'calendar-planner-acc-entry' + (entry.type && entry.type == 'hr' ? ' calendar-planner-acc-entry-hr' : '')},
+				props: {
+					className: 'calendar-planner-acc-entry' + (entry.type && entry.type === 'hr' ? ' calendar-planner-acc-entry-hr' : '')
+				},
 				style: {
 					left: fromPos + 'px',
-					width: Math.max((toPos - fromPos), 1) + 'px'
+					width: Math.max((toPos - fromPos), 3) + 'px'
 				}
 			}));
+
+			if (entry.title)
+			{
+				entry.node.title = entry.title;
+			}
 		}
 	},
 
@@ -881,74 +1014,169 @@ CalendarPlanner.prototype =
 	//	return res;
 	//},
 
-	DisplayEntryRow: function(entry, accessibility)
+	displayEntryRow: function(entry, accessibility)
 	{
-		entry.rowWrap = this.entriesListWrap.appendChild(BX.create("DIV", {
-			props: {className: 'calendar-planner-user'},
-			style: {}
-		}));
-
-		if (entry.type == 'moreLink')
+		if (entry.type === 'moreLink')
 		{
-			this.showMoreUsers = entry.rowWrap.appendChild(BX.create("DIV", {
-				props: {
-					className: 'calendar-planner-all-users',
-					title: entry.title || ''
-				},
-				text: entry.name
+			entry.rowWrap = this.entriesListWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-user'}}));
+
+			if (this.showEntryName)
+			{
+				this.showMoreUsers = entry.rowWrap.appendChild(BX.create("DIV", {
+					props: {
+						className: 'calendar-planner-all-users', title: entry.title || ''
+					},
+					text: entry.name,
+					events: {'click': BX.proxy(this.ShowMoreUsers, this)}
+				}));
+			}
+			else
+			{
+				this.showMoreUsers = entry.rowWrap.appendChild(BX.create("DIV", {
+					props: {className: 'calendar-planner-users-more', title: entry.name},
+					html: '<span class="calendar-planner-users-more-btn"></span>',
+					events: {'click': BX.proxy(this.ShowMoreUsers, this)}
+				}));
+			}
+		}
+		else if (entry.type === 'lastUsers')
+		{
+			entry.rowWrap = this.entriesListWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-user'}}));
+
+			if (this.showEntryName)
+			{
+				this.showMoreUsers = entry.rowWrap.appendChild(BX.create("DIV", {
+					props: {
+						className: 'calendar-planner-all-users calendar-planner-last-users',
+						title: entry.title || ''
+					},
+					text: entry.name
+				}));
+			}
+			else
+			{
+				this.showMoreUsers = entry.rowWrap.appendChild(BX.create("DIV", {
+					props: {className: 'calendar-planner-users-more', title: entry.title || entry.name},
+					html: '<span class="calendar-planner-users-last-btn"></span>'
+				}));
+			}
+		}
+		else if (entry.id && entry.type === 'user')
+		{
+			entry.rowWrap = this.entriesListWrap.appendChild(BX.create("DIV", {
+				attrs: {
+					'data-bx-planner-entry' : entry.uid,
+					className: 'calendar-planner-user' + (entry.emailUser ? ' calendar-planner-email-user' : '')
+				}
 			}));
 
-			BX.bind(this.showMoreUsers, 'click', BX.proxy(this.ShowMoreUsers, this));
-		}
-		else if (entry.type == 'lastUsers')
-		{
-			this.showMoreUsers = entry.rowWrap.appendChild(BX.create("DIV", {
-				props: {
-					className: 'calendar-planner-all-users calendar-planner-last-users',
-					title: entry.title || ''
-				},
-				text: entry.name
-			}));
-		}
-		else if (entry.id && entry.type == 'user')
-		{
 			if (entry.status && this.entryStatusMap[entry.status])
 			{
 				entry.rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-status-icon ' + this.entryStatusMap[entry.status], title: BX.message('EC_PL_STATUS_' + entry.status.toUpperCase())}}));
 			}
 
-			entry.rowWrap.appendChild(BX.create("img", {props: {className: 'calendar-planner-user-image-icon', src: entry.avatar}}));
+			entry.rowWrap.appendChild(this.getEntryAvatarNode(entry));
+			//
+			// if (entry.avatar)
+			// {
+			// 	entry.rowWrap.appendChild(BX.create("div", {
+			// 		props: {
+			// 			className: 'ui-icon ui-icon-common-user calendar-planner-user-image-icon',
+			// 			// src: entry.avatar
+			// 		},
+			// 		attrs: {
+			// 			'bx-tooltip-user-id': entry.id,
+			// 			'bx-tooltip-classname': 'calendar-planner-user-tooltip'
+			// 		},
+			// 		children: [
+			// 			BX.create("i", {
+			// 				style: {
+			// 					backgroundImage: 'url('+entry.avatar+')'
+			// 				}
+			// 			})
+			// 		]
+			// 	}));
+			// }
 
-			entry.rowWrap.appendChild(
-				BX.create("span", {props: {className: 'calendar-planner-user-name'}})).appendChild(
-				BX.create("A", {
-						props: {
-							id: 'anchor_pl_' + entry.id,
-							href: entry.url ? entry.url : '#',
-							className: 'calendar-planner-user-name-link'
-						},
-						style: {
-							width: (this.entriesListWidth - 42) + 'px'
-						},
-						text: entry.name
-				}));
-			BX.tooltip(entry.id, "anchor_pl_" + entry.id, "");
+			if (this.showEntryName)
+			{
+				entry.rowWrap.appendChild(
+					BX.create("span", {props: {className: 'calendar-planner-user-name'}})).appendChild(
+					BX.create("span", {
+							props: {
+								className: 'calendar-planner-entry-name'
+							},
+							attrs: {
+								'bx-tooltip-user-id': entry.id,
+								'bx-tooltip-classname': 'calendar-planner-user-tooltip'
+							},
+							style: {
+								width: (this.entriesListWidth - 42) + 'px'
+							},
+							text: entry.name
+					}));
+			}
 		}
-		else if (entry.id && entry.type == 'room')
+		else if (entry.id && entry.type === 'room')
 		{
-			entry.rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-name'}})).appendChild(BX.create("A", {
-				props: {
-					href: entry.url ? entry.url : '#',
-					className: 'calendar-planner-user-name-link'
-				},
-				style: {
-					width: (this.entriesListWidth - 20) + 'px'
-				},
-				text: entry.name
+			entry.rowWrap = this.entriesListWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-user'}}));
+
+			if (this.showEntryName)
+			{
+				entry.rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-name'}})).appendChild(BX.create("A", {
+					props: {
+						href: entry.url ? entry.url : '#',
+						className: 'calendar-planner-entry-name'
+					},
+					style: {
+						width: (this.entriesListWidth - 20) + 'px'
+					},
+					text: entry.name
+				}));
+			}
+			else
+			{
+				entry.rowWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-location-image-icon', title: entry.name}}));
+			}
+		}
+		else if (entry.type === 'resource')
+		{
+			if (!this.entriesResourceListWrap || !BX.isNodeInDom(this.entriesResourceListWrap))
+			{
+				this.entriesResourceListWrap = this.entriesListWrap.appendChild(BX.create("DIV", {
+					props: {className: 'calendar-planner-container-resource'},
+					html: '<div class="calendar-planner-resource-header"><span class="calendar-planner-users-item">' + BX.message('EC_PL_RESOURCE_TITLE') + '</span></div>'
+				}));
+			}
+
+			entry.rowWrap = this.entriesResourceListWrap.appendChild(BX.create("DIV", {
+				attrs: {
+					'data-bx-planner-entry' : entry.uid,
+					className: 'calendar-planner-user'
+				}
 			}));
+
+			if (this.showEntryName)
+			{
+				entry.rowWrap.appendChild(BX.create("span", {props: {className: 'calendar-planner-user-name'}})).appendChild(BX.create("span", {
+					props: {
+						className: 'calendar-planner-entry-name'
+					},
+					style: {
+						width: (this.entriesListWidth - 20) + 'px'
+					},
+					text: entry.name
+				}));
+			}
+			else
+			{
+				entry.rowWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-location-image-icon', title: entry.name}}));
+			}
 		}
 		else
 		{
+			entry.rowWrap = this.entriesListWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-user'}}));
+
 			entry.rowWrap.appendChild(BX.create("DIV", {
 				props: {className: 'calendar-planner-all-users'},
 				text: entry.name
@@ -965,10 +1193,12 @@ CalendarPlanner.prototype =
 		var
 			i,
 			top = entry.rowWrap.offsetTop + 13;
-			//top = entry.rowWrap.offsetTop + 10 + 4;
 
 		entry.dataRowWrap = this.accessibilityWrap.appendChild(BX.create("DIV", {
-			props: {className: 'calendar-planner-timeline-space'},
+			attrs: {
+				'data-bx-planner-entry' : entry.uid,
+				className: 'calendar-planner-timeline-space'
+			},
 			style: {
 				top: top + 'px'
 			}
@@ -978,6 +1208,118 @@ CalendarPlanner.prototype =
 		{
 			this.DisplayAccessibilityEntry(accessibility[i], entry.dataRowWrap);
 		}
+
+		if (this.selectMode)
+		{
+			entry.selectorControlWrap = this.selector.controlWrap.appendChild(BX.create("DIV", {
+				attrs: {
+					'data-bx-planner-entry' : entry.uid,
+					className: 'calendar-planner-selector-control-row'
+				},
+				style: {
+					top: (top - 4) + 'px'
+				}
+			}));
+
+			if (entry.selected)
+			{
+				this.selectEntryRow(entry);
+			}
+		}
+	},
+
+	getEntryAvatarNode: function(entry)
+	{
+		var imageNode;
+		var img = entry.avatar;
+
+		if (!img || img === "/bitrix/images/1.gif")
+		{
+			imageNode = BX.create("DIV", {
+				props: {
+					className: 'ui-icon calendar-planner-user-image-icon '
+					+ (entry.emailUser ? 'ui-icon-common-user-mail' : 'ui-icon-common-user')
+				},
+				attrs: {
+					'bx-tooltip-user-id': entry.id,
+					'bx-tooltip-classname': 'calendar-planner-user-tooltip',
+					'title': BX.Text.encode(entry.name)
+				},
+				html: '<i></i>'
+			});
+		}
+		else
+		{
+			imageNode = BX.create("DIV", {
+				props: {
+					className: 'ui-icon calendar-planner-user-image-icon'
+				},
+				attrs: {
+					'bx-tooltip-user-id': entry.id,
+					'bx-tooltip-classname': 'calendar-planner-user-tooltip',
+					'title': BX.Text.encode(entry.name)
+				},
+				html: '<i style="background-image: url(\'' + (entry.avatar) + '\')"></i>'
+			});
+		}
+		return imageNode;
+	},
+
+	selectEntryRow: function(entry)
+	{
+		if (BX.type.isPlainObject(entry))
+		{
+			var top = parseInt(entry.dataRowWrap.offsetTop);
+			if (!entry.selectWrap || !BX.isParentForNode(this.selectedEntriesWrap, entry.selectWrap))
+			{
+				entry.selectWrap = this.selectedEntriesWrap.appendChild(BX.create("DIV", {props: {className: 'calendar-planner-timeline-selected'}}));
+			}
+
+			entry.selectWrap.style.display = '';
+			entry.selectWrap.style.top = (top + 36) + 'px';
+			entry.selectWrap.style.width = (parseInt(this.mainContWrap.offsetWidth) + 5) + 'px';
+
+			BX.addClass(entry.selectorControlWrap, 'active');
+			entry.selected = true;
+
+			this.clearCacheTime();
+		}
+	},
+
+	isEntrySelected: function(entry)
+	{
+		return entry && entry.selected;
+	},
+
+	deSelectEntryRow: function(entry)
+	{
+		if (BX.type.isPlainObject(entry))
+		{
+			if (entry.selectWrap)
+			{
+				entry.selectWrap.style.display = 'none';
+			}
+			if (entry.selectorControlWrap)
+			{
+				BX.removeClass(entry.selectorControlWrap, 'active');
+			}
+			entry.selected = false;
+			this.clearCacheTime();
+		}
+	},
+
+	getEntryUniqueId: function(entry)
+	{
+		return entry.type + '-' + entry.id;
+	},
+
+	getEntryByUniqueId: function(entryUniqueId)
+	{
+		if (BX.type.isArray(this.entries))
+		{
+			return this.entries.find(function(entry){return entry.uid == entryUniqueId;})
+		}
+		return null;
 	},
 
 	/**
@@ -1022,7 +1364,7 @@ CalendarPlanner.prototype =
 				dateFrom.setHours(0, 0, 0,0);
 				dateTo.setHours(0, 0, 0,0);
 
-				if (this.scaleType != '1day')
+				if (this.scaleType !== '1day')
 				{
 					this.SetScaleType('1day');
 					rebuildTimeline = true;
@@ -1081,14 +1423,13 @@ CalendarPlanner.prototype =
 		}
 	},
 
-	//ShowSelector: function(dateFrom, dateTo, animation, focus)
 	ShowSelector: function(params)
 	{
 		var
-			selector = params.selector || this.selector,
+			selector = params.selector || this.selector.wrap,
 			dateFrom = params.dateFrom,
 			dateTo = params.dateTo,
-			animation = params.animation,
+			animation = params.animation && this.globalAnimation !== false,
 			focus = params.focus;
 
 		selector.style.display = 'block';
@@ -1106,7 +1447,11 @@ CalendarPlanner.prototype =
 
 			if (animation && selector.style.left)
 			{
-				this.TransitSelector(false, fromPos, false, focus === true);
+				this.TransitSelector({
+					toX: fromPos,
+					triggerChangeEvents: false,
+					focus: focus === true
+				});
 			}
 			else
 			{
@@ -1114,7 +1459,7 @@ CalendarPlanner.prototype =
 				selector.style.width = (toPos - fromPos) + 'px';
 				if (focus === true)
 				{
-					setTimeout(BX.proxy(this.FocusSelector, this), 200);
+					this.FocusSelector(false, 200, true);
 				}
 				this.CheckSelectorStatus(fromPos);
 			}
@@ -1123,14 +1468,17 @@ CalendarPlanner.prototype =
 
 	HideSelector: function()
 	{
-		this.selector.style.display = 'none';
+		if (this.selector && this.selector.wrap)
+		{
+			this.selector.wrap.style.display = 'none';
+		}
 	},
 
 	StartMovingSelector: function()
 	{
 		this.selectorIsDraged = true;
 		this.selectorRoundedPos = false;
-		this.selectorStartLeft = parseInt(this.selector.style.left);
+		this.selectorStartLeft = parseInt(this.selector.wrap.style.left);
 		this.selectorStartScrollLeft = this.timelineFixedWrap.scrollLeft;
 
 		if (this.currentSelectorInstances)
@@ -1147,8 +1495,9 @@ CalendarPlanner.prototype =
 	MoveSelector: function(x)
 	{
 		var
-			selectorWidth = parseInt(this.selector.style.width),
+			selectorWidth = parseInt(this.selector.wrap.style.width),
 			pos = this.selectorStartLeft + x;
+
 		// Correct cursor position acording to changes of scrollleft
 		pos -= this.selectorStartScrollLeft - this.timelineFixedWrap.scrollLeft;
 
@@ -1159,7 +1508,6 @@ CalendarPlanner.prototype =
 		else
 		{
 			var roundedPos = this.RoundPos(pos);
-
 			if (this.posDateMap[roundedPos])
 			{
 				this.selectorRoundedPos = roundedPos;
@@ -1173,7 +1521,7 @@ CalendarPlanner.prototype =
 			pos = checkedPos;
 		}
 
-		this.selector.style.left = pos + 'px';
+		this.selector.wrap.style.left = pos + 'px';
 		this.ShowSelectorTitle({fromPos: pos, toPos: this.selectorRoundedPos + selectorWidth});
 
 		if (this.currentSelectorInstances)
@@ -1197,14 +1545,14 @@ CalendarPlanner.prototype =
 			}
 		}
 
-		this.CheckSelectorStatus(this.selectorRoundedPos);
+		this.CheckSelectorStatus(this.selectorRoundedPos, true);
 	},
 
 	EndMovingSelector: function()
 	{
 		if (this.selectorRoundedPos)
 		{
-			this.selector.style.left = this.selectorRoundedPos + 'px';
+			this.selector.wrap.style.left = this.selectorRoundedPos + 'px';
 			this.selectorRoundedPos = false;
 			this.HideSelectorTitle();
 			this.OnSelectorChanged(this.selectorRoundedPos);
@@ -1228,8 +1576,8 @@ CalendarPlanner.prototype =
 		this.selectorIsResized = true;
 		this.selectorRoundedPos = false;
 
-		this.selectorStartLeft = parseInt(this.selector.style.left);
-		this.selectorStartWidth = parseInt(this.selector.style.width);
+		this.selectorStartLeft = parseInt(this.selector.wrap.style.left);
+		this.selectorStartWidth = parseInt(this.selector.wrap.style.width);
 		this.selectorStartScrollLeft = this.timelineFixedWrap.scrollLeft;
 
 		if (this.currentSelectorInstances)
@@ -1302,7 +1650,7 @@ CalendarPlanner.prototype =
 			}
 		}
 
-		this.selector.style.width = width + 'px';
+		this.selector.wrap.style.width = width + 'px';
 		this.ShowSelectorTitle({fromPos: this.selectorStartLeft, toPos: this.selectorRoundedRightPos});
 
 		if (this.currentSelectorInstances)
@@ -1325,14 +1673,14 @@ CalendarPlanner.prototype =
 			}
 		}
 
-		this.CheckSelectorStatus(this.selectorStartLeft);
+		this.CheckSelectorStatus(this.selectorStartLeft, true);
 	},
 
 	EndResizeSelector: function()
 	{
 		if (this.selectorRoundedRightPos)
 		{
-			this.selector.style.width = (this.selectorRoundedPos - parseInt(this.selector.style.left)) + 'px';
+			this.selector.wrap.style.width = (this.selectorRoundedPos - parseInt(this.selector.wrap.style.left)) + 'px';
 			this.selectorRoundedRightPos = false;
 			this.HideSelectorTitle();
 			this.OnSelectorChanged();
@@ -1351,67 +1699,113 @@ CalendarPlanner.prototype =
 		this.selectorIsResized = false;
 	},
 
-	CheckSelectorStatus: function(selectorPos)
+	CheckSelectorStatus: function(selectorPos, checkPosition)
 	{
-		if (!selectorPos)
-			selectorPos = this.RoundPos(this.selector.style.left);
+		checkPosition = checkPosition === true;
 
-		var
-			i,periodIsFree, fromDateI, toDateI,
-			selectorWidth = parseInt(this.selector.style.width),
-			fromPos = parseInt(selectorPos),
-			toPos = fromPos + selectorWidth,
-			fromDate = this.GetDateByPos(fromPos),
-			toDate = this.GetDateByPos(toPos, true);
-
-		if (fromDate && toDate)
+		if (this.config.useSolidBlueSelector)
 		{
-			periodIsFree = this.CheckTimePeriod(fromDate, toDate) === true;
-			if (this.currentSelectorInstances && periodIsFree)
+			BX.removeClass(this.selector.wrap, 'calendar-planner-timeline-selector-warning');
+			BX.removeClass(this.mainContWrap, 'calendar-planner-selector-warning');
+			BX.addClass(this.selector.wrap, 'solid');
+		}
+		else
+		{
+			if (!selectorPos)
 			{
-				for (i = 0; i < this.currentSelectorInstances.length; i++)
-				{
-					selectorPos = this.RoundPos(this.currentSelectorInstances[i].selector.style.left);
-					fromPos = parseInt(selectorPos);
-					toPos = fromPos + selectorWidth;
-
-					fromDateI = this.GetDateByPos(fromPos);
-					toDateI = this.GetDateByPos(toPos, true);
-					fromDateI.setHours(fromDate.getHours(), fromDate.getMinutes(), 0, 0);
-					toDateI.setHours(toDate.getHours(), toDate.getMinutes(), 0, 0);
-
-					periodIsFree = this.CheckTimePeriod(fromDateI, toDateI) === true;
-					if (!periodIsFree)
-						break;
-				}
+				selectorPos = this.RoundPos(this.selector.wrap.style.left);
 			}
 
-			if (this.selectorIsFree !== periodIsFree)
+			var
+				fromDate,toDate,
+				i,periodIsFree, fromDateI, toDateI;
+
+			if (checkPosition || !this.currentSelectorDateFrom)
 			{
-				this.selectorIsFree = periodIsFree;
-				if (this.selectorIsFree)
+				var
+					selectorWidth = parseInt(this.selector.wrap.style.width),
+					fromPos = parseInt(selectorPos),
+					toPos = fromPos + selectorWidth;
+
+				if (!fromPos && !toPos && !selectorWidth && this.selector.lastFromDate)
 				{
-					BX.removeClass(this.selector, 'calendar-planner-timeline-selector-warning');
-					if (this.currentSelectorInstances)
-					{
-						for (i = 0; i < this.currentSelectorInstances.length; i++)
-						{
-							BX.removeClass(this.currentSelectorInstances[i].selector, 'calendar-planner-timeline-selector-warning');
-						}
-					}
-					this.HideProposeControl();
+					fromDate = this.selector.lastFromDate;
+					toDate = this.selector.lastToDate;
 				}
 				else
 				{
-					BX.addClass(this.selector, 'calendar-planner-timeline-selector-warning');
-					if (this.currentSelectorInstances)
+					fromDate = this.GetDateByPos(fromPos);
+					toDate = this.GetDateByPos(toPos, true);
+					this.selector.lastFromDate = fromDate;
+					this.selector.lastToDate = toDate;
+				}
+			}
+			else
+			{
+				fromDate = this.currentSelectorDateFrom;
+				toDate = this.currentSelectorDateTo;
+				//this.currentSelectorFullDay = fullDay;
+			}
+
+			if (fromDate && toDate)
+			{
+				periodIsFree = this.checkTimePeriod(fromDate, toDate) === true;
+				if (this.currentSelectorInstances && periodIsFree)
+				{
+					for (i = 0; i < this.currentSelectorInstances.length; i++)
 					{
-						for (i = 0; i < this.currentSelectorInstances.length; i++)
+						selectorPos = this.RoundPos(this.currentSelectorInstances[i].selector.style.left);
+						fromPos = parseInt(selectorPos);
+						toPos = fromPos + selectorWidth;
+
+						fromDateI = this.GetDateByPos(fromPos);
+						toDateI = this.GetDateByPos(toPos, true);
+						fromDateI.setHours(fromDate.getHours(), fromDate.getMinutes(), 0, 0);
+						toDateI.setHours(toDate.getHours(), toDate.getMinutes(), 0, 0);
+
+						periodIsFree = this.checkTimePeriod(fromDateI, toDateI) === true;
+						if (!periodIsFree)
 						{
-							BX.addClass(this.currentSelectorInstances[i].selector, 'calendar-planner-timeline-selector-warning');
+							break;
 						}
 					}
-					this.ShowProposeControl();
+				}
+
+				if (this.selectorIsFree !== periodIsFree)
+				{
+					this.selectorIsFree = periodIsFree;
+					if (this.selectorIsFree)
+					{
+						BX.removeClass(this.selector.wrap, 'calendar-planner-timeline-selector-warning');
+						BX.removeClass(this.mainContWrap, 'calendar-planner-selector-warning');
+						if (this.currentSelectorInstances)
+						{
+							for (i = 0; i < this.currentSelectorInstances.length; i++)
+							{
+								BX.removeClass(this.currentSelectorInstances[i].selector, 'calendar-planner-timeline-selector-warning');
+							}
+						}
+						this.HideProposeControl();
+					}
+					else
+					{
+						BX.addClass(this.selector.wrap, 'calendar-planner-timeline-selector-warning');
+						BX.addClass(this.mainContWrap, 'calendar-planner-selector-warning');
+
+						if (this.currentSelectorInstances)
+						{
+							for (i = 0; i < this.currentSelectorInstances.length; i++)
+							{
+								BX.addClass(this.currentSelectorInstances[i].selector, 'calendar-planner-timeline-selector-warning');
+							}
+						}
+						this.ShowProposeControl();
+					}
+
+					BX.onCustomEvent('OnCalendarPlannerSelectorStatusOnChange', [{
+						plannerId: this.id,
+						status: this.selectorIsFree ? 'free' : 'busy'
+					}]);
 				}
 			}
 		}
@@ -1420,13 +1814,13 @@ CalendarPlanner.prototype =
 	OnSelectorChanged: function(selectorPos, selectorWidth)
 	{
 		if (!selectorPos)
-			selectorPos = parseInt(this.selector.style.left);
+			selectorPos = parseInt(this.selector.wrap.style.left);
 
 		if (selectorPos < 0)
 			selectorPos = 0;
 
 		if (!selectorWidth)
-			selectorWidth = parseInt(this.selector.style.width);
+			selectorWidth = parseInt(this.selector.wrap.style.width);
 
 		if (selectorPos + selectorWidth > parseInt(this.timelineInnerWrap.style.width))
 		{
@@ -1439,18 +1833,22 @@ CalendarPlanner.prototype =
 
 		if (dateFrom && dateTo)
 		{
-			if (this.fullDayMode)
-				dateTo = new Date(dateTo.getTime() - this.dayLength);
-
 			this.currentSelectorDateFrom = dateFrom;
 			this.currentSelectorDateTo = dateTo;
+
+			if (this.fullDayMode)
+			{
+				dateTo = new Date(dateTo.getTime() - this.dayLength);
+			}
+
 			this.currentSelectorFullDay = this.fullDayMode;
 
 			BX.onCustomEvent('OnCalendarPlannerSelectorChanged', [{
 				plannerId: this.id,
 				dateFrom: dateFrom,
 				dateTo: dateTo,
-				fullDay: this.fullDayMode
+				fullDay: this.fullDayMode,
+				planner: this
 			}]);
 		}
 	},
@@ -1460,10 +1858,10 @@ CalendarPlanner.prototype =
 		if (this.checkSelectorPosition && (this.scaleType != '1day' || this.fullDayMode))
 		{
 			if (!fromPos)
-				fromPos = parseInt(this.selector.style.left);
+				fromPos = parseInt(this.selector.wrap.style.left);
 
 			if (!selectorWidth)
-				selectorWidth = parseInt(this.selector.style.width);
+				selectorWidth = parseInt(this.selector.wrap.style.width);
 
 			if (!toPos)
 				toPos = fromPos + selectorWidth;
@@ -1517,17 +1915,22 @@ CalendarPlanner.prototype =
 		return fromPos;
 	},
 
-	TransitSelector: function(fromX, toX, triggerChangeEvents, focus)
+	TransitSelector: function(params)
 	{
+		var
+			fromX = params.fromX || false,
+			toX = params.toX || false,
+			triggerChangeEvents = params.triggerChangeEvents !== false,
+			focus = params.focus;
+
 		var _this = this;
-		triggerChangeEvents = triggerChangeEvents !== false;
 		toX = this.RoundPos(toX);
 		if (!fromX)
-			fromX = parseInt(this.selector.style.left);
+			fromX = parseInt(this.selector.wrap.style.left);
 
-		var width = parseInt(this.selector.offsetWidth);
+		var width = parseInt(this.selector.wrap.offsetWidth);
+
 		// triggerChangeEvents - it means that selector transition (animation caused from mouse ebents)
-
 		if (toX > (fromX + width) && triggerChangeEvents)
 		{
 			toX -= width;
@@ -1535,6 +1938,11 @@ CalendarPlanner.prototype =
 
 		if (fromX != toX)
 		{
+			if (this.animation)
+			{
+				this.animation.stop();
+			}
+
 			this.animation = new BX.easing({
 				duration: 300,
 				start: {left: fromX},
@@ -1543,18 +1951,19 @@ CalendarPlanner.prototype =
 
 				step: function (state)
 				{
-					_this.selector.style.left = state.left + 'px';
+					_this.selector.wrap.style.left = state.left + 'px';
 				},
 
 				complete: BX.proxy(function ()
 				{
 					this.animation = null;
-					var fromPos = parseInt(this.selector.style.left);
-					var checkedPos = this.CheckSelectorPosition(fromPos);
+					var
+						fromPos = parseInt(this.selector.wrap.style.left),
+						checkedPos = this.CheckSelectorPosition(fromPos);
 
 					if (checkedPos !== fromPos)
 					{
-						this.selector.style.left = checkedPos + 'px';
+						this.selector.wrap.style.left = checkedPos + 'px';
 					}
 
 					if (triggerChangeEvents)
@@ -1562,10 +1971,19 @@ CalendarPlanner.prototype =
 						this.OnSelectorChanged(checkedPos);
 					}
 
-					if (focus === true)
-					{
-						this.FocusSelector(true, 300);
-					}
+					//if (focus === true)
+					//{
+					//	this.FocusSelector(true, 300);
+					//}
+
+					setTimeout(BX.delegate(function(){
+						this.ShowSelector({
+							dateFrom: this.currentSelectorDateFrom,
+							dateTo: this.currentSelectorDateTo,
+							animation: false,
+							focus: focus === true
+						});
+					},this), 200);
 
 					this.CheckSelectorStatus(checkedPos);
 				}, this)
@@ -1595,7 +2013,7 @@ CalendarPlanner.prototype =
 			fromPos = params.fromPos,
 			toPos = params.toPos,
 			selectorTitle = params.selectorTitle || this.selectorTitle,
-			selector = params.selectorTitle || this.selector,
+			selector = params.selectorTitle || this.selector.wrap,
 			_this = this, fromDate, toDate;
 
 		if (fromPos && toPos)
@@ -1612,8 +2030,6 @@ CalendarPlanner.prototype =
 			{
 				if (this.fullDayMode)
 				{
-					selectorTitle.style.top = '12px';
-
 					if (Math.abs(toDate.getTime() - fromDate.getTime() - this.dayLength) < 1000)
 					{
 						selectorTitle.innerHTML = BX.date.format('d F, D', fromDate.getTime() / 1000);
@@ -1630,6 +2046,21 @@ CalendarPlanner.prototype =
 				{
 					selectorTitle.removeAttribute('style');
 					selectorTitle.innerHTML = this.FormatTime(fromDate) + ' - ' + this.FormatTime(toDate);
+				}
+
+				if (this.selectMode && this.lastTouchedEntry)
+				{
+					var
+						entriesListWidth = this.compactMode ? 0 : this.entriesListWidth,
+						selectorTitleLeft = parseInt(selector.style.left) - this.timelineFixedWrap.scrollLeft + entriesListWidth + parseInt(selector.style.width) / 2,
+						selectorTitleTop = parseInt(this.timelineDataCont.offsetTop) + parseInt(this.lastTouchedEntry.style.top) - 12;
+
+					selectorTitle.style.top = selectorTitleTop + 'px';
+					selectorTitle.style.left = selectorTitleLeft + 'px';
+				}
+				else
+				{
+					selector.appendChild(selectorTitle);
 				}
 			}
 		}
@@ -1666,6 +2097,7 @@ CalendarPlanner.prototype =
 
 	HideSelectorTitle: function(params)
 	{
+		//return;
 		if (!params || typeof params !== 'object')
 			params = {};
 
@@ -1683,7 +2115,7 @@ CalendarPlanner.prototype =
 			{
 				params.timeout = false;
 				_this.HideSelectorTitle(params);
-			}, 500);
+			}, 700);
 		}
 		else
 		{
@@ -1724,11 +2156,40 @@ CalendarPlanner.prototype =
 	Click: function(e)
 	{
 		if (!e)
+		{
 			e = window.event;
+		}
 
 		this.clickMousePos = this.GetMousePos(e);
-		var accuracyMouse = 5;
-		var nodeTarget = e.target || e.srcElement;
+		var
+			nodeTarget = e.target || e.srcElement,
+			accuracyMouse = 5;
+
+
+		if (this.selectMode &&
+			BX.hasClass(nodeTarget, 'calendar-planner-selector-control-row'))
+		{
+			var entry = this.getEntryByUniqueId(nodeTarget.getAttribute('data-bx-planner-entry'));
+			if (entry)
+			{
+				if (!this.isEntrySelected(entry))
+				{
+					this.selectEntryRow(entry);
+				}
+				else
+				{
+					this.deSelectEntryRow(entry);
+				}
+
+				this.CheckSelectorStatus();
+
+				BX.onCustomEvent('OnCalendarPlannerSelectedEntriesOnChange', [{
+					plannerId: this.id,
+					entries: this.entries
+				}]);
+			}
+			return;
+		}
 
 		// currentSelectorInstances - it's repetetive event, so in this case
 		// it's hard to deside which one of the instance we shoud move
@@ -1741,7 +2202,17 @@ CalendarPlanner.prototype =
 			if (timeline && !selector && Math.abs(this.clickMousePos.x - this.mouseDownMousePos.x) < accuracyMouse && Math.abs(this.clickMousePos.y - this.mouseDownMousePos.y) < accuracyMouse)
 			{
 				var left = this.clickMousePos.x - BX.pos(this.timelineFixedWrap).left + this.timelineFixedWrap.scrollLeft;
-				this.TransitSelector(false, left);
+
+				if (this.clickSelectorScaleAccuracy !== this.accuracy)
+				{
+					var mapDatePosRes = this.MapDatePos(this.clickSelectorScaleAccuracy);
+					var dateFrom = this.GetDateByPos(left, false, mapDatePosRes.posDateMap);
+					left = this.GetPosByDate(dateFrom);
+				}
+
+				this.TransitSelector({
+					toX: left
+				});
 			}
 		}
 	},
@@ -1807,7 +2278,15 @@ CalendarPlanner.prototype =
 
 	MouseMove: function(e)
 	{
-		var mousePos;
+		var
+			mousePos,
+			target = e.target || e.srcElement;
+
+		if (this.selectMode && target && target.getAttribute && target.getAttribute('data-bx-planner-entry'))
+		{
+			this.lastTouchedEntry = target;
+		}
+
 		if (this.selectorIsDraged)
 		{
 			mousePos = this.GetMousePos(e);
@@ -1948,10 +2427,10 @@ CalendarPlanner.prototype =
 		this.scaleType = scaleType;
 		this.scaleSize = this.GetScaleSize(scaleType);
 
-		if (this.scaleType == '1day' && this.timelineCellWidth < 90)
+		if (this.scaleType == '1day' && this.timelineCellWidth < 100)
 		{
 			this.timelineCellWidthOrig = this.timelineCellWidth;
-			this.timelineCellWidth = 90;
+			this.timelineCellWidth = 100;
 		}
 		else if(this.timelineCellWidthOrig && this.scaleType != '1day')
 		{
@@ -1959,12 +2438,22 @@ CalendarPlanner.prototype =
 			this.timelineCellWidthOrig = false;
 		}
 
-		if (this.entriesListOuterWrap)
+		if (this.scaleType == '1day')
 		{
-			if (this.scaleType == '1day')
+
+			BX.addClass(this.mainContWrap, 'calendar-planner-fulldaymode');
+			if (this.entriesListOuterWrap)
+			{
 				BX.addClass(this.entriesListOuterWrap, 'calendar-planner-no-daytitle');
-			else
+			}
+		}
+		else
+		{
+			BX.removeClass(this.mainContWrap, 'calendar-planner-fulldaymode');
+			if (this.entriesListOuterWrap)
+			{
 				BX.removeClass(this.entriesListOuterWrap, 'calendar-planner-no-daytitle');
+			}
 		}
 	},
 
@@ -2023,46 +2512,57 @@ CalendarPlanner.prototype =
 	//	return scaleLimit;
 	//},
 
-	MapDatePos: function()
+	MapDatePos: function(accuracy)
 	{
-		this.datePosMap = {};
-		this.posDateMap = {};
+		if (!accuracy)
+		{
+			accuracy = this.accuracy;
+		}
 
-		var
-			i, j, tsi, xi, tsj, xj, cellWidth;
+		var datePosMap = {};
+		var posDateMap = {};
 
-		this.substeps = Math.round(this.scaleSize / this.accuracy);
+		var i, j, tsi, xi, tsj, xj, cellWidth;
+
+		this.substeps = Math.round(this.scaleSize / accuracy);
 		this.posAccuracy = this.timelineCellWidth / this.substeps;
+
+		accuracy = accuracy * 1000;
+		var scaleSize = this.scaleData[1].timestamp - this.scaleData[0].timestamp;
 
 		for (i = 0; i < this.scaleData.length; i++)
 		{
 			tsi = this.scaleData[i].timestamp;
-			xi = this.scaleData[i].cell.offsetLeft;
-			cellWidth = this.scaleData[i].cell.offsetWidth;
+			xi = parseInt(this.scaleData[i].cell.offsetLeft);
+			cellWidth = parseInt(this.scaleData[i].cell.offsetWidth);
 
-			this.datePosMap[tsi] = xi;
-			this.posDateMap[xi] = tsi;
-
-			for (j = 1; j <= this.substeps; j++)
+			if (!datePosMap[tsi])
 			{
-				if (j == this.substeps &&
+				datePosMap[tsi] = xi;
+			}
+			posDateMap[xi] = tsi;
+
+			for (j = 1; j <= cellWidth; j++)
+			{
+				tsj = tsi + Math.round((j * scaleSize / cellWidth) / accuracy) * accuracy;
+				xj = xi + j;
+				if (!datePosMap[tsi])
+				{
+					datePosMap[tsj] = xj;
+				}
+				posDateMap[xj] = tsj;
+
+				if (j == cellWidth &&
 					(!this.scaleData[i + 1] || this.scaleData[i + 1].dayStart))
 				{
-					tsj = tsi + this.accuracy * j * 1000;
-					xj = xi + Math.round((this.accuracy * j * 10) / this.scaleSize * cellWidth) / 10;
-
-					this.datePosMap[tsj] = xj;
-					this.posDateMap[xj + '_end'] = tsj;
-				}
-				else if(j < this.substeps)
-				{
-					tsj = tsi + this.accuracy * j * 1000;
-					xj = xi + Math.round((this.accuracy * j * 10) / this.scaleSize * cellWidth) / 10;
-
-					this.datePosMap[tsj] = xj;
-					this.posDateMap[xj] = tsj;
+					datePosMap[xj + '_end'] = tsj;
 				}
 			}
+		}
+
+		return {
+			datePosMap: datePosMap,
+			posDateMap: posDateMap
 		}
 	},
 
@@ -2107,16 +2607,20 @@ CalendarPlanner.prototype =
 		return x;
 	},
 
-	GetDateByPos: function(x, end)
+	GetDateByPos: function(x, end, posDateMap)
 	{
+		if (!posDateMap)
+		{
+			posDateMap = this.posDateMap;
+		}
 		var
 			date,
-			timestamp = (end && this.posDateMap[x + '_end']) ?  this.posDateMap[x + '_end'] : this.posDateMap[x];
+			timestamp = (end && posDateMap[x + '_end']) ? posDateMap[x + '_end'] : posDateMap[x];
 
 		if (!timestamp)
 		{
-			x = this.RoundPos(x);
-			timestamp = (end && this.posDateMap[x + '_end']) ?  this.posDateMap[x + '_end'] : this.posDateMap[x];
+			x = Math.round(x);
+			timestamp = (end && posDateMap[x + '_end']) ?  posDateMap[x + '_end'] : posDateMap[x];
 		}
 
 		if (timestamp)
@@ -2129,7 +2633,8 @@ CalendarPlanner.prototype =
 
 	RoundPos: function(x)
 	{
-		return Math.round(Math.round(parseInt(x) / this.posAccuracy) * this.posAccuracy * 10) / 10;
+		return Math.round(parseFloat(x));
+		//return Math.round(Math.round(parseInt(x) / this.posAccuracy) * this.posAccuracy * 10) / 10;
 	},
 
 	ShowMoreUsers: function()
@@ -2194,7 +2699,7 @@ CalendarPlanner.prototype =
 			this.timelineFixedWrap.style.height = height + 'px';
 			var timelineDataContHeight = this.entriesListWrap.offsetHeight + 3;
 			this.timelineDataCont.style.height = timelineDataContHeight + 'px';
-			this.selector.style.height = (timelineDataContHeight + 6) + 'px';
+			this.selector.wrap.style.height = (timelineDataContHeight + 10) + 'px';
 			this.entriesListOuterWrap.style.height = height + 'px';
 
 			if (this.proposeTimeButton && this.proposeTimeButton.style.display != "none")
@@ -2206,11 +2711,7 @@ CalendarPlanner.prototype =
 
 	ResizePlannerWidth: function(width, animation)
 	{
-		if (animation)
-		{
-
-		}
-		else
+		if (!animation && this.outerWrap && this.mainContWrap)
 		{
 			this.outerWrap.style.width = width + 'px';
 			var entriesListWidth = this.compactMode ? 0 : this.entriesListWidth;
@@ -2239,31 +2740,36 @@ CalendarPlanner.prototype =
 		this.FocusSelector(false, 300);
 	},
 
-	FocusSelector: function(animation, timeout)
+	FocusSelector: function(animation, timeout, alignCenter)
 	{
-		var
-			_this = this;
+		var _this = this;
+		alignCenter = alignCenter === true;
 
 		if (this.focusSelectorTimeout)
 			this.focusSelectorTimeout = !!clearTimeout(this.focusSelectorTimeout);
 
+		if (this.globalAnimation === false)
+			animation = false;
+
 		if (timeout)
 		{
-			this.focusSelectorTimeout = setTimeout(function(){_this.FocusSelector(animation, false);}, timeout);
+			this.focusSelectorTimeout = setTimeout(function(){_this.FocusSelector(animation, false, alignCenter);}, timeout);
 		}
 		else
 		{
 			var
-				selectorLeft = parseInt(this.selector.style.left),
-				selectorWidth = parseInt(this.selector.style.width),
-				screenDelta = 50,
+				selectorLeft = parseInt(this.selector.wrap.style.left),
+				selectorWidth = parseInt(this.selector.wrap.style.width),
+				screenDelta = 10,
 				viewWidth = this.timelineFixedWrap.offsetWidth,
 				viewLeft = this.timelineFixedWrap.scrollLeft,
 				viewRight = viewLeft + viewWidth,
 				newScrollLeft = viewLeft;
 
 			if (selectorLeft < viewLeft + screenDelta ||
-				selectorLeft > viewRight - screenDelta)
+				selectorLeft > viewRight - screenDelta
+				|| alignCenter
+			)
 			{
 				// Selector is smaller than view - we puting it in the middle of the view
 				if (selectorWidth <= viewWidth)
@@ -2387,7 +2893,11 @@ CalendarPlanner.prototype =
 		if (scrollLeft !== undefined)
 			_this.timelineFixedWrap.scrollLeft = scrollLeft;
 
-		var i,entry, entrieIds = [];
+		var i, entry, entrieIds = [];
+
+		if (!BX.type.isArray(this.entries))
+			this.entries = [];
+
 		for (i = 0; i < this.entries.length; i++)
 		{
 			entry = this.entries[i];
@@ -2411,12 +2921,13 @@ CalendarPlanner.prototype =
 
 	DoUpdate: function(params)
 	{
-		if (this.id == params.plannerId)
+		if (this.id === params.plannerId)
 		{
 			var rebuild = false;
-
 			if (params.selector && params.selector.fullDay)
+			{
 				this.SetFullDayMode(params.selector.fullDay);
+			}
 
 			if (params.config)
 			{
@@ -2532,10 +3043,15 @@ CalendarPlanner.prototype =
 				},
 				this.expandTimelineDelay
 			);
-		}
 
-		// We reset value to the false to allow user to extend timeline manually
-		this.limitScaleSizeMode = false;
+			// We reset value to the false to allow user to extend timeline manually
+			this.limitScaleSizeMode = false;
+
+			BX.onCustomEvent('OnCalendarPlannerUpdated', [this, {
+				plannerId: this.id,
+				entries: this.entries
+			}]);
+		}
 	},
 
 	DoExpand: function(params)
@@ -2673,7 +3189,7 @@ CalendarPlanner.prototype =
 				dateTo.setHours(0, 0, 0, 0);
 			}
 
-			checkRes = this.CheckTimePeriod(dateFrom, dateTo, data);
+			checkRes = this.checkTimePeriod(dateFrom, dateTo, data);
 			if (checkRes === true)
 			{
 				if (dateTo.getTime() > this.loadedDataTo.getTime())
@@ -2752,21 +3268,22 @@ CalendarPlanner.prototype =
 		//this.HideSelectorWarningPopup();
 	},
 
-	CheckTimePeriod: function(fromDate, toDate, data)
+	checkTimePeriod: function(fromDate, toDate, data)
 	{
 		var
-			result = true,
+			result = true, entry,
 			fromTimestamp = fromDate.getTime(),
 			toTimestamp = toDate.getTime(),
+			cacheKey = fromTimestamp + '_' + toTimestamp,
 			accuracy = 60 * 1000, // 1min
 			item, i;
 
-		if (data)
+		if (BX.type.isArray(data))
 		{
 			for (i = 0; i < data.length; i++)
 			{
 				item = data[i];
-				if (item.type && item.type == 'hr')
+				if (item.type && item.type === 'hr')
 					continue;
 
 				if ((item.fromTimestamp + accuracy) <= toTimestamp && ((item.toTimestampReal || item.toTimestamp) - accuracy) >= fromTimestamp)
@@ -2776,51 +3293,89 @@ CalendarPlanner.prototype =
 				}
 			}
 		}
-		else
+		else if (BX.type.isArray(this.entries))
 		{
 			var
 				entriesAccessibleIndex = {},
 				selectorAccuracy = this.selectorAccuracy * 1000,
 				entryId;
 
-			for (entryId in this.accessibility)
+			if (this.checkTimeCache[cacheKey] !== undefined)
 			{
-				if (this.accessibility.hasOwnProperty(entryId))
+				result = this.checkTimeCache[cacheKey];
+			}
+			else
+			{
+				for (entryId in this.accessibility)
 				{
-					entriesAccessibleIndex[entryId] = true;
-					for (i = 0; i < this.accessibility[entryId].length; i++)
+					if (this.accessibility.hasOwnProperty(entryId))
 					{
-						item = this.accessibility[entryId][i];
-						if (item.type && item.type == 'hr')
-							continue;
-
-
-						if ((item.fromTimestamp + selectorAccuracy) <= toTimestamp && ((item.toTimestampReal || item.toTimestamp) - selectorAccuracy) >= fromTimestamp)
+						if (this.selectMode)
 						{
-							entriesAccessibleIndex[entryId] = false;
-							result = item;
-							break;
+							entry = this.entries.find(function(el){return parseInt(el.id) === parseInt(entryId);});
+							if (entry && !entry.selected)
+							{
+								continue;
+							}
+						}
+
+						entriesAccessibleIndex[entryId] = true;
+						if (BX.type.isArray(this.accessibility[entryId]))
+						{
+							for (i = 0; i < this.accessibility[entryId].length; i++)
+							{
+								item = this.accessibility[entryId][i];
+								if (item.type && item.type === 'hr')
+								{
+									continue;
+								}
+
+								if ((item.fromTimestamp + selectorAccuracy) <= toTimestamp && ((item.toTimestampReal || item.toTimestamp) - selectorAccuracy) >= fromTimestamp)
+								{
+									entriesAccessibleIndex[entryId] = false;
+									result = item;
+									break;
+								}
+							}
 						}
 					}
-					//if (result !== true)
-					//	break;
 				}
-			}
 
-			for (i = 0; i < this.entries.length; i++)
-			{
-				if (entriesAccessibleIndex[this.entries[i].id] !== undefined)
+				for (i = 0; i < this.entries.length; i++)
 				{
-					this.entries[i].currentStatus = !!entriesAccessibleIndex[this.entries[i].id];
+					if (entriesAccessibleIndex[this.entries[i].id] !== undefined)
+					{
+						this.entries[i].currentStatus = !!entriesAccessibleIndex[this.entries[i].id];
+					}
+					else
+					{
+						this.entries[i].currentStatus = true;
+					}
 				}
-				else
-				{
-					this.entries[i].currentStatus = true;
-				}
+
+				this.checkTimeCache[cacheKey] = result;
 			}
 		}
 
 		return result;
+	},
+
+	clearCacheTime: function()
+	{
+		this.checkTimeCache = {};
+	},
+
+	checkEntryTimePeriod: function(entry, fromDate, toDate)
+	{
+		var data = [], i;
+		if (entry && entry.id && BX.type.isArray(this.accessibility[entry.id]))
+		{
+			for (i = 0; i < this.accessibility[entry.id].length; i++)
+			{
+				data.push(this.HandleAccessibilityEntry(this.accessibility[entry.id][i]));
+			}
+		}
+		return this.checkTimePeriod(fromDate, toDate, data) === true;
 	},
 
 	ShowSettingsPopup: function()
@@ -2841,7 +3396,7 @@ CalendarPlanner.prototype =
 		for (i = 0; i < scales.length; i++)
 		{
 			scaleWrap.appendChild(BX.create('span', {
-				props: {className: 'calendar-planner-option-tab' + (scales[i] == this.scaleType ? ' calendar-planner-option-tab-active' : '')},
+				props: {className: 'calendar-planner-option-tab' + (scales[i] === this.scaleType ? ' calendar-planner-option-tab-active' : '')},
 				attrs: {'data-bx-planner-scale': scales[i]},
 				text: BX.message('EC_PL_SETTINGS_SCALE_' + scales[i].toUpperCase())
 			}));
@@ -2856,6 +3411,7 @@ CalendarPlanner.prototype =
 				offsetLeft: 7,
 				lightShadow: true,
 				content: settingsDialogCont,
+				zIndex: 4000,
 				angle: {postion: 'top'}
 			});
 		popup.show(true);
@@ -2938,8 +3494,8 @@ CalendarPlanner.prototype =
 		var i, selHtml;
 		for (i = 0; i < params.instances.length; i++)
 		{
-			selHtml = this.BuildSelector();
-			params.instances[i].selector = selHtml.selector;
+			selHtml = this.buildSelector();
+			params.instances[i].selector = selHtml.wrap;
 			params.instances[i].selectorTitle = selHtml.selectorTitle;
 
 			var dateFrom = new Date(params.instances[i].date.getTime());
@@ -2979,8 +3535,105 @@ CalendarPlanner.prototype =
 	{
 		if (this.proposeTimeButton)
 			this.proposeTimeButton.style.display = "none";
+	},
+
+	mouseMoveHandler: function(e)
+	{
+		var
+			i, nodes,
+			entryUid, parentTarget,
+			prevEntry,
+			mainContWrap = this.mainContWrap,
+			target = e.target || e.srcElement;
+
+		entryUid = target.getAttribute('data-bx-planner-entry');
+		if (!entryUid)
+		{
+			parentTarget = BX.findParent(target,
+				function(node)
+				{
+					if (node == mainContWrap ||
+						node.getAttribute && node.getAttribute('data-bx-planner-entry')
+					)
+					{
+						return true;
+					}
+				},
+				mainContWrap
+			);
+
+			if (parentTarget)
+			{
+				entryUid = target.getAttribute('data-bx-planner-entry')
+			}
+			else
+			{
+				BX.removeClass(this.hoverRow, 'show');
+				nodes = this.selector.controlWrap.querySelectorAll('.calendar-planner-selector-control-row.hover');
+				for (i = 0; i < nodes.length; i++)
+				{
+					BX.removeClass(nodes[i], 'hover');
+				}
+				prevEntry = this.getEntryByUniqueId(this.howerEntryId);
+				if (prevEntry && prevEntry.selectWrap)
+				{
+					prevEntry.selectWrap.style.opacity = 1;
+				}
+			}
+		}
+
+		if (entryUid)
+		{
+			if (this.howerEntryId !== entryUid)
+			{
+				this.howerEntryId = entryUid;
+				var entry = this.getEntryByUniqueId(entryUid);
+				if (entry)
+				{
+					var top = parseInt(entry.dataRowWrap.offsetTop);
+					BX.addClass(this.hoverRow, 'show');
+					this.hoverRow.style.top = (top + 36) + 'px';
+					this.hoverRow.style.width = (parseInt(this.mainContWrap.offsetWidth) + 5) + 'px';
+
+					if (entry.selectorControlWrap)
+					{
+						nodes = this.selector.controlWrap.querySelectorAll('.calendar-planner-selector-control-row.hover');
+						for (i = 0; i < nodes.length; i++)
+						{
+							BX.removeClass(nodes[i], 'hover');
+						}
+						BX.addClass(entry.selectorControlWrap, 'hover');
+					}
+				}
+			}
+		}
 	}
 };
 
 	window.CalendarPlanner = CalendarPlanner;
+
+	if (!Array.prototype.find) {
+		Object.defineProperty(Array.prototype, 'find', {
+			value: function(predicate) {
+				if (this == null) {
+					throw new TypeError('"this" is null or not defined');
+				}
+				var o = Object(this);
+				var len = o.length >>> 0;
+				if (typeof predicate !== 'function') {
+					throw new TypeError('predicate must be a function');
+				}
+				var thisArg = arguments[1];
+				var k = 0;
+				while (k < len) {
+					var kValue = o[k];
+					if (predicate.call(thisArg, kValue, k, o)) {
+						return kValue;
+					}
+					k++;
+				}
+				return undefined;
+			}
+		});
+	}
 })(window);

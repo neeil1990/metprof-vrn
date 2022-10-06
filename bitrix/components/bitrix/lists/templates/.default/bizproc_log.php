@@ -1,61 +1,20 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
-
-/** @global CMain $APPLICATION */
-/** @var array $arParams */
-/** @var array $arResult */
-
-if(isset($_REQUEST['back_url']))
-{
-	$backUrl = urldecode($_REQUEST["back_url"]);
-}
-else
-{
-	$backUrl = $arResult["FOLDER"];
-	$backUrl .= CComponentEngine::MakePathFromTemplate(
-		$arResult["URL_TEMPLATES"]["list"],
-		array(
-			"list_id" => $arResult["VARIABLES"]["list_id"],
-			"section_id" => 0,
-		)
-	);
-}
-if(!preg_match('#^(?:/|\?|https?://)(?:\w|$)#D', $backUrl))
-	$backUrl = '#';
-
-CJSCore::Init(array('lists'));
-$isBitrix24Template = (SITE_TEMPLATE_ID == "bitrix24");
-if($isBitrix24Template)
-{
-	$this->SetViewTarget("pagetitle", 100);
-}
-?>
-	<div class="pagetitle-container pagetitle-align-right-container">
-		<a href="<?=htmlspecialcharsbx($backUrl)?>" class="lists-list-back">
-			<?=GetMessage("CT_BL_LIST_GO_BACK")?>
-		</a>
-	</div>
-<?
-if($isBitrix24Template)
-{
-	$this->EndViewTarget();
-}
-
-
-if($arParams["IBLOCK_TYPE_ID"] == COption::GetOptionString("lists", "livefeed_iblock_type_id"))
-{
-	$moduleId = "lists";
-	$entity = "BizprocDocument";
-}
-else
-{
-	$moduleId = "lists";
-	$entity = 'Bitrix\Lists\BizprocDocumentLists';
-}
-$APPLICATION->IncludeComponent("bitrix:bizproc.log", ".default", array(
-	"MODULE_ID" => $moduleId,
-	"ENTITY" => $entity,
-	"COMPONENT_VERSION" => 2,
+<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
+?><?$APPLICATION->IncludeComponent("bitrix:lists.element.navchain", ".default", array(
+	"IBLOCK_TYPE_ID" => $arParams["IBLOCK_TYPE_ID"],
+	"IBLOCK_ID" => $arResult["VARIABLES"]["list_id"],
+	"SECTION_ID" => $arResult["VARIABLES"]["section_id"],
+	"ELEMENT_ID" => $arResult["VARIABLES"]["element_id"],
+	"LISTS_URL" => $arResult["FOLDER"].$arResult["URL_TEMPLATES"]["lists"],
+	"LIST_URL" => $arResult["FOLDER"].$arResult["URL_TEMPLATES"]["list"],
+	"LIST_ELEMENT_URL" => $arResult["FOLDER"].$arResult["URL_TEMPLATES"]["list_element_edit"],
+	"CACHE_TYPE" => $arParams["CACHE_TYPE"],
+	"CACHE_TIME" => $arParams["CACHE_TIME"],
+	),
+	$component
+);?><?$APPLICATION->IncludeComponent("bitrix:bizproc.log", ".default", array(
+	"MODULE_ID" => "iblock",
+	"ENTITY" => "CIBlockDocument",
 	"ID" => $arResult["VARIABLES"]["document_state_id"],
 	),
 	$component
-);
+);?>

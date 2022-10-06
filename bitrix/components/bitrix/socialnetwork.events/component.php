@@ -20,23 +20,21 @@ if (strLen($arParams["MESSAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM"] = trim($arParams["PATH_TO_MESSAGE_FORM"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM_MESS"] = trim($arParams["PATH_TO_MESSAGE_FORM_MESS"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM_MESS"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM_MESS"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form_mess&".$arParams["USER_VAR"]."=#user_id#&".$arParams["MESSAGE_VAR"]."=#message_id#");
+	$arParams["PATH_TO_MESSAGE_FORM_MESS"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form_mess&".$arParams["USER_VAR"]."=#user_id#&".$arParams["MESSAGE_VAR"]."=#message_id#");
 
 $arParams["PATH_TO_MESSAGES_CHAT"] = trim($arParams["PATH_TO_MESSAGES_CHAT"]);
 if (strlen($arParams["PATH_TO_MESSAGES_CHAT"]) <= 0)
-	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGES_CHAT"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=messages_chat&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_SMILE"] = trim($arParams["PATH_TO_SMILE"]);
-
-$bAutoSubscribe = (array_key_exists("USE_AUTOSUBSCRIBE", $arParams) && $arParams["USE_AUTOSUBSCRIBE"] == "N" ? false : true);
 
 // for bitrix:main.user.link
 if (IsModuleInstalled('intranet'))
@@ -83,7 +81,7 @@ if ($GLOBALS["USER"]->IsAuthorized())
 
 		if ($_REQUEST["action"] == "add")
 		{
-			if (!CSocNetUserRelations::ConfirmRequestToBeFriend($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"]), $bAutoSubscribe))
+			if (!CSocNetUserRelations::ConfirmRequestToBeFriend($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"])))
 			{
 				if ($e = $APPLICATION->GetException())
 					$errorMessage .= $e->GetString();
@@ -107,7 +105,7 @@ if ($GLOBALS["USER"]->IsAuthorized())
 
 		if ($_REQUEST["action"] == "add")
 		{
-			if (!CSocNetUserToGroup::UserConfirmRequestToBeMember($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"]), $bAutoSubscribe))
+			if (!CSocNetUserToGroup::UserConfirmRequestToBeMember($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"])))
 			{
 				if ($e = $APPLICATION->GetException())
 					$errorMessage .= $e->GetString();
@@ -172,7 +170,7 @@ if ($GLOBALS["USER"]->IsAuthorized())
 			),
 			false,
 			array("nTopCount" => 1),
-			array("ID", "FIRST_USER_ID", "MESSAGE", "FIRST_USER_NAME", "DATE_UPDATE", "FIRST_USER_LAST_NAME", "FIRST_USER_SECOND_NAME", "FIRST_USER_LOGIN", "FIRST_USER_PERSONAL_PHOTO", "FIRST_USER_PERSONAL_GENDER", "FIRST_USER_IS_ONLINE")
+			array("ID", "FIRST_USER_ID", "MESSAGE", "FIRST_USER_NAME", "DATE_UPDATE", "FIRST_USER_LAST_NAME", "FIRST_USER_SECOND_NAME", "FIRST_USER_LOGIN", "FIRST_USER_PERSONAL_PHOTO", "FIRST_USER_PERSONAL_GENDER")
 		);
 		if ($arUserRequests = $dbUserRequests->GetNext())
 		{
@@ -211,7 +209,7 @@ if ($GLOBALS["USER"]->IsAuthorized())
 				"USER_PERSONAL_PHOTO_IMG" => $arImage["IMG"],
 				"USER_PROFILE_URL" => $pu,
 				"SHOW_PROFILE_LINK" => $canViewProfile,
-				"IS_ONLINE" => ($arUserRequests["FIRST_USER_IS_ONLINE"] == "Y"),
+				"IS_ONLINE" => CSocNetUser::IsOnLine($arUserRequests["FIRST_USER_ID"]),
 				"DATE_UPDATE" => $arUserRequests["DATE_UPDATE"],
 				"MESSAGE" => $parser->convert(
 					$arUserRequests["~MESSAGE"],
@@ -233,8 +231,8 @@ if ($GLOBALS["USER"]->IsAuthorized())
 				),
 			);
 
-			$arResult["Urls"]["FriendAdd"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get().""));
-			$arResult["Urls"]["FriendReject"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get().""));
+			$arResult["Urls"]["FriendAdd"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get().""));
+			$arResult["Urls"]["FriendReject"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get().""));
 		}
 	}
 
@@ -324,8 +322,8 @@ if ($GLOBALS["USER"]->IsAuthorized())
 				),
 			);
 
-			$arResult["Urls"]["FriendAdd"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get().""));
-			$arResult["Urls"]["FriendReject"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get().""));
+			$arResult["Urls"]["FriendAdd"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get().""));
+			$arResult["Urls"]["FriendReject"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get().""));
 		}
 	}
 
@@ -341,7 +339,7 @@ if ($GLOBALS["USER"]->IsAuthorized())
 			),
 			false,
 			array("nTopCount" => 1),
-			array("ID", "FROM_USER_ID", "TITLE", "MESSAGE", "DATE_CREATE", "MESSAGE_TYPE", "FROM_USER_NAME", "FROM_USER_LAST_NAME", "FROM_USER_SECOND_NAME", "FROM_USER_LOGIN", "FROM_USER_PERSONAL_PHOTO", "FROM_USER_PERSONAL_GENDER", "FROM_USER_IS_ONLINE")
+			array("ID", "FROM_USER_ID", "TITLE", "MESSAGE", "DATE_CREATE", "MESSAGE_TYPE", "FROM_USER_NAME", "FROM_USER_LAST_NAME", "FROM_USER_SECOND_NAME", "FROM_USER_LOGIN", "FROM_USER_PERSONAL_PHOTO", "FROM_USER_PERSONAL_GENDER")
 		);
 		if ($arUserRequests = $dbUserRequests->GetNext())
 		{
@@ -350,7 +348,7 @@ if ($GLOBALS["USER"]->IsAuthorized())
 
 			$pu = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserRequests["FROM_USER_ID"]));
 			$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FROM_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
-			$canAnsver =  (IsModuleInstalled("im") || CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FROM_USER_ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin()));
+			$canAnsver = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserRequests["FROM_USER_ID"], "message", CSocNetUser::IsCurrentUserModuleAdmin());
 
 			if (intval($arUserRequests["FROM_USER_PERSONAL_PHOTO"]) <= 0)
 			{
@@ -381,7 +379,7 @@ if ($GLOBALS["USER"]->IsAuthorized())
 				"USER_PERSONAL_PHOTO_IMG" => $arImage["IMG"],
 				"USER_PROFILE_URL" => $pu,
 				"SHOW_PROFILE_LINK" => $canViewProfile,
-				"IS_ONLINE" => ($arUserRequests["FROM_USER_IS_ONLINE"] == "Y"),
+				"IS_ONLINE" => CSocNetUser::IsOnLine($arUserRequests["FROM_USER_ID"]),
 				"DATE_CREATE" => $arUserRequests["DATE_CREATE"],
 				"MESSAGE_TYPE" => $arUserRequests["MESSAGE_TYPE"],
 				"TITLE" => $arUserRequests["TITLE"],
@@ -410,9 +408,9 @@ if ($GLOBALS["USER"]->IsAuthorized())
 
 			$arResult["Urls"]["Chat"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_MESSAGES_CHAT"], array("user_id" => $arUserRequests["FROM_USER_ID"]));
 
-			$arResult["Urls"]["Close"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=Message&eventID=".$arUserRequests["ID"]."&action=close&".bitrix_sessid_get().""));
+			$arResult["Urls"]["Close"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=Message&eventID=".$arUserRequests["ID"]."&action=close&".bitrix_sessid_get().""));
 			$arResult["Urls"]["Ban"]["Show"] = ($arUserRequests["MESSAGE_TYPE"] == SONET_MESSAGE_PRIVATE && !CSocNetUser::IsUserModuleAdmin($arUserRequests["FROM_USER_ID"]));
-			$arResult["Urls"]["Ban"]["Link"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=Message&userID=".$arUserRequests["FROM_USER_ID"]."&action=ban&".bitrix_sessid_get().""));
+			$arResult["Urls"]["Ban"]["Link"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=Message&userID=".$arUserRequests["FROM_USER_ID"]."&action=ban&".bitrix_sessid_get().""));
 		}
 	}
 

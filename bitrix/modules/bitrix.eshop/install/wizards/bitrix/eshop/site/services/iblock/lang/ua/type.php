@@ -1,16 +1,14 @@
 <?
-$MESS["NEWS_TYPE_NAME"] = "ÐÐ¾Ð²Ð¸Ð½Ð¸";
-$MESS["NEWS_ELEMENT_NAME"] = "ÐÐ¾Ð²Ð¸Ð½Ð¸";
-$MESS["NEWS_SECTION_NAME"] = "Ð Ð¾Ð·Ð´Ñ–Ð»Ð¸";
-$MESS["SERVICES_TYPE_NAME"] = "Ð¡ÐµÑ€Ð²Ñ–ÑÐ¸";
-$MESS["SERVICES_ELEMENT_NAME"] = "Ð•Ð»ÐµÐ¼ÐµÐ½Ñ‚Ð¸";
-$MESS["SERVICES_SECTION_NAME"] = "Ð Ð¾Ð·Ð´Ñ–Ð»Ð¸";
-$MESS["CATALOG_TYPE_NAME"] = "ÐšÐ°Ñ‚Ð°Ð»Ð¾Ð³Ð¸";
-$MESS["CATALOG_ELEMENT_NAME"] = "Ð¢Ð¾Ð²Ð°Ñ€Ð¸";
-$MESS["CATALOG_SECTION_NAME"] = "Ð Ð¾Ð·Ð´Ñ–Ð»Ð¸";
-$MESS["OFFERS_TYPE_NAME"] = "Ð¢Ð¾Ñ€Ð³Ð¾Ð²Ñ– Ð¿Ñ€Ð¾Ð¿Ð¾Ð·Ð¸Ñ†Ñ–Ñ—";
-$MESS["OFFERS_ELEMENT_NAME"] = "ÐŸÑ€Ð¾Ð¿Ð¾Ð·Ð¸Ñ†Ñ–Ñ—";
-$MESS["OFFERS_SECTION_NAME"] = "Ð Ð¾Ð·Ð´Ñ–Ð»Ð¸";
-$MESS["REFERENCES_TYPE_NAME"] = "Ð”Ð¾Ð²Ñ–Ð´Ð½Ð¸ÐºÐ¸";
-$MESS["REFERENCES_ELEMENT_NAME"] = "Ð”Ð¾Ð²Ñ–Ð´Ð½Ð¸Ðº";
+$MESS["NEWS_TYPE_NAME"] = "Íîâèíè";
+$MESS["NEWS_ELEMENT_NAME"] = "Íîâèíè";
+$MESS["NEWS_SECTION_NAME"] = "Ðîçä³ëè";
+$MESS["SERVICES_TYPE_NAME"] = "Ñåðâ³ñè";
+$MESS["SERVICES_ELEMENT_NAME"] = "Åëåìåíòè";
+$MESS["SERVICES_SECTION_NAME"] = "Ðîçä³ëè";
+$MESS["CATALOG_TYPE_NAME"] = "Êàòàëîãè";
+$MESS["CATALOG_ELEMENT_NAME"] = "Òîâàðè";
+$MESS["CATALOG_SECTION_NAME"] = "Ðîçä³ëè";
+$MESS["OFFERS_TYPE_NAME"] = "Òîðãîâ³ ïðîïîçèö³¿";
+$MESS["OFFERS_ELEMENT_NAME"] = "Ïðîïîçèö³¿";
+$MESS["OFFERS_SECTION_NAME"] = "Ðîçä³ëè";
 ?>

@@ -8,7 +8,6 @@ if (!CModule::IncludeModule("socialnetwork"))
 }
 
 $arParams["SET_NAV_CHAIN"] = ($arParams["SET_NAV_CHAIN"] == "N" ? "N" : "Y");
-$bAutoSubscribe = (array_key_exists("USE_AUTOSUBSCRIBE", $arParams) && $arParams["USE_AUTOSUBSCRIBE"] == "N" ? false : true);
 
 if (strLen($arParams["USER_VAR"]) <= 0)
 	$arParams["USER_VAR"] = "user_id";
@@ -17,11 +16,11 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_MESSAGE_FORM"] = trim($arParams["PATH_TO_MESSAGE_FORM"]);
 if (strlen($arParams["PATH_TO_MESSAGE_FORM"]) <= 0)
-	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_MESSAGE_FORM"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=message_form&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
@@ -29,7 +28,7 @@ if ($arParams["ITEMS_COUNT"] <= 0)
 
 $arParams["PATH_TO_SMILE"] = trim($arParams["PATH_TO_SMILE"]);
 
-$arParams['NAME_TEMPLATE'] = $arParams['NAME_TEMPLATE'] ? $arParams['NAME_TEMPLATE'] : CSite::GetNameFormat();
+$arParams['NAME_TEMPLATE'] = $arParams['NAME_TEMPLATE'] ? $arParams['NAME_TEMPLATE'] : '#NOBR##NAME# #LAST_NAME##/NOBR#';
 $bUseLogin = $arParams['SHOW_LOGIN'] != "N" ? true : false;
 
 // for bitrix:main.user.link
@@ -81,7 +80,7 @@ else
 
 		if ($_REQUEST["action"] == "add")
 		{
-			if (!CSocNetUserRelations::ConfirmRequestToBeFriend($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"]), $bAutoSubscribe))
+			if (!CSocNetUserRelations::ConfirmRequestToBeFriend($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"])))
 			{
 				if ($e = $APPLICATION->GetException())
 					$errorMessage .= $e->GetString();
@@ -108,7 +107,7 @@ else
 
 		if ($_REQUEST["action"] == "add")
 		{
-			if (!CSocNetUserToGroup::UserConfirmRequestToBeMember($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"]), $bAutoSubscribe))
+			if (!CSocNetUserToGroup::UserConfirmRequestToBeMember($GLOBALS["USER"]->GetID(), IntVal($_REQUEST["eventID"])))
 			{
 				if ($e = $APPLICATION->GetException())
 					$errorMessage .= $e->GetString();
@@ -148,7 +147,7 @@ else
 		),
 		false,
 		false,
-		array("ID", "FIRST_USER_ID", "MESSAGE", "FIRST_USER_NAME", "DATE_UPDATE", "FIRST_USER_LAST_NAME", "FIRST_USER_SECOND_NAME", "FIRST_USER_LOGIN", "FIRST_USER_PERSONAL_PHOTO", "FIRST_USER_PERSONAL_GENDER", "FIRST_USER_IS_ONLINE")
+		array("ID", "FIRST_USER_ID", "MESSAGE", "FIRST_USER_NAME", "DATE_UPDATE", "FIRST_USER_LAST_NAME", "FIRST_USER_SECOND_NAME", "FIRST_USER_LOGIN", "FIRST_USER_PERSONAL_PHOTO", "FIRST_USER_PERSONAL_GENDER")
 	);
 	while ($arUserRequests = $dbUserRequests->GetNext())
 	{
@@ -197,7 +196,7 @@ else
 			"USER_PERSONAL_PHOTO_IMG" => $arImage["IMG"],
 			"USER_PROFILE_URL" => $pu,
 			"SHOW_PROFILE_LINK" => $canViewProfile,
-			"IS_ONLINE" => ($arUserRequests["FIRST_USER_IS_ONLINE"] == "Y"),
+			"IS_ONLINE" => CSocNetUser::IsOnLine($arUserRequests["FIRST_USER_ID"]),
 			"DATE_UPDATE" => $arUserRequests["DATE_UPDATE"],
 			"MESSAGE" => $parser->convert(
 				$arUserRequests["~MESSAGE"],
@@ -219,8 +218,8 @@ else
 			),
 		);
 
-		$arEventTmp["Urls"]["FriendAdd"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
-		$arEventTmp["Urls"]["FriendReject"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
+		$arEventTmp["Urls"]["FriendAdd"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
+		$arEventTmp["Urls"]["FriendReject"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=FriendRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
 
 		$arResult["Events"][] = $arEventTmp;
 	}
@@ -304,8 +303,8 @@ else
 			),
 		);
 
-		$arEventTmp["Urls"]["FriendAdd"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
-		$arEventTmp["Urls"]["FriendReject"] = htmlspecialcharsbx($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
+		$arEventTmp["Urls"]["FriendAdd"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=add&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
+		$arEventTmp["Urls"]["FriendReject"] = htmlspecialchars($APPLICATION->GetCurUri("EventType=GroupRequest&eventID=".$arUserRequests["ID"]."&action=reject&".bitrix_sessid_get()."&backurl=".urlencode($GLOBALS["APPLICATION"]->GetCurPageParam("", array("EventType", "eventID", "action")))));
 
 		$arResult["Events"][] = $arEventTmp;
 	}

@@ -5,10 +5,6 @@ $this->IncludeComponentLang("action.php");
 $action = strtoupper($arParams["ACTION"]);
 $action = ($action == "SUPPORT" ? "FORUM_MESSAGE2SUPPORT" : $action);
 
-$post = $this->request->getPostList()->toArray();
-if ($post["AJAX_POST"] == "Y")
-	CUtil::decodeURIComponent($post);
-
 if (strLen($action) <= 0)
 {
 }
@@ -16,18 +12,16 @@ elseif (!check_bitrix_sessid())
 {
 	$arError[] = array(
 		"id" => "bad_sessid", 
-		"text" => GetMessage("F_ERR_SESS_FINISH")
-	);
+		"text" => GetMessage("F_ERR_SESS_FINISH"));
 }
 elseif ($_REQUEST["MESSAGE_MODE"] == "VIEW")
 {
 	$arResult["VIEW"] = "Y";
 	$bVarsFromForm = true;
 /************** Preview message ************************************/
-	$arAllow["SMILES"] = ($post["USE_SMILES"]!="Y" ? "N" : "Y" );
-
-	$arResult["POST_MESSAGE_VIEW"] = $post["POST_MESSAGE"];
-	$arResult["MESSAGE_VIEW"]["AUTHOR_NAME"] = ($USER->IsAuthorized() || empty($post["AUTHOR_NAME"]) ? $arResult["USER"]["SHOW_NAME"] : trim($post["AUTHOR_NAME"]));
+	$arAllow["SMILES"] = ($_POST["USE_SMILES"]!="Y" ? "N" : ($_POST["USE_SMILES"]!="Y") );
+	$arResult["POST_MESSAGE_VIEW"] = $parser->convert($_POST["POST_MESSAGE"], $arAllow);
+	$arResult["MESSAGE_VIEW"]["AUTHOR_NAME"] = ($USER->IsAuthorized() || empty($_POST["AUTHOR_NAME"]) ? $arResult["USER"]["SHOW_NAME"] : trim($_POST["AUTHOR_NAME"]));
 	$arResult["MESSAGE_VIEW"]["TEXT"] = $arResult["POST_MESSAGE_VIEW"];
 	$arFields = array(
 		"FORUM_ID" => intVal($arParams["FID"]), 
@@ -69,9 +63,7 @@ elseif ($_REQUEST["MESSAGE_MODE"] == "VIEW")
 		$arFilesExists[$key] = $val;
 	$arFilesExists = array_keys($arFilesExists);
 	sort($arFilesExists);
-	$arResult["MESSAGE_VIEW"]["FILES"] = $_REQUEST["FILES"] = $arFilesExists;
-	$arResult["MESSAGE_VIEW"]["TEXT"] = $arResult["POST_MESSAGE_VIEW"] = $parser->convert($post["POST_MESSAGE"], $arAllow, "html", $arResult["MESSAGE_VIEW"]["FILES"]);
-	$arResult["MESSAGE_VIEW"]["FILES_PARSED"] = $parser->arFilesIDParsed;
+	$arResult["MESSAGE_VIEW"]["FILES"] = $_REQUEST["FILES"] = $arFilesExists;	
 }
 else
 {
@@ -106,14 +98,13 @@ else
 			$arFields = array(
 				"FID" => $arParams["FID"],
 				"TID" => $arParams["TID"],
-				"POST_MESSAGE" => $post["POST_MESSAGE"],
-				"AUTHOR_NAME" => $post["AUTHOR_NAME"],
-				"AUTHOR_EMAIL" => $post["AUTHOR_EMAIL"],
-				"USE_SMILES" => $post["USE_SMILES"],
+				"POST_MESSAGE" => $_POST["POST_MESSAGE"],
+				"AUTHOR_NAME" => $_POST["AUTHOR_NAME"],
+				"AUTHOR_EMAIL" => $_POST["AUTHOR_EMAIL"],
+				"USE_SMILES" => $_POST["USE_SMILES"],
 				"ATTACH_IMG" => $_FILES["ATTACH_IMG"],
-				"captcha_word" =>  $post["captcha_word"],
-				"captcha_code" => $post["captcha_code"],
-				"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"]);
+				"captcha_word" =>  $_POST["captcha_word"],
+				"captcha_code" => $_POST["captcha_code"]);
 				if (!empty($_FILES["ATTACH_IMG"]))
 				{
 					$arFields["ATTACH_IMG"] = $_FILES["ATTACH_IMG"]; 
@@ -203,108 +194,21 @@ else
 			break;
 		case "SPAM_TOPIC":
 		case "DEL_TOPIC":
-			$arFields = array("TID" => $arParams["TID"]);
-			$url = CComponentEngine::MakePathFromTemplate(
-				$arParams["~URL_TEMPLATES_TOPIC_LIST"], 
-				array("FID" => $arParams["FID"]));
+				$arFields = array("TID" => $arParams["TID"]);
+				$url = CComponentEngine::MakePathFromTemplate(
+					$arParams["~URL_TEMPLATES_TOPIC_LIST"], 
+					array("FID" => $arParams["FID"]));
 			break;
 	}
 	$strErrorMessage = ""; $strOKMessage = ""; $res = false;
 	$arFields["PERMISSION_EXTERNAL"] = $arParams["PERMISSION"];
 	$arFields["PERMISSION"] = $arParams["PERMISSION"];
-	
-	$arLogID_Del = array();
-	$arLogCommentID_Del = array();
-	switch ($action)
-	{
-		case "DEL":
-		case "HIDE":
-			// delete message log record
-			$dbRes = CSocNetLogComments::GetList(
-				array("ID" => "DESC"),
-				array(
-					"EVENT_ID" => "forum",
-					"SOURCE_ID" => $arFields["MID"]
-				),
-				false,
-				false,
-				array("ID")
-			);
-			while ($arRes = $dbRes->Fetch())
-				$arLogCommentID_Del[] = $arRes["ID"];
-			break;
-		case "DEL_TOPIC":
-		case "HIDE_TOPIC":
-			if (!is_array($arFields["TID"]))
-				$arTID = array($arFields["TID"]);
-			else
-				$arTID = $arFields["TID"];
-
-			$arLogID_Del = array();
-			foreach($arTID as $topic_id_tmp)
-			{
-				// delete message log records
-				$dbForumMessage = CForumMessage::GetList(
-					array("ID" => "ASC"),
-					array("TOPIC_ID" => $topic_id_tmp)
-				);
-				while ($arForumMessage = $dbForumMessage->Fetch())
-				{
-					$dbRes = CSocNetLog::GetList(
-						array("ID" => "DESC"),
-						array(
-							"EVENT_ID" => "forum",
-							"SOURCE_ID" => $arForumMessage["ID"]
-						),
-						false,
-						false,
-						array("ID")
-					);
-					while ($arRes = $dbRes->Fetch())
-						$arLogID_Del[] = $arRes["ID"];
-				}
-			}
-			break;
-	}
-
-	$actionResult = $res = ForumActions($action, $arFields, $strErrorMessage, $strOKMessage);
-
-	if ($res)
-	{
-		// check out not hidden topic messages
-		$iApprovedMessagesCnt = CForumMessage::GetList(array(), array("TOPIC_ID"=>$arParams["TID"], "APPROVED"=>"Y"), true);
-		if ($iApprovedMessagesCnt <= 0)
-		{
-			$rsForumMessage = CForumMessage::GetList(array("ID"=>"ASC"), array("TOPIC_ID"=>$arParams["TID"]), false, 1);		
-			if ($arForumMessage = $rsForumMessage->Fetch())
-			{
-				$dbLogRes = CSocNetLog::GetList(
-					array("ID" => "DESC"),
-					array(
-						"EVENT_ID" => "forum",
-						"SOURCE_ID" => $arForumMessage["ID"]
-					),
-					false,
-					false,
-					array("ID")
-				);		
-				if ($arLogRes = $dbLogRes->Fetch())
-					$arLogID_Del[] = $arLogRes["ID"];
-			}
-		}
-
-		foreach($arLogID_Del as $log_id)
-			CSocNetLog::Delete($log_id);
-		foreach($arLogCommentID_Del as $log_comment_id)
-			CSocNetLogComments::Delete($log_comment_id);
-	}
-
+	$res = ForumActions($action, $arFields, $strErrorMessage, $strOKMessage);
 	if (!empty($strErrorMessage))
 	{
 		$arError[] = array(
 			"id" => $action, 
-			"text" => $strErrorMessage
-		);
+			"text" => $strErrorMessage);
 	}
 	elseif ($action == "DEL" || $action == "SPAM")
 	{
@@ -332,246 +236,56 @@ else
 			$url = str_replace("#MID#", $mid, $url);
 		}
 	}
-	elseif ($action == "REPLY" || $action == "SHOW")
+	elseif ($action == "REPLY")
 	{
-		if ($action == "REPLY")
-			$arParams["MID"] = intVal($res);
-
-		$result = CForumMessage::GetByIDEx($arParams["MID"], array("GET_TOPIC_INFO" => "Y"));
-
+		$arParams["MID"] = intVal($res);
+		$result = CForumMessage::GetByIDEx($res, array("GET_TOPIC_INFO" => "Y"));
 		$arResult["MESSAGE"] = $result;
 		if (is_array($result) && !empty($result))
 		{
 			$arParams["TID"] = intVal($result["TOPIC_ID"]);
-			if ($arParams["AUTOSAVE"])
-				$arParams["AUTOSAVE"]->Reset();
+			$sAuthorForMail = $sAuthor = str_replace("#TITLE#", $arResult["MESSAGE"]["AUTHOR_NAME"], GetMessage("SONET_FORUM_LOG_TEMPLATE_GUEST"));
+			if (intVal($arResult["MESSAGE"]["AUTHOR_ID"]) > 0)
+			{
+				$sAuthor = str_replace(array("#URL#", "#TITLE#"), array(CComponentEngine::MakePathFromTemplate(
+					$arParams["URL_TEMPLATES_PROFILE_VIEW"], array("UID" => $arResult["MESSAGE"]["AUTHOR_ID"])), $arResult["MESSAGE"]["AUTHOR_NAME"]), 
+					GetMessage("SONET_FORUM_LOG_TEMPLATE_AUTHOR"));
+				$sAuthorForMail = str_replace(array("#URL#", "#TITLE#"), array("http://".SITE_SERVER_NAME.CComponentEngine::MakePathFromTemplate(
+					$arParams["URL_TEMPLATES_PROFILE_VIEW"], array("UID" => $arResult["MESSAGE"]["AUTHOR_ID"])), $arResult["MESSAGE"]["AUTHOR_NAME"]), 
+					GetMessage("SONET_FORUM_LOG_TEMPLATE_AUTHOR"));
+			}
+			
 			$sText = (COption::GetOptionString("forum", "FILTER", "Y") == "Y" ? $result["POST_MESSAGE_FILTER"] : $result["POST_MESSAGE"]);
 			if ($arParams["MODE"] == "GROUP")
 				CSocNetGroup::SetLastActivity($arParams["SOCNET_GROUP_ID"]);
-
-			// calculate root MID
-			$dbFirstMessage = CForumMessage::GetList(
-				array("ID" => "ASC"),
-				array("TOPIC_ID" => $arParams["TID"]),
-				false,
-				1
+			$arFieldsForSocnet = array(
+				"ENTITY_TYPE" 		=> ($arParams["MODE"] == "GROUP" ? SONET_ENTITY_GROUP : SONET_ENTITY_USER),
+				"ENTITY_ID" 		=> ($arParams["MODE"] == "GROUP" ? $arParams["SOCNET_GROUP_ID"] : $arParams["USER_ID"]),
+				"EVENT_ID" 			=> "forum",
+				"=LOG_DATE" 		=> $GLOBALS["DB"]->CurrentTimeFunction(),
+				"TITLE_TEMPLATE" 	=> str_replace("#AUTHOR_NAME#", $arResult["MESSAGE"]["AUTHOR_NAME"], GetMessage("SONET_FORUM_LOG_TEMPLATE")),
+				"TITLE" 			=> $result["TOPIC_INFO"]["TITLE"],
+				"MESSAGE" 			=> $parser->convert($sText, $arAllow),
+				"TEXT_MESSAGE" 		=> $parser->convert4mail($sText.$sAuthorForMail),
+				"URL" 				=> str_replace("#result#", $arParams["MID"], $url),
+				"MODULE_ID" 		=> false,
+				"CALLBACK_FUNC" 	=> false,
+				"USER_ID" 			=> (intVal($arResult["MESSAGE"]["AUTHOR_ID"]) > 0 ? $arResult["MESSAGE"]["AUTHOR_ID"] : false),
+				"PARAMS"			=> "type=M"
 			);
-			if ($arFirstMessage = $dbFirstMessage->Fetch())
-			{
-				$bSocNetLogRecordExists = false;
-				$dbRes = CSocNetLog::GetList(
-					array("ID" => "DESC"),
-					array(
-						"EVENT_ID" => "forum",
-						"SOURCE_ID" => $arFirstMessage["ID"]
-					),
-					false,
-					false,
-					array("ID", "TMP_ID", "USER_ID")
-				);
+			$logID = CSocNetLog::Add($arFieldsForSocnet, false);
 
-				if ($arRes = $dbRes->Fetch())
-				{
-					$log_id = $arRes["TMP_ID"];
-					$log_user_id = $arRes["USER_ID"];
-					$bSocNetLogRecordExists = true;
-				}
-				else
-				{
-					// get root message
-					$arFirstMessage = CForumMessage::GetByIDEx($arFirstMessage["ID"], array("GET_TOPIC_INFO" => "Y", "getFiles" => "Y"));
-					$arTopic = $arFirstMessage["TOPIC_INFO"];
-					$sFirstMessageText = (COption::GetOptionString("forum", "FILTER", "Y") == "Y" ?
-						$arFirstMessage["POST_MESSAGE_FILTER"] : $arFirstMessage["POST_MESSAGE"]);
+			if (intval($logID) > 0)
+				CSocNetLog::Update($logID, array("TMP_ID" => $logID));
 
-					$sFirstMessageURL = CComponentEngine::MakePathFromTemplate(
-						$arParams["~URL_TEMPLATES_MESSAGE"],
-						array(
-							"UID" => $arFirstMessage["AUTHOR_ID"],
-							"FID" => $arFirstMessage["FORUM_ID"],
-							"TID" => $arFirstMessage["TOPIC_ID"],
-							"MID" => $arFirstMessage["ID"]
-						)
-					);
-
-					$arFieldsForSocnet = array(
-						"ENTITY_TYPE" => ($arParams["MODE"] == "GROUP" ? SONET_ENTITY_GROUP : SONET_ENTITY_USER),
-						"ENTITY_ID" => ($arParams["MODE"] == "GROUP" ? $arParams["SOCNET_GROUP_ID"] : $arParams["USER_ID"]),
-						"EVENT_ID" => "forum",
-						"LOG_DATE" => $arFirstMessage["POST_DATE"],
-						"LOG_UPDATE" => $arFirstMessage["POST_DATE"],
-						"TITLE_TEMPLATE" => str_replace("#AUTHOR_NAME#", $arFirstMessage["AUTHOR_NAME"], GetMessage("SONET_FORUM_LOG_TOPIC_TEMPLATE")),
-						"TITLE" => $arTopic["TITLE"],
-						"MESSAGE" => $sFirstMessageText,
-						"TEXT_MESSAGE" => $parser->convert4mail($sFirstMessageText),
-						"URL" => $sFirstMessageURL,
-						"PARAMS" => serialize(array(
-							"PATH_TO_MESSAGE" => CComponentEngine::MakePathFromTemplate($arParams["~URL_TEMPLATES_MESSAGE"], array("TID" => $arParams["TID"])),
-							"VOTE_ID" => ($arFirstMessage["PARAM1"] == "VT" ? $arFirstMessage["PARAM2"] : 0))),
-						"MODULE_ID" => false,
-						"CALLBACK_FUNC" => false,
-						"SOURCE_ID" => $arFirstMessage["ID"],
-						"RATING_TYPE_ID" => "FORUM_TOPIC",
-						"RATING_ENTITY_ID" => intval($arParams["TID"])
-					);
-
-					if (intVal($arFirstMessage["AUTHOR_ID"]) > 0)
-						$arFieldsForSocnet["USER_ID"] = $arFirstMessage["AUTHOR_ID"];
-					$log_id = CSocNetLog::Add($arFieldsForSocnet, false);
-					if (intval($log_id) > 0)
-					{
-						$log_user_id = $arFieldsForSocnet["USER_ID"];
-						CSocNetLog::Update($log_id, array("TMP_ID" => $log_id));
-						CSocNetLogRights::SetForSonet($log_id, ($arParams["MODE"] == "GROUP" ? SONET_ENTITY_GROUP : SONET_ENTITY_USER), ($arParams["MODE"] == "GROUP" ? $arParams["SOCNET_GROUP_ID"] : $arParams["USER_ID"]), "forum", "view");
-					}
-				}
-				
-				if (intval($log_id) > 0)
-				{
-					$arFieldsForSocnet = array(
-						"ENTITY_TYPE" => ($arParams["MODE"] == "GROUP" ? SONET_ENTITY_GROUP : SONET_ENTITY_USER),
-						"ENTITY_ID" => ($arParams["MODE"] == "GROUP" ? $arParams["SOCNET_GROUP_ID"] : $arParams["USER_ID"]),
-						"EVENT_ID" => "forum",
-						"=LOG_DATE" => $GLOBALS["DB"]->CurrentTimeFunction(),
-						"MESSAGE" => $sText,
-						"TEXT_MESSAGE" => $parser->convert4mail($sText),
-						"URL" => str_replace("#result#", $arParams["MID"], $url),
-						"MODULE_ID" => false,
-						"SOURCE_ID" => $arParams["MID"],
-						"LOG_ID" => $log_id,
-						"RATING_TYPE_ID" => "FORUM_POST",
-						"RATING_ENTITY_ID" => intval($arParams["MID"])
-					);
-
-					$ufFileID = array();
-					$dbAddedMessageFiles = CForumFiles::GetList(array("ID" => "ASC"), array("MESSAGE_ID" => $arParams["MID"]));
-					while ($arAddedMessageFiles = $dbAddedMessageFiles->Fetch())
-						$ufFileID[] = $arAddedMessageFiles["FILE_ID"];
-
-					if (count($ufFileID) > 0)
-						$arFieldsForSocnet["UF_SONET_COM_FILE"] = $ufFileID;
-
-					$ufDocID = $GLOBALS["USER_FIELD_MANAGER"]->GetUserFieldValue("FORUM_MESSAGE", "UF_FORUM_MESSAGE_DOC", $arParams["MID"], LANGUAGE_ID);
-					if ($ufDocID)
-						$arFieldsForSocnet["UF_SONET_COM_DOC"] = $ufDocID;
-
-					if ($bSocNetLogRecordExists)
-					{
-						if (intVal($arResult["MESSAGE"]["AUTHOR_ID"]) > 0)
-							$arFieldsForSocnet["USER_ID"] = $arResult["MESSAGE"]["AUTHOR_ID"];
-						$log_comment_id = CSocNetLogComments::Add($arFieldsForSocnet, false, false);
-						CSocNetLog::CounterIncrement($log_comment_id, false, false, "LC");
-
-						if (
-							CModule::IncludeModule("im")
-							&& intval($arFieldsForSocnet["USER_ID"]) > 0
-							&& $arFieldsForSocnet["USER_ID"] != $log_user_id
-						)
-						{
-							$rsUnFollower = CSocNetLogFollow::GetList(
-								array(
-									"USER_ID" => $log_user_id,
-									"CODE" => "L".$log_id,
-									"TYPE" => "N"
-								),
-								array("USER_ID")
-							);
-
-							$arUnFollower = $rsUnFollower->Fetch();
-							if (!$arUnFollower)
-							{
-								$arMessageFields = array(
-									"MESSAGE_TYPE" => IM_MESSAGE_SYSTEM,
-									"TO_USER_ID" => $log_user_id,
-									"FROM_USER_ID" => $arFieldsForSocnet["USER_ID"],
-									"NOTIFY_TYPE" => IM_NOTIFY_FROM,
-									"NOTIFY_MODULE" => "forum",
-									"NOTIFY_EVENT" => "comment",
-								);
-
-								$arParams["TITLE"] = str_replace(Array("\r\n", "\n"), " ", $arResult["MESSAGE"]["TOPIC_INFO"]["TITLE"]);
-								$arParams["TITLE"] = TruncateText($arParams["TITLE"], 100);
-								$arParams["TITLE_OUT"] = TruncateText($arParams["TITLE"], 255);
-
-								$arTmp = CSocNetLogTools::ProcessPath(array("MESSAGE_URL" => $arFieldsForSocnet["URL"]), $log_user_id);
-								$serverName = $arTmp["SERVER_NAME"];
-								$url = $arTmp["URLS"]["MESSAGE_URL"];
-
-								$arMessageFields["NOTIFY_TAG"] = "FORUM|COMMENT|".$arParams["MID"];
-								$arMessageFields["NOTIFY_MESSAGE"] = GetMessage("SONET_FORUM_ACTION_IM_COMMENT", Array(
-									"#title#" => "<a href=\"".$url."\" class=\"bx-notifier-item-action\">".htmlspecialcharsbx($arParams["TITLE"])."</a>",
-								));
-								$arMessageFields["NOTIFY_MESSAGE_OUT"] = GetMessage("SONET_FORUM_ACTION_IM_COMMENT", Array(
-									"#title#" => htmlspecialcharsbx($arParams["TITLE_OUT"])
-								))." (".$serverName.$url.")#BR##BR#".$sText;
-
-								CIMNotify::Add($arMessageFields);
-							}
-						}
-					}
-					else //socnetlog record didn't exist - adding all comments
-					{
-						$dbComments = CForumMessage::GetListEx(
-							array("ID" => "ASC"),
-							array('TOPIC_ID' => $arParams["TID"], "NEW_TOPIC" => "N")
-						);
-						if ($dbComments && ($arComment = $dbComments->Fetch()))
-						{
-							do {
-								$ufFileID = array();
-								$dbAddedMessageFiles = CForumFiles::GetList(array("ID" => "ASC"), array("MESSAGE_ID" => $arComment["ID"]));
-								while ($arAddedMessageFiles = $dbAddedMessageFiles->Fetch())
-									$ufFileID[] = $arAddedMessageFiles["FILE_ID"];
-
-								if (count($ufFileID) > 0)
-									$arFieldsForSocnet["UF_SONET_COM_FILE"] = $ufFileID;
-								else
-									unset($arFieldsForSocnet["UF_SONET_COM_FILE"]);
-
-								$ufDocID = $GLOBALS["USER_FIELD_MANAGER"]->GetUserFieldValue("FORUM_MESSAGE", "UF_FORUM_MESSAGE_DOC", $arComment["ID"], LANGUAGE_ID);
-								if ($ufDocID)
-									$arFieldsForSocnet["UF_SONET_COM_DOC"] = $ufDocID;
-								else
-									unset($arFieldsForSocnet["UF_SONET_COM_DOC"]);
-
-								$arSocLog = array(
-									"=LOG_DATE" => $DB->CharToDateFunction($arComment['POST_DATE'], "FULL", SITE_ID),
-									"MESSAGE" => $arComment['POST_MESSAGE'],
-									"TEXT_MESSAGE" => $parser->convert4mail($arComment['POST_MESSAGE']),
-									"SOURCE_ID" => intval($arComment["ID"]),
-									"RATING_ENTITY_ID" => intval($arComment["ID"])
-								) + (!!$arComment['AUTHOR_ID'] ? array("USER_ID" => $arComment["AUTHOR_ID"]) : array());
-								$log_comment_id = CSocNetLogComments::Add(array_merge($arFieldsForSocnet, $arSocLog), false, false);
-								CSocNetLog::CounterIncrement($log_comment_id, false, false, "LC");
-							} while ($arComment = $dbComments->Fetch());
-						}
-					}
-				}
-			}
+			CSocNetLog::SendEvent($logID, "SONET_NEW_EVENT", $logID);
 		}
 		$res = $arParams["MID"];
 	}
-	if (!$res)
-		$bVarsFromForm = true;
-	else 
-	{
-		$arNote = array(
-			"code" => $action,
-			"title" => $strOKMessage, 
-			"link" => $url);
-	}
-	$arResult['RESULT'] = $res;
-	if (isset($_REQUEST['AJAX_CALL']) && in_array($action, array('SHOW', 'HIDE', 'DEL')))
-	{
-		$GLOBALS['APPLICATION']->RestartBuffer();
-		$arRes = array('status' => (!($actionResult === false)), 'message' => ( (!($actionResult===false)) ? $strOKMessage : $strErrorMessage));
-		echo CUtil::PhpToJSObject($arRes);
-		die();
-	}
-	if (empty($arError) && !($arParams['AJAX_POST'] == 'Y' && $action == 'REPLY'))
+	if (empty($arError))
 	{
 		$url = str_replace("#result#", $res, $url);
-		LocalRedirect(ForumAddPageParams($url, array("result" => strtolower($action)), true, false).(!empty($arParams["MID"]) ? "#message".$arParams["MID"] : ""));
+		LocalRedirect(ForumAddPageParams($url, array("result" => strtolower($action)), true, false).(!empty($arParams["MID"]) ? "#message".$arParams["MID"] : ""));	
 	}
 }
 if (!empty($arError))

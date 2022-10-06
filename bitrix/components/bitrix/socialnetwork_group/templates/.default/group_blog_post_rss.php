@@ -20,12 +20,9 @@ $APPLICATION->IncludeComponent(
 		"USE_SOCNET" => "Y",
 		"POST_ID" => $arResult["VARIABLES"]["post_id"],
 		"MODE" => "C",
-		"IMAGE_MAX_WIDTH" => $arParams["BLOG_IMAGE_MAX_WIDTH"],
-		"IMAGE_MAX_HEIGHT" => $arParams["BLOG_IMAGE_MAX_HEIGHT"],
-		"COMMENT_ALLOW_VIDEO" => $arParams["BLOG_COMMENT_ALLOW_VIDEO"],
-		"NO_URL_IN_COMMENTS" => $arParams["BLOG_NO_URL_IN_COMMENTS"],
-		"NO_URL_IN_COMMENTS_AUTHORITY" => $arParams["BLOG_NO_URL_IN_COMMENTS_AUTHORITY"],
-		"ALLOW_POST_CODE" => $arParams["BLOG_ALLOW_POST_CODE"],
+		"USE_MAIN_MENU" => $arParams["USE_MAIN_MENU"],
+		"MAIN_MENU_TYPE" => $arParams["MAIN_MENU_TYPE"],
+
 	),
 	$component 
 );

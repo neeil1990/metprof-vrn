@@ -8,7 +8,7 @@ if(!CModule::IncludeModule('sale'))
 $dbSite = CSite::GetByID(WIZARD_SITE_ID);
 if($arSite = $dbSite -> Fetch())
 	$lang = $arSite["LANGUAGE_ID"];
-if(strlen($lang) <= 0)
+if($lang == '')
 	$lang = "ru";
 $bRus = false;
 if($lang == "ru")
@@ -75,7 +75,7 @@ if(COption::GetOptionString("eshop", "wizard_installed", "N", WIZARD_SITE_ID) !=
 				);
 		}
 		//Location group
-		if(IntVal($locationGroupID) > 0)
+		if(intval($locationGroupID) > 0)
 			$arLocation4Delivery[] = Array("LOCATION_ID" => $locationGroupID, "LOCATION_TYPE"=>"G");
 	}
 
@@ -151,7 +151,8 @@ $dbRes = \Bitrix\Sale\Delivery\Services\Table::getList(array(
 	'filter' => array(
 		'=CLASS_NAME' => array(
 			'\Sale\Handlers\Delivery\SpsrHandler',
-			'\Bitrix\Sale\Delivery\Services\Automatic'
+			'\Bitrix\Sale\Delivery\Services\Automatic',
+			'\Sale\Handlers\Delivery\AdditionalHandler'
 		)
 	),
 	'select' => array('ID', 'CODE', 'ACTIVE', 'CLASS_NAME')
@@ -163,6 +164,8 @@ while($dlv = $dbRes->fetch())
 {
 	if($dlv['CLASS_NAME'] == '\Sale\Handlers\Delivery\SpsrHandler')
 		$existAutoDlv['spsr'] = $dlv;
+	elseif($dlv['CLASS_NAME'] == '\Sale\Handlers\Delivery\AdditionalHandler' && $dlv['CONFIG']['MAIN']['SERVICE_TYPE'] == 'RUSPOST')
+		$existAutoDlv['ruspost'] = $dlv;
 	elseif(!empty($dlv['CODE']))
 		$existAutoDlv[$dlv['CODE']] = $dlv;
 }
@@ -195,26 +198,6 @@ if($bRus)
 			);
 		}
 
-		if(!empty($delivery["russianpost"]))
-		{
-			$deliveryItems["russianpost"] = array(
-				"NAME" => GetMessage("SALE_WIZARD_MAIL"),
-				"DESCRIPTION" => GetMessage("SALE_WIZARD_MAIL_DESC"),
-				"CLASS_NAME" => '\Bitrix\Sale\Delivery\Services\Automatic',
-				"CURRENCY" => $defCurrency,
-				"SORT" => 200,
-				"LOGOTIP" => "/bitrix/modules/sale/ru/delivery/rus_post_logo.png",
-				"ACTIVE" => $delivery["russianpost"] == "Y" ? "Y" : "N",
-				"CONFIG" => array(
-					"MAIN" => array(
-						"SID" => "russianpost",
-						"MARGIN_VALUE" => 0,
-						"MARGIN_TYPE" => "%"
-					)
-				)
-			);
-		}
-
 		//new russian post
 		if(!empty($delivery["rus_post"]))
 		{
@@ -229,26 +212,6 @@ if($bRus)
 				"CONFIG" => array(
 					"MAIN" => array(
 						"SID" => "rus_post",
-						"MARGIN_VALUE" => 0,
-						"MARGIN_TYPE" => "%"
-					)
-				)
-			);
-		}
-
-		if(!empty($delivery["rus_post_first"]))
-		{
-			$deliveryItems["rus_post_first"] = array(
-				"NAME" => GetMessage("SALE_WIZARD_MAIL_FIRST"),
-				"DESCRIPTION" => GetMessage("SALE_WIZARD_MAIL_FIRST_DESC"),
-				"CLASS_NAME" => '\Bitrix\Sale\Delivery\Services\Automatic',
-				"CURRENCY" => $defCurrency,
-				"SORT" => 500,
-				"LOGOTIP" => "/bitrix/modules/sale/ru/delivery/rus_post_first_logo.png",
-				"ACTIVE" => $delivery["rus_post_first"] == "Y" ? "Y" : "N",
-				"CONFIG" => array(
-					"MAIN" => array(
-						"SID" => "rus_post_first",
 						"MARGIN_VALUE" => 0,
 						"MARGIN_TYPE" => "%"
 					)
@@ -367,8 +330,15 @@ foreach($deliveryItems as $code => $fields)
 			}
 		}
 
-		if($service = \Bitrix\Sale\Delivery\Services\Manager::createObject($fields))
-			$fields = $service->prepareFieldsForSaving($fields);
+		try
+		{
+			if($service = \Bitrix\Sale\Delivery\Services\Manager::createObject($fields))
+				$fields = $service->prepareFieldsForSaving($fields);
+		}
+		catch(\Bitrix\Main\SystemException $e)
+		{
+			continue;
+		}
 
 		$res = \Bitrix\Sale\Delivery\Services\Manager::add($fields);
 
@@ -465,7 +435,7 @@ if(CModule::IncludeModule('subscribe'))
 			"DAYS_OF_MONTH"	=> "",
 			"DAYS_OF_WEEK"	=> "1,2,3,4,5,6,7",  
 			"TIMES_OF_DAY"	=> "05:00",
-			"TEMPLATE"	=> substr($template, strlen($_SERVER["DOCUMENT_ROOT"]."/")),
+			"TEMPLATE"	=> mb_substr($template, mb_strlen($_SERVER["DOCUMENT_ROOT"]."/")),
 			"VISIBLE"	=> "Y",
 			"FROM_FIELD"	=> COption::GetOptionString("main", "email_from", "info@ourtestsite.com"),
 			"LAST_EXECUTED"	=> ConvertTimeStamp(false, "FULL"), 
@@ -484,7 +454,7 @@ COption::SetOptionString('main', 'captcha_registration', 'Y');
 COption::SetOptionString('main', 'site_name', $siteName);
 COption::SetOptionInt("search", "suggest_save_days", 250);
 
-if(strlen(COption::GetOptionString('main', 'CAPTCHA_presets', '')) <= 0)
+if(COption::GetOptionString('main', 'CAPTCHA_presets', '') == '')
 {
 	COption::SetOptionString('main', 'CAPTCHA_transparentTextPercent', '0');
 	COption::SetOptionString('main', 'CAPTCHA_arBGColor_1', 'FFFFFF');
@@ -578,7 +548,7 @@ else
 	$userGroupID = $group->Add($arFields);
 }
 
-if(IntVal($userGroupID) > 0)
+if(intval($userGroupID) > 0)
 {
 	WizardServices::SetFilePermission(Array($siteID, "/bitrix/admin"), Array($userGroupID => "R"));
 	WizardServices::SetFilePermission(Array($siteID, "/bitrix/admin"), Array($userGroupID => "R"));
@@ -665,9 +635,9 @@ else
 		"STRING_ID"      => "content_editor",
 		);
 	$userGroupID = $group->Add($arFields);
-	$DB->Query("INSERT INTO b_sticker_group_task(GROUP_ID, TASK_ID)	SELECT ".intVal($userGroupID).", ID FROM b_task WHERE NAME='stickers_edit' AND MODULE_ID='fileman'", false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
+	$DB->Query("INSERT INTO b_sticker_group_task(GROUP_ID, TASK_ID)	SELECT ".intval($userGroupID).", ID FROM b_task WHERE NAME='stickers_edit' AND MODULE_ID='fileman'", false, "FILE: ".__FILE__."<br> LINE: ".__LINE__);
 }
-if(IntVal($userGroupID) > 0)
+if(intval($userGroupID) > 0)
 {
 	WizardServices::SetFilePermission(Array($siteID, "/bitrix/admin"), Array($userGroupID => "R"));
 	

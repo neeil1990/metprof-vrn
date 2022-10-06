@@ -1,4 +1,4 @@
-<?
+﻿<?
 $arTooltips = array(
 	"SEF_MODE" => GetMessage("SEF_MODE_TIP"),
 	"ORDERS_PER_PAGE" => GetMessage("ORDERS_PER_PAGE_TIP"),

@@ -1,4 +1,4 @@
-<?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true) die();
+<?
 $langfile = dirname(__FILE__)."/lang/".LANGUAGE_ID."/".basename(__FILE__);
 if (file_exists($langfile))
 	__IncludeLang($langfile);
@@ -10,7 +10,7 @@ if ($arResult['CURRENT_STEP']==1)
 					array(
 						'NAME'	=> GetMessage('WZ_MESS_TITLE'),
 						'FIELD_ID' => 'wz_title',
-						'FIELD_VALUE' => htmlspecialcharsbx($_REQUEST['wizard']['wz_title']),
+						'FIELD_VALUE' => htmlspecialchars($_REQUEST['wizard']['wz_title']),
 						'FIELD_TYPE' => 'text'
 					)
 				),
@@ -23,25 +23,21 @@ if ($arResult['CURRENT_STEP']==1)
 			'PREVIEW_TEXT' => GetMessage('WZ_MESS_PREVIEW'),
 			'DETAIL_TEXT' => GetMessage('WZ_MESS_DETAIL'),
 			'FIELD_ID' => 'wz_coupon',
-			'FIELD_VALUE' => htmlspecialcharsbx($_REQUEST['wizard']['wz_coupon']),
+			'FIELD_VALUE' => htmlspecialchars($_REQUEST['wizard']['wz_coupon']),
 			'FIELD_TYPE' => 'text'
 		);
 }
 else
 {
-	$arResult['HIDDEN'][] = array('wz_title', htmlspecialcharsbx($_REQUEST['wizard']['wz_title']));
+	$arResult['HIDDEN'][] = array('wz_title', htmlspecialchars($_REQUEST['wizard']['wz_title']));
 	
 	if ($arParams['SHOW_COUPON_FIELD']=='Y')
 	{
-		$arResult['HIDDEN'][] = array('wz_coupon', htmlspecialcharsbx($_REQUEST['wizard']['wz_coupon']));
+		$arResult['HIDDEN'][] = array('wz_coupon', htmlspecialchars($_REQUEST['wizard']['wz_coupon']));
 		if ($arResult['CURRENT_STEP']==2 && $_REQUEST['wizard']['wz_coupon'])
 		{
 			CModule::IncludeModule('support');
-
-			CTimeZone::Disable();
 			$rs = CSupportSuperCoupon::GetList(false,array('ACTIVE'=>'Y','COUPON'=>$_REQUEST['wizard']['wz_coupon']));
-			CTimeZone::Enable();
-
 			if ($f = $rs->Fetch())
 			{
 				if(date('Ymd',time()) > date('Ymd',MakeTimeStamp($f['ACTIVE_TO'])))

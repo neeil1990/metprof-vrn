@@ -17,7 +17,7 @@ foreach($arResult['GRID_VERSIONS'] as $rowID=>$row)
         array(
             "ID" => $row['data']['USER_ID'],
             "HTML_ID" => "hist_auth_".$row['data']['USER_ID'],
-            "NAME_TEMPLATE" => (isset($arParams["NAME_TEMPLATE"]) ? $arParams["NAME_TEMPLATE"] : CSite::GetNameFormat()),
+            "NAME_TEMPLATE" => (isset($arParams["NAME_TEMPLATE"]) ? $arParams["NAME_TEMPLATE"] : "#LAST_NAME# #NAME_SHORT#"),
             "USE_THUMBNAIL_LIST" => "N",
             "CACHE_TYPE" => $arParams["CACHE_TYPE"],
             "CACHE_TIME" => $arParams["CACHE_TIME"],
@@ -28,19 +28,6 @@ foreach($arResult['GRID_VERSIONS'] as $rowID=>$row)
     $createdUser = ob_get_clean();
     $arResult['GRID_VERSIONS'][$rowID]['columns']['USER'] = $createdUser;
     $arResult['GRID_VERSIONS'][$rowID]['columns']["MODIFIED"] = FormatDate('X', MakeTimeStamp($row['data']["MODIFIED"]));
-}
-
-foreach ($arResult["GRID_VERSIONS"] as $docID => &$oHist)
-{
-	if (
-		isset($oHist['data']['DOCUMENT']['PROPERTIES']['WEBDAV_SIZE']['VALUE'])
-		&& (intval($oHist['data']['DOCUMENT']['PROPERTIES']['WEBDAV_SIZE']['VALUE']) <= 0)
-		&& (sizeof($oHist['actions']) == 2) // safety ...
-	)
-	{
-		$oHist['actions'][0] = $oHist['actions'][1];
-		unset($oHist['actions'][1]); // restore prohibited if size=0
-	}
 }
 
 ?><?$APPLICATION->IncludeComponent(

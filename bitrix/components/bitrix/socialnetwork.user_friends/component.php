@@ -20,19 +20,19 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_USER_FRIENDS_ADD"] = trim($arParams["PATH_TO_USER_FRIENDS_ADD"]);
 if (strlen($arParams["PATH_TO_USER_FRIENDS_ADD"]) <= 0)
-	$arParams["PATH_TO_USER_FRIENDS_ADD"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_friends_add&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER_FRIENDS_ADD"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_friends_add&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_SEARCH"] = trim($arParams["PATH_TO_SEARCH"]);
 if (strlen($arParams["PATH_TO_SEARCH"]) <= 0)
-	$arParams["PATH_TO_SEARCH"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
+	$arParams["PATH_TO_SEARCH"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
 
 $arParams["PATH_TO_USER_FRIENDS_DELETE"] = trim($arParams["PATH_TO_USER_FRIENDS_DELETE"]);
 if (strlen($arParams["PATH_TO_USER_FRIENDS_DELETE"]) <= 0)
-	$arParams["PATH_TO_USER_FRIENDS_DELETE"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_friends_delete&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER_FRIENDS_DELETE"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user_friends_delete&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["GROUP_ID"] = IntVal($arParams["GROUP_ID"]);
 if (strLen($arParams["GROUP_VAR"]) <= 0)
@@ -40,11 +40,11 @@ if (strLen($arParams["GROUP_VAR"]) <= 0)
 
 $arParams["PATH_TO_GROUP_REQUEST_USER"] = trim($arParams["PATH_TO_GROUP_REQUEST_USER"]);
 if (strlen($arParams["PATH_TO_GROUP_REQUEST_USER"]) <= 0)
-	$arParams["PATH_TO_GROUP_REQUEST_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group_request_user&".$arParams["USER_VAR"]."=#user_id#&".$arParams["GROUP_VAR"]."=#group_id#");
+	$arParams["PATH_TO_GROUP_REQUEST_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group_request_user&".$arParams["USER_VAR"]."=#user_id#&".$arParams["GROUP_VAR"]."=#group_id#");
 
 $arParams["PATH_TO_LOG"] = trim($arParams["PATH_TO_LOG"]);
 if (strlen($arParams["PATH_TO_LOG"]) <= 0)
-	$arParams["PATH_TO_LOG"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=log");
+	$arParams["PATH_TO_LOG"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=log");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
@@ -108,7 +108,7 @@ else
 			if ($arParams["SET_TITLE"] == "Y" || $arParams["SET_NAV_CHAIN"] != "N")
 			{
 				if (strlen($arParams["NAME_TEMPLATE"]) <= 0)		
-					$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+					$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 				
 				$arParams["TITLE_NAME_TEMPLATE"] = str_replace(
 					array("#NOBR#", "#/NOBR#"), 
@@ -245,7 +245,7 @@ else
 							"USER_PERSONAL_PHOTO_IMG" => $arImage["IMG"],
 							"USER_PROFILE_URL" => $pu,
 							"SHOW_PROFILE_LINK" => $canViewProfile,
-							"IS_ONLINE" => ($arFriends[$pref."_USER_IS_ONLINE"] == "Y"),
+							"IS_ONLINE" => CSocNetUser::IsOnLine($arFriends[$pref."_USER_ID"]),
 							"ADD_TO_FRIENDS_LINK" => CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER_FRIENDS_ADD"], array("user_id" => $arFriends[$pref."_USER_ID"])),
 							"DELETE_FROM_FRIENDS_LINK" => CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER_FRIENDS_DELETE"], array("user_id" => $arFriends[$pref."_USER_ID"])),
 							"CAN_ADD2FRIENDS" => (!$arResult["CurrentUserPerms"]["IsCurrentUser"] && !$rel && $arFriends[$pref."_USER_ID"] != $GLOBALS["USER"]->GetID()) ? true : false,

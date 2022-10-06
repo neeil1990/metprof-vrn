@@ -37,7 +37,7 @@ $singleCode = trim($_REQUEST['code']);
 $singleCodeReal = trim($_REQUEST['realcode']);
 $site = trim($_REQUEST['site']);
 $save = isset($_REQUEST['save']);
-$bOptExist = isset($MAIN_OPTIONS['tpl_vars']) && isset($MAIN_OPTIONS['tpl_vars'][$site]);
+$bOptExist = isset($MAIN_OPTIONS[$site]) && isset($MAIN_OPTIONS[$site]['tpl_vars']);
 $asd_new_var = trim($_REQUEST['asd_new_var']);
 $asd_new_val = trim($_REQUEST['asd_new_val']);
 $asd_new_desc = trim($_REQUEST['asd_new_desc']);
@@ -52,20 +52,20 @@ if (!CModule::IncludeModule('asd.tplvars')) {
 	} else {
 		require_once($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_js.php');
 		if ($bOptExist) {
-			foreach ($MAIN_OPTIONS['tpl_vars'][$site] as $code => $val) {
+			foreach ($MAIN_OPTIONS[$site]['tpl_vars'] as $code => $val) {
 				$codeMd5 = md5($code);
 				if (strlen($singleCode) && $codeMd5!=$singleCode) {
 					continue;
 				}
 				if (strlen(trim($_REQUEST[$codeMd5.'_val']))) {
-					CASDOption::SetOption($code, trim($_REQUEST[$codeMd5.'_val']), trim($_REQUEST[$codeMd5.'_desc']), $site);
+					COption::SetOptionString('tpl_vars', $code, trim($_REQUEST[$codeMd5.'_val']), trim($_REQUEST[$codeMd5.'_desc']), $site);
 				} else {
-					CASDOption::RemoveOption($code, $site);
+					COption::RemoveOption('tpl_vars', $code, $site);
 				}
 			}
 		}
 		if (strlen($asd_new_val)) {
-			CASDOption::SetOption($asd_new_var, $asd_new_val, $asd_new_desc, $site);
+			COption::SetOptionString('tpl_vars', $asd_new_var, $asd_new_val, $asd_new_desc, $site);
 		}
 		?><script type="text/javascript">
 			top.BX.closeWait(); top.BX.WindowManager.Get().AllowClose();
@@ -116,18 +116,17 @@ require($_SERVER['DOCUMENT_ROOT'].'/bitrix/modules/main/include/prolog_admin_aft
 		<?if ($bOptExist):?>
 		<?
 		$needCreate = true;
-		foreach ($MAIN_OPTIONS['tpl_vars'][$site] as $code => $val):
+		foreach ($MAIN_OPTIONS[$site]['tpl_vars'] as $code => $val):
 			$codeMd5 = md5($code);
 			if (strlen($singleCode) && $codeMd5!=$singleCode) {
 				continue;
 			}
 			$needCreate = false;
-			$desc=CASDOption::GetOptionsDesc($code, $site);
 			?>
 		<tr>
 			<td>
-				<div class="edit-area" id="edit_area_<?= $codeMd5?>_desc" style="display: none;"><input type="text" style="width: 120px;" name="<?= $codeMd5?>_desc" value="<?= htmlspecialcharsbx($desc)?>" onblur="viewArea('<?= $codeMd5?>_desc')" /></div>
-				<div onmouseout="rowMouseOut(this)" class="edit-field view-area" id="view_area_<?= $codeMd5?>_desc" onclick="editArea('<?= $codeMd5?>_desc')" style="width: 150px;"><?= htmlspecialcharsex($desc)?></div>
+				<div class="edit-area" id="edit_area_<?= $codeMd5?>_desc" style="display: none;"><input type="text" style="width: 120px;" name="<?= $codeMd5?>_desc" value="<?= $desc=CASDTplVars::GetOptionsDesc($code, $site)?>" onblur="viewArea('<?= $codeMd5?>_desc')" /></div>
+				<div onmouseout="rowMouseOut(this)" class="edit-field view-area" id="view_area_<?= $codeMd5?>_desc" onclick="editArea('<?= $codeMd5?>_desc')" style="width: 150px;"><?= $desc?></div>
 			</td>
 			<td>
 				<div style="margin: 0 0 0 10px;"><?= $code?></div>

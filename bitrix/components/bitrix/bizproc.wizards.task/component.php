@@ -59,7 +59,7 @@ if ($taskId > 0)
 {
 	$dbTask = CBPTaskService::GetList(
 		array(),
-		array("ID" => $taskId, "USER_ID" => $USER->GetID(), 'STATUS' => CBPTaskStatus::Running, 'USER_STATUS' => CBPTaskUserStatus::Waiting),
+		array("ID" => $taskId, "USER_ID" => $USER->GetID()),
 		false,
 		false,
 		array("ID", "WORKFLOW_ID", "ACTIVITY", "ACTIVITY_NAME", "MODIFIED", "OVERDUE_DATE", "NAME", "DESCRIPTION", "PARAMETERS")
@@ -67,7 +67,7 @@ if ($taskId > 0)
 	$arResult["Task"] = $dbTask->GetNext();
 }
 
-if (!$arResult["Task"] && !empty($_REQUEST["workflow_id"]))
+if (!$arTask)
 {
 	$workflowId = trim($_REQUEST["workflow_id"]);
 
@@ -75,7 +75,7 @@ if (!$arResult["Task"] && !empty($_REQUEST["workflow_id"]))
 	{
 		$dbTask = CBPTaskService::GetList(
 			array(),
-			array("WORKFLOW_ID" => $workflowId, "USER_ID" => $USER->GetID(), 'STATUS' => CBPTaskStatus::Running, 'USER_STATUS' => CBPTaskUserStatus::Waiting),
+			array("WORKFLOW_ID" => $workflowId, "USER_ID" => $USER->GetID()),
 			false,
 			false,
 			array("ID", "WORKFLOW_ID", "ACTIVITY", "ACTIVITY_NAME", "MODIFIED", "OVERDUE_DATE", "NAME", "DESCRIPTION", "PARAMETERS")
@@ -114,13 +114,13 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 	if ($_SERVER["REQUEST_METHOD"] == "POST" && $_POST["action"] == "doTask" && check_bitrix_sessid())
 	{
 		$arErrorsTmp = array();
-		if (CBPDocument::PostTaskForm($arResult["Task"], $USER->GetID(), $_REQUEST + $_FILES, $arErrorsTmp, $USER->GetFormattedName(false)))
+		if (CBPDocument::PostTaskForm($arResult["Task"], $USER->GetID(), $_REQUEST + $_FILES, $arErrorsTmp, $USER->GetFullName()))
 		{
 			$arResult["ShowType"] = "Success";
 
 			$d = CBPTaskService::GetList(
 				array(),
-				array("WORKFLOW_ID" => $arResult["Task"]['WORKFLOW_ID'], "USER_ID" => (int)$GLOBALS["USER"]->GetID(), 'STATUS' => CBPTaskStatus::Running, 'USER_STATUS' => CBPTaskUserStatus::Waiting),
+				array("WORKFLOW_ID" => $workflowId, "USER_ID" => intval($GLOBALS["USER"]->GetID())),
 				false,
 				false,
 				array("ID")
@@ -149,16 +149,6 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 	list($taskForm, $taskFormButtons) = array("", "");
 	if ($arResult["ShowType"] != "Success")
 	{
-		$runtime = CBPRuntime::GetRuntime();
-		$runtime->StartRuntime();
-		$documentService = $runtime->GetService("DocumentService");
-		$documentType = $documentService->GetDocumentType($arResult["Task"]["PARAMETERS"]["DOCUMENT_ID"]);
-		if (!array_key_exists("BP_AddShowParameterInit_".$documentType[0]."_".$documentType[1]."_".$documentType[2], $GLOBALS))
-		{
-			$GLOBALS["BP_AddShowParameterInit_".$documentType[0]."_".$documentType[1]."_".$documentType[2]] = 1;
-			CBPDocument::AddShowParameterInit($documentType[0], "only_users", $documentType[2], $documentType[1]);
-		}
-
 		list($taskForm, $taskFormButtons) = CBPDocument::ShowTaskForm(
 			$arResult["Task"],
 			$USER->GetID(),

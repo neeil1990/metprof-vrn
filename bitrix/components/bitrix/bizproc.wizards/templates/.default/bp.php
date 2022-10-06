@@ -54,8 +54,6 @@ $APPLICATION->IncludeComponent(
 		"SHOW_TOOLBAR" => "Y",
 		"SET_TITLE" => $arParams["SET_TITLE"],
 		"SKIP_BP_TYPE_SELECT" => ($workflowTemplateId > 0 ? "Y" : "N"),
-		"BIZPROC_EDIT_MENU_LIST_MESSAGE" => GetMessage("BIZPROC_EDIT_MENU_LIST_MESSAGE"),
-		"BIZPROC_EDIT_MENU_LIST_TITLE_MESSAGE" => GetMessage("BIZPROC_EDIT_MENU_LIST_TITLE_MESSAGE"),
 	)
 );
 ?>

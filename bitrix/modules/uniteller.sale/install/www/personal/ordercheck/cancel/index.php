@@ -1,4 +1,4 @@
-<?require($_SERVER['DOCUMENT_ROOT'] . '/bitrix/header.php');?>
+﻿<?require($_SERVER['DOCUMENT_ROOT'] . '/bitrix/header.php');?>
 <?
 if (!class_exists('ps_uniteller') && file_exists($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/uniteller.sale/payment/uniteller.sale/tools.php')) {
 	include($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/uniteller.sale/payment/uniteller.sale/tools.php');

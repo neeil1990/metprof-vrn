@@ -67,12 +67,13 @@ else
 								<?
 							}
 
-							if ($arResult["bExtranet"])
+							if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite())
 								$bExtranet = true;
 
 							if ($arResult["isCurrentUserIntranet"])
 							{
 								if (!$arResult["bIntranet"])
+								{
 									$APPLICATION->IncludeComponent(
 										"bitrix:socialnetwork.user_search_input",
 										".default",
@@ -84,21 +85,20 @@ else
 											"SHOW_LOGIN" => $arParams["SHOW_LOGIN"]
 										)
 									);								
+								}
 								else
 								{
 									if ($bExtranet)
 										echo "<p>".GetMessage("SONET_C11_USER_INTRANET")."<br>";
 
-									$ControlID = $APPLICATION->IncludeComponent('bitrix:intranet.user.selector', 
-										'', 
-										array(
-											'INPUT_NAME' => $arParams["IUS_INPUT_NAME"],
-											'INPUT_NAME_STRING' => $arParams["IUS_INPUT_NAME_STRING"],
-											'INPUT_NAME_SUSPICIOUS' => $arParams["IUS_INPUT_NAME_SUSPICIOUS"],
-											'TEXTAREA_MIN_HEIGHT' => 50,
-											'TEXTAREA_MAX_HEIGHT' => 150,
-											'INPUT_VALUE_STRING' => $_REQUEST[$arParams["IUS_INPUT_NAME_STRING"]],
-											'EXTERNAL' => 'I'
+									$ControlID = $APPLICATION->IncludeComponent('bitrix:intranet.user.selector', '', array(
+										'INPUT_NAME' => $arParams["IUS_INPUT_NAME"],
+										'INPUT_NAME_STRING' => $arParams["IUS_INPUT_NAME_STRING"],
+										'INPUT_NAME_SUSPICIOUS' => $arParams["IUS_INPUT_NAME_SUSPICIOUS"],
+										'TEXTAREA_MIN_HEIGHT' => 50,
+										'TEXTAREA_MAX_HEIGHT' => 150,
+										'INPUT_VALUE_STRING' => $_REQUEST[$arParams["IUS_INPUT_NAME_STRING"]],
+										'EXTERNAL' => 'I'
 										)
 									);
 								}
@@ -145,10 +145,10 @@ else
 						$message = htmlspecialcharsex($_POST["MESSAGE"]);
 						if (strlen($message) <= 0)
 							$message = str_replace(
-								array("#NAME#"), 
-								array($arResult["Group"]["NAME"]), 
-								GetMessage('SONET_C11_MESSAGE_DEFAULT')
-							);
+										array("#NAME#"), 
+										array($arResult["Group"]["NAME"]), 
+										GetMessage('SONET_C11_MESSAGE_DEFAULT')
+									); 
 						?>
 						<tr>
 							<td valign="top" align="right" nowrap><?= GetMessage("SONET_C11_MESSAGE") ?>:</td>
@@ -170,7 +170,6 @@ else
 			</td>
 			<td valign="top" width="25%">
 				<?if ($arResult["Friends"] && (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite())):?>
-					<div class="sonet-cntnr-group-request-search">
 					<table width="100%" class="sonet-user-profile-friends data-table">
 						<tr>
 							<th><?= GetMessage("SONET_C33_T_FRIENDS") ?></th>
@@ -193,7 +192,7 @@ else
 												$href = "javascript:AddUser('".CUtil::JSEscape($friend["USER_NAME_FORMATED"])."')";
 
 											else
-												$href = "javascript:jsMLI_".$ControlID.".AddValue(".$friend["USER_ID"].")";
+												$href = "javascript:jsIUS_".$ControlID.".AddValue(".$friend["USER_ID"].")";
 
 											$APPLICATION->IncludeComponent("bitrix:main.user.link",
 												'',
@@ -234,13 +233,14 @@ else
 									<?
 								}
 								else
+								{
 									echo GetMessage("SONET_C33_T_NO_FRIENDS");
+								}
 								?>
 								<br><br><a href="<?= $arResult["Urls"]["Search"] ?>"><?= GetMessage("SONET_C33_T_ADD_FRIEND1") ?></a>
 							</td>
 						</tr>
 					</table>
-					</div>
 				<?endif;?>
 			</td>
 		</tr>

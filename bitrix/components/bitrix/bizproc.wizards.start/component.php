@@ -77,7 +77,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 	$arResult["AdminAccess"] = ($USER->IsAdmin() || is_array($arParams["ADMIN_ACCESS"]) && (count(array_intersect($USER->GetUserGroupArray(), $arParams["ADMIN_ACCESS"])) > 0));
 
 	$arMessagesTmp = CIBlock::GetMessages($arResult["Block"]["ID"]);
-	$arResult["CreateTitle"] = htmlspecialcharsbx(is_array($arMessagesTmp) && array_key_exists("ELEMENT_ADD", $arMessagesTmp) ? $arMessagesTmp["ELEMENT_ADD"] : "");
+	$arResult["CreateTitle"] = htmlspecialchars(is_array($arMessagesTmp) && array_key_exists("ELEMENT_ADD", $arMessagesTmp) ? $arMessagesTmp["ELEMENT_ADD"] : "");
 
 	$arResult["ShowMode"] = "SelectWorkflow";
 	$documentType = array("bizproc", "CBPVirtualDocument", "type_".$arParams["BLOCK_ID"]);
@@ -86,7 +86,6 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 
 	$arCurrentUserGroups = $GLOBALS["USER"]->GetUserGroupArray();
 	$arCurrentUserGroups[] = "user_".$GLOBALS["USER"]->GetID();
-	$arCurrentUserGroups = array_merge($arCurrentUserGroups, CBPHelper::getUserExtendedGroups($GLOBALS["USER"]->GetID()));
 
 	$ks = array_keys($arCurrentUserGroups);
 	foreach ($ks as $k)
@@ -186,15 +185,15 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 			{
 				$arErrorsTmp = array();
 
-				$arWorkflowParameters[$parameterKey] = $arResult["DocumentService"]->GetFieldInputValue(
+				$arWorkflowParameters[$parameterKey] = $arResult["DocumentService"]->SetGUIFieldEdit(
 					$documentType,
-					$arParameter,
 					$parameterKey,
 					$arRequest,
-					$arErrorsTmp
+					$arErrorsTmp,
+					$arParameter
 				);
 
-				if (CBPHelper::getBool($arParameter["Required"]) && CBPHelper::isEmptyValue($arWorkflowParameters[$parameterKey]))
+				if ($arParameter["Required"] && ($arParameter["Multiple"] && count($arWorkflowParameters[$parameterKey]) <= 0 || !$arParameter["Multiple"] && $arWorkflowParameters[$parameterKey] == null))
 				{
 					$arErrorsTmp[] = array(
 						"code" => "RequiredValue",
@@ -270,13 +269,13 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 				$v = ($p ? $_REQUEST[$key] : $arResult["TEMPLATE"]["PARAMETERS"][$key]["Default"]);
 				if (!is_array($v))
 				{
-					$arResult["ParametersValues"][$key] = CBPHelper::ConvertParameterValues($v);
+					$arResult["ParametersValues"][$key] = $v;
 				}
 				else
 				{
 					$keys1 = array_keys($v);
 					foreach ($keys1 as $key1)
-						$arResult["ParametersValues"][$key][$key1] = CBPHelper::ConvertParameterValues($v[$key1]);
+						$arResult["ParametersValues"][$key][$key1] = $v[$key1];
 				}
 			}
 

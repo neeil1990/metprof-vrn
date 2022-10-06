@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS ['PATH_TO_DETAIL_TIP'] = "The path to the order details page.";
 $MESS ['PATH_TO_COPY_TIP'] = "The path to the order duplication page. You can specify the path to a shopping cart here which will copy the order and make it ready for check out. ";
 // UnitellerPlugin add

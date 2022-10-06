@@ -37,10 +37,7 @@ table.sonet-user-profile-friend-box tbody td, table.sonet-user-profile-friend-bo
 	font-size:11px;
 }
 
-div#sonet_events_ms_message {
-	overflow:auto; 
-	overflow-y:visible;
-}
+div#sonet_events_ms_message {width:180px; overflow:auto; overflow-y:visible;}
 
 div#sonet_events_div 
 {

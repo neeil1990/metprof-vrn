@@ -25,24 +25,24 @@ if (strLen($arParams["BLOCK_VAR"]) <= 0)
 
 $arParams["PATH_TO_NEW"] = trim($arParams["PATH_TO_NEW"]);
 if (strlen($arParams["PATH_TO_NEW"]) <= 0)
-	$arParams["PATH_TO_NEW"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=new");
+	$arParams["PATH_TO_NEW"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=new");
 
 $arParams["PATH_TO_LIST"] = trim($arParams["PATH_TO_LIST"]);
 if (strlen($arParams["PATH_TO_LIST"]) <= 0)
-	$arParams["PATH_TO_LIST"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=list&".$arParams["BLOCK_VAR"]."=#block_id#");
+	$arParams["PATH_TO_LIST"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=list&".$arParams["BLOCK_VAR"]."=#block_id#");
 
 $arParams["PATH_TO_INDEX"] = trim($arParams["PATH_TO_INDEX"]);
 if (strlen($arParams["PATH_TO_INDEX"]) <= 0)
-	$arParams["PATH_TO_INDEX"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=index");
+	$arParams["PATH_TO_INDEX"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=index");
 
 $arParams["PATH_TO_TASK"] = trim($arParams["PATH_TO_TASK"]);
 if (strlen($arParams["PATH_TO_TASK"]) <= 0)
-	$arParams["PATH_TO_TASK"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=task&".$arParams["TASK_VAR"]."=#task_id#");
+	$arParams["PATH_TO_TASK"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=task&".$arParams["TASK_VAR"]."=#task_id#");
 $arParams["PATH_TO_TASK"] = $arParams["PATH_TO_TASK"].((strpos($arParams["PATH_TO_TASK"], "?") === false) ? "?" : "&").bitrix_sessid_get();
 
 $arParams["PATH_TO_BP"] = trim($arParams["PATH_TO_BP"]);
 if (strlen($arParams["PATH_TO_BP"]) <= 0)
-	$arParams["PATH_TO_BP"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=bp&".$arParams["BLOCK_VAR"]."=#block_id#");
+	$arParams["PATH_TO_BP"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=bp&".$arParams["BLOCK_VAR"]."=#block_id#");
 $arParams["PATH_TO_BP"] = $arParams["PATH_TO_BP"].((strpos($arParams["PATH_TO_BP"], "?") === false) ? "?" : "&").bitrix_sessid_get();
 
 $arParams["PATH_TO_SETVAR"] = trim($arParams["PATH_TO_SETVAR"]);
@@ -71,7 +71,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 	{
 		if (count(array_intersect($USER->GetUserGroupArray(), $arParams["ADMIN_ACCESS"])) <= 0)
 		{
-			$GLOBALS["APPLICATION"]->ShowAuthForm("");
+			$GLOBALS["APPLICATION"]->ShowAuthForm();
 			die();
 		}
 	}
@@ -163,12 +163,12 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 		{
 			$arErrorsTmp = array();
 
-			$arResult["WorkflowVariables"][$variableKey]["Default"] = $arResult["DocumentService"]->GetFieldInputValue(
+			$arResult["WorkflowVariables"][$variableKey]["Default"] = $arResult["DocumentService"]->SetGUIFieldEdit(
 				array("bizproc", "CBPVirtualDocument", "type_".$arResult["Block"]["ID"]),
-				$arResult["WorkflowVariables"][$variableKey],
 				$variableKey,
 				$arRequest,
-				$arErrorsTmp
+				$arErrorsTmp,
+				$arResult["WorkflowVariables"][$variableKey]
 			);
 
 			if (count($arErrorsTmp) > 0)

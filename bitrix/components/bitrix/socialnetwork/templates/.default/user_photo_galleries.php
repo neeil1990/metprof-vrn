@@ -16,7 +16,7 @@ endif;
 ?>
 <?$APPLICATION->IncludeComponent(
 	"bitrix:photogallery.user",
-	"",
+	".default",
 	Array(
 		"IBLOCK_TYPE" => $arParams["PHOTO_USER_IBLOCK_TYPE"],
 		"IBLOCK_ID" => $arParams["PHOTO_USER_IBLOCK_ID"],

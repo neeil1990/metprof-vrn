@@ -15,5 +15,4 @@ $MESS["SUP_TICKET_ID_DESC"] = "Ticket ID";
 $MESS["SUP_TICKET_LIST_DESC"] = "List of tickets";
 $MESS["SUP_TICKET_EDIT_DESC"] = "Edit ticket page";
 $MESS["SUP_SHOW_COUPON_FIELD"] = "Show coupon input field";
-$MESS["SUP_SHOW_USER_FIELD"] = "Show custom fields";
 ?>

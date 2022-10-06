@@ -21,9 +21,9 @@ if(isset($arParams['INPUT_VALUE_STRING']) && strlen($arParams['INPUT_VALUE_STRIN
 ?>
 <div class="mli-layout" id="layout_<?=$control_id?>">
 	<?if($arParams["MULTIPLE"]=="Y"):?>
-	<textarea name="<?=$textarea_id?>" id="<?=$textarea_id?>"><?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialcharsbx($arParams['INPUT_VALUE_STRING']);?></textarea>
+	<textarea name="<?=$textarea_id?>" id="<?=$textarea_id?>"><?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialchars($arParams['INPUT_VALUE_STRING']);?></textarea>
 	<?else:?>
-	<input autocomplete="off" type="text" name="<?=$textarea_id?>" id="<?=$textarea_id?>" value="<?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialcharsbx($arParams['INPUT_VALUE_STRING']);?>">
+	<input autocomplete="off" type="text" name="<?=$textarea_id?>" id="<?=$textarea_id?>" value="<?if (isset($arParams['INPUT_VALUE_STRING'])) echo htmlspecialchars($arParams['INPUT_VALUE_STRING']);?>">
 	<?endif?>
 </div>
 <script type="text/javascript">

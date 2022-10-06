@@ -19,10 +19,10 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 	$arParams["PAGE_VAR"] = "page";
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 if (strlen($arParams["NAME_TEMPLATE"]) <= 0)		
-	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
+	$arParams["NAME_TEMPLATE"] = '#NOBR##NAME# #LAST_NAME##/NOBR#';
 $bUseLogin = $arParams['SHOW_LOGIN'] != "N" ? true : false;
 
 if (!CSocNetUser::IsFriendsAllowed())

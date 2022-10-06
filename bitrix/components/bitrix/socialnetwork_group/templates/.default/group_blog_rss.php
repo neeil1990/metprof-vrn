@@ -5,7 +5,7 @@ $APPLICATION->IncludeComponent(
 	"",
 	Array(
 		"MESSAGE_COUNT" => "10", 
-		"PATH_TO_BLOG" => $arResult["PATH_TO_GROUP_BLOG"], 
+		"PATH_TO_BLOG" => $arResult["PATH_TO_USER_BLOG"], 
 		"PATH_TO_GROUP_BLOG" => $arResult["PATH_TO_GROUP_BLOG"], 
 		"PATH_TO_POST" => $arResult["PATH_TO_GROUP_BLOG_POST"], 
 		"PATH_TO_USER" => $arParams["PATH_TO_USER"],
@@ -19,9 +19,8 @@ $APPLICATION->IncludeComponent(
 		"SOCNET_GROUP_ID" => $arResult["VARIABLES"]["group_id"],
 		"PARAM_GROUP_ID" => $arParams["BLOG_GROUP_ID"],
 		"USE_SOCNET" => "Y",
-		"IMAGE_MAX_WIDTH" => $arParams["BLOG_IMAGE_MAX_WIDTH"],
-		"IMAGE_MAX_HEIGHT" => $arParams["BLOG_IMAGE_MAX_HEIGHT"],
-		"ALLOW_POST_CODE" => $arParams["BLOG_ALLOW_POST_CODE"],
+		"USE_MAIN_MENU" => $arParams["USE_MAIN_MENU"],
+		"MAIN_MENU_TYPE" => $arParams["MAIN_MENU_TYPE"],
 	),
 	$component 
 );

@@ -20,8 +20,4 @@ $MESS["BPWC_WNCT_EADD"] = "'Add Element' Title";
 $MESS["BPWC_WNCT_SAVE0"] = "Edit";
 $MESS["BPWC_WNCT_FILTERABLEFIELDS"] = "Available Filters";
 $MESS["BPWC_WNCT_VISIBLEFIELDS"] = "Viewable Fields";
-$MESS["BPWC_WNCT_COMP_START_TPL"] = "Business process launch component template";
-$MESS["BPWC_WNCT_COMP_LIST_TPL"] = "Business process list component template";
-$MESS["BPWC_WNCT_COMP_VIEW_TPL"] = "Business process component template";
-$MESS["BPWC_WNCT_COMP_TPL_DEF"] = "(default)";
 ?>

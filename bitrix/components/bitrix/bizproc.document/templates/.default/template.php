@@ -10,29 +10,16 @@ $bizProcIndex = 0;
 $bEmpty = true;
 $bShowButtons = false;
 
-$arDocumentStates = $arResult["DOCUMENT_STATES"];
-$postFormUri = isset($arParams["POST_FORM_URI"]) ? $arParams["POST_FORM_URI"] : "";
-
-$actionUrl = CHTTP::urlAddParams(
-	CHTTP::urlDeleteParams(
-		$postFormUri !== "" ? $postFormUri : $APPLICATION->GetCurPage(), array("id", "action", "sessid", "back_url")),
-	array("sessid" => bitrix_sessid())
-);
-
-if(!empty($arParams["~back_url"]))
-{
-	$actionUrl = CHTTP::urlAddParams(
-		$actionUrl,
-		array("back_url" => urlencode($arParams["~back_url"]))
-	);
-}
+$arDocumentStates = CBPDocument::GetDocumentStates(
+	$arParams["DOCUMENT_TYPE"],
+	$arParams["DOCUMENT_ID"]);
 
 ?>
 <div class="bizproc-page-document">
 
-<form action="<?=htmlspecialcharsbx($postFormUri !== '' ? $postFormUri : POST_FORM_ACTION_URI)?>" method="POST" class="bizproc-form" name="start_workflow_form1" id="start_workflow_form1">
+<form action="<?=POST_FORM_ACTION_URI?>" method="POST" class="bizproc-form" name="start_workflow_form1" id="start_workflow_form1">
 	<?=bitrix_sessid_post()?>
-	<input type="hidden" name="back_url" value="<?=htmlspecialcharsbx($arParams["~back_url"])?>" />
+	<input type="hidden" name="back_url" value="<?=htmlspecialchars($arParams["back_url"])?>" />
 
 <ul class="bizproc-list bizproc-document-states">
 <?
@@ -40,12 +27,14 @@ $iCount = 0;
 if ($arParams["StartWorkflowPermission"] == "Y"):
 	$bEmpty = false;
 	$iCount++;
-	$url = CComponentEngine::MakePathFromTemplate($arParams["~WORKFLOW_START_URL"],
-					array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1],
-						"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2],
+	$url = CComponentEngine::MakePathFromTemplate($arParams["WORKFLOW_START_URL"], 
+					array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1], 
+						"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2], 
 						"ID" => $arParams["DOCUMENT_ID"][2]));
-	$url .= (strpos($url, "?") === false ? "?" : "&").bitrix_sessid_get()."&back_url=".
-		urlencode(!empty($arParams["~back_url"]) ? $arParams["~back_url"] : $APPLICATION->GetCurPageParam("", array("back_url")));
+	$url .= (strpos($url, "?") === false ? "?" : "&")."back_url=".
+		urlencode(!empty($arParams["back_url"]) ? $arParams["back_url"] : $APPLICATION->GetCurPageParam("", "back_url"));
+	
+	
 ?>
 	<li class="bizproc-list-item bizproc-document-start bizproc-list-item-first">
 		<table class="bizproc-table-main" cellpadding="0" border="0">
@@ -65,7 +54,7 @@ endif;
 foreach ($arDocumentStates as $arDocumentState)
 {
 	$bizProcIndex++;
-
+	
 	if (intVal($arDocumentState["WORKFLOW_STATUS"]) < 0):
 		continue;
 	elseif (!CBPDocument::CanUserOperateDocument(
@@ -73,8 +62,8 @@ foreach ($arDocumentStates as $arDocumentState)
 		$GLOBALS["USER"]->GetID(),
 		$arParams["DOCUMENT_ID"],
 		array(
-			"DocumentStates" => $arDocumentStates,
-			"WorkflowId" => $arDocumentState["ID"] > 0 ? $arDocumentState["ID"] : $arDocumentState["TEMPLATE_ID"]))):
+			"DocumentStates" => $arDocumentStates, 
+			"WorkflowId" => $arDocumentState["ID"] > 0 ? $arDocumentState["ID"] : $arDocumentState["TEMPLATE_ID"]))): 
 		continue;
 	endif;
 	$bEmpty = false;
@@ -85,10 +74,10 @@ foreach ($arDocumentStates as $arDocumentState)
 $iCount++;
 $iCountRow = 0;
 ?>
-	<li class="bizproc-list-item bizproc-document-process <?=(strlen($arDocumentState["ID"]) < 0 ?
-				"bizproc-document-notstarted" : (strlen($arDocumentState["WORKFLOW_STATUS"]) > 0 ?
-				"bizproc-document-inprogress" :
-				"bizproc-document-finished"))?> <?=(empty($arTasks) ? "" :
+	<li class="bizproc-list-item bizproc-document-process <?=(strlen($arDocumentState["ID"]) < 0 ? 
+				"bizproc-document-notstarted" : (strlen($arDocumentState["WORKFLOW_STATUS"]) > 0 ? 
+				"bizproc-document-inprogress" : 
+				"bizproc-document-finished"))?> <?=(empty($arTasks) ? "" : 
 				"bizproc-document-hastasks")
 				?> <?
 				?><?=($iCount == 1 ? "bizproc-list-item-first" : "")?> <?
@@ -103,16 +92,20 @@ $iCountRow = 0;
 					if (strlen($arDocumentState["WORKFLOW_STATUS"]) > 0):
 						$tmp = true;?>
 					<span class="bizproc-document-control-first">
-						<a href="<?=CHTTP::urlAddParams($actionUrl, array("id" => urlencode($arDocumentState["ID"]), "action" => "stop_bizproc"))?>"><?=GetMessage("IBEL_BIZPROC_STOP")?></a></span>
-					<?elseif ($arParams["DropWorkflowPermission"] == "Y"):
+						<a href="<?=$APPLICATION->GetCurPageParam("id=".$arDocumentState["ID"]."&action=stop_bizproc&".bitrix_sessid_get().
+						(!empty($arParams["back_url"]) ? "&back_url=".urlencode($arParams["back_url"]) : ""), 
+						array("id", "action", "sessid", "back_url"))?>"><?=GetMessage("IBEL_BIZPROC_STOP")?></a></span>
+					<?elseif ($arParams["DropWorkflowPermission"] == "Y"): 
 						$tmp = true;?>
 					<span class="bizproc-document-control-first">
-						<a href="<?=CHTTP::urlAddParams($actionUrl, array("id" => $arDocumentState["ID"], "action" => "del_bizproc"))?>"><?=GetMessage("IBEL_BIZPROC_DEL")?></a></span>
+						<a href="<?=$APPLICATION->GetCurPageParam("id=".$arDocumentState["ID"]."&action=del_bizproc&".bitrix_sessid_get().
+						(!empty($arParams["back_url"]) ? "&back_url=".urlencode($arParams["back_url"]) : ""), 
+						array("id", "action", "sessid", "back_url"))?>"><?=GetMessage("IBEL_BIZPROC_DEL")?></a></span>
 					<?endif;?>
 					<span class="<?=($tmp ? "bizproc-document-control-second" : "bizproc-document-control-single")?>">
-						<a href="<?=CComponentEngine::MakePathFromTemplate($arParams["~WORKFLOW_LOG_URL"],
-						array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1],
-							"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2],
+						<a href="<?=CComponentEngine::MakePathFromTemplate($arParams["WORKFLOW_LOG_URL"], 
+						array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1], 
+							"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2], 
 							"ID" => $arDocumentState["ID"], "STATE_ID" => $arDocumentState["ID"]))?>"><?=GetMessage("IBEL_BIZPROC_LOG")?></a></span>
 				<?endif;?>
 				</div>
@@ -121,19 +114,19 @@ $iCountRow = 0;
 		</tr>
 	</thead>
 	<tbody>
-
+	
 		<?if (strlen($arDocumentState["STATE_MODIFIED"]) > 0):
-		$iCountRow++;
+		$iCountRow++; 
 		?>
 		<tr class="<?=($iCountRow == 1 ? "bizproc-item-row-first" : "")?> <?
-			?><?=(empty($arTasks) && empty($arEvents) && empty($arDocumentState["TEMPLATE_PARAMETERS"]) && strlen($arDocumentState["STATE_NAME"]) <= 0 ?
+			?><?=(empty($arTasks) && empty($arEvents) && empty($arDocumentState["TEMPLATE_PARAMETERS"]) && strlen($arDocumentState["STATE_NAME"]) <= 0 ? 
 				"bizproc-item-row-last" : "")?>">
 			<td class="bizproc-field-name"><?=GetMessage("IBEL_BIZPROC_DATE")?>:</td>
-			<td class="bizproc-field-value"><?= FormatDateFromDB($arDocumentState["STATE_MODIFIED"]) ?></td>
+			<td class="bizproc-field-value"><?= $arDocumentState["STATE_MODIFIED"] ?></td>
 		</tr>
 		<?endif;?>
 		<?if (strlen($arDocumentState["STATE_NAME"]) > 0):
-		$iCountRow++;
+		$iCountRow++; 
 		?>
 		<tr class="<?=($iCountRow == 1 ? "bizproc-item-row-first" : "")?> <?
 			?><?=(empty($arTasks) && empty($arEvents) && empty($arDocumentState["TEMPLATE_PARAMETERS"])? "bizproc-item-row-last" : "")?>">
@@ -143,7 +136,7 @@ $iCountRow = 0;
 			</td>
 		</tr>
 		<?endif;?>
-
+		
 		<?if (strlen($arDocumentState["ID"]) <= 0)
 		{
 			$iCountRow++;
@@ -156,7 +149,7 @@ $iCountRow = 0;
 		}
 		?>
 		<?
-
+		
 		if (count($arEvents) > 0)
 		{
 			$bShowButtons = true;
@@ -173,8 +166,8 @@ $iCountRow = 0;
 					<?
 					foreach ($arEvents as $e)
 					{
-					?><option value="<?= htmlspecialcharsbx($e["NAME"]) ?>"<?= ($_REQUEST["bizproc_event_".$bizProcIndex] == $e["NAME"]) ? " selected" : ""?>><?
-						?><?= htmlspecialcharsbx($e["TITLE"]) ?></option><?
+					?><option value="<?= htmlspecialchars($e["NAME"]) ?>"<?= ($_REQUEST["bizproc_event_".$bizProcIndex] == $e["NAME"]) ? " selected" : ""?>><?
+						?><?= htmlspecialchars($e["TITLE"]) ?></option><?
 					}
 					?>
 				</select>
@@ -194,9 +187,9 @@ $iCountRow = 0;
 				<?
 				foreach ($arTasks as $arTask)
 				{
-					$url = CComponentEngine::MakePathFromTemplate($arParams["~TASK_EDIT_URL"], array("ID" => $arTask["ID"]));
-					$url .= (strpos($url, "?") === false ? "?" : "&")."back_url=".urlencode(!empty($arParams["~back_url"]) ? $arParams["~back_url"] : $APPLICATION->GetCurPageParam("", array()));
-					?><a href="<?=$url?>" title="<?= strip_tags($arTask["DESCRIPTION"]) ?>"><?= $arTask["NAME"] ?></a><br /><?
+					$url = CComponentEngine::MakePathFromTemplate($arParams["TASK_EDIT_URL"], array("ID" => $arTask["ID"]));
+					$url .= (strpos($url, "?") === false ? "?" : "&")."back_url=".urlencode($APPLICATION->GetCurPageParam("", array()));
+					?><a href="<?=$url?>" title="<?= htmlspecialchars($arTask["DESCRIPTION"]) ?>"><?= $arTask["NAME"] ?></a><br /><?
 				}
 				?>
 			</td>
@@ -214,7 +207,7 @@ if ($bEmpty):
 ?><?
 elseif ($bShowButtons):
 ?>
-
+	
 	<li class="bizproc-item-buttons">
 		<div class="bizproc-item-buttons">
 			<table class="bizproc-table-main" cellpadding="0" border="0">
@@ -224,7 +217,7 @@ elseif ($bShowButtons):
 						<input type="submit" name="save" value="<?=GetMessage("IBEL_BIZPROC_SAVE")?>" />
 						<input type="submit" name="update" value="<?=GetMessage("IBEL_BIZPROC_APPLY")?>" />
 						<?
-						if (!empty($arParams["~back_url"])):
+						if (!empty($arParams["back_url"])):
 						?>
 						<input type="submit" name="cancel" value="<?=GetMessage("IBEL_BIZPROC_CANCEL")?>" />
 						<?

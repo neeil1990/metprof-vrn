@@ -20,13 +20,14 @@ else
 	<?endif;?>
 	<?
 	if ($arResult["CurrentUserPerms"]["IsCurrentUser"]):
-		?><form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data"><?
+		?><form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data">
+		<input type="submit" name="delete" value="<?= GetMessage("SONET_C33_T_DELETE") ?>">
+		<br /><br /><?
 	endif;
 	?>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>
-	<div class="sonet-cntnr-user-friends">
 	<table width="100%" class="sonet-user-profile-friends data-table">
 		<tr>
 			<th colspan="2"><?= GetMessage("SONET_C33_T_FRIENDS") ?></th>
@@ -135,11 +136,11 @@ else
 			</td>
 		</tr>
 	</table>
-	</div>
 	<?if (StrLen($arResult["NAV_STRING"]) > 0):?>
 		<br><?=$arResult["NAV_STRING"]?><br /><br />
 	<?endif;?>
 	<?
+	
 	if ($arResult["CurrentUserPerms"]["IsCurrentUser"]):
 		?><br />
 		<input type="hidden" name="max_count" value="<?= $ind ?>">
@@ -147,5 +148,6 @@ else
 		<input type="submit" name="delete" value="<?= GetMessage("SONET_C33_T_DELETE") ?>">		
 		</form><?
 	endif;	
+	
 }
 ?>

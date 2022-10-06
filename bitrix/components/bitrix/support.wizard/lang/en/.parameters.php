@@ -27,5 +27,4 @@ $MESS["WZ_DEFAULT"] = "Elegant";
 $MESS["WZ_SELECT_SECTIONS"] = "Bind to sections";
 $MESS["SECTIONS_TO_CATEGORIES"] = "Enable binding";
 $MESS["WZ_GRP_SECTIONS_TO_CATEGORIES"] = "Map wizard sections to techsupport categories";
-$MESS["SUP_SHOW_USER_FIELD"] = "Show custom fields";
 ?>

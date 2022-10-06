@@ -1,19 +1,4 @@
-<?php
-/**
- * Bitrix Framework
- * @package bitrix
- * @subpackage socialnetwork
- * @copyright 2001-2014 Bitrix
- */
-
-/**
- * Bitrix vars
- * @global CUser $USER
- * @global CMain $APPLICATION
- * @param array $arParams
- * @param array $arResult
- * @param CBitrixComponent $this
- */
+<?
 if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
 
 if (!CModule::IncludeModule("socialnetwork"))
@@ -41,15 +26,15 @@ if (strLen($arParams["GROUP_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["PATH_TO_GROUP"] = trim($arParams["PATH_TO_GROUP"]);
 if (strlen($arParams["PATH_TO_GROUP"]) <= 0)
-	$arParams["PATH_TO_GROUP"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group&".$arParams["GROUP_VAR"]."=#group_id#");
+	$arParams["PATH_TO_GROUP"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=group&".$arParams["GROUP_VAR"]."=#group_id#");
 
 $arParams["PATH_TO_SEARCH"] = trim($arParams["PATH_TO_SEARCH"]);
 if (strlen($arParams["PATH_TO_SEARCH"]) <= 0)
-	$arParams["PATH_TO_SEARCH"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
+	$arParams["PATH_TO_SEARCH"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=search");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
@@ -96,8 +81,8 @@ if (!array_key_exists("USER_PROPERTY_TOOLTIP", $arParams))
 
 $arResult["ShowForm"] = "Input";
 
-if (!$USER->IsAuthorized())
-{
+if (!$GLOBALS["USER"]->IsAuthorized())
+{	
 	$arResult["NEED_AUTH"] = "Y";
 }
 else
@@ -112,27 +97,17 @@ else
 	{
 		$arGroup = CSocNetGroup::GetByID($arParams["GROUP_ID"]);
 		if (!$arGroup || !is_array($arGroup))
+		{
 			$arResult["FatalError"] = GetMessage("SONET_C33_NO_GROUP").". ";
+		}
 		else
 		{
 			$arResult["Group"] = $arGroup;
 
-			if (CModule::IncludeModule("extranet"))
-			{
-				$arSites = array();
-				$rsGroupSite = CSocNetGroup::GetSite($arParams["GROUP_ID"]);
-				while($arGroupSite = $rsGroupSite->Fetch())
-					$arSites[] = $arGroupSite["LID"];
-
-				$extranet_site_id = CExtranet::GetExtranetSiteID();
-				if ($extranet_site_id && in_array(CExtranet::GetExtranetSiteID(), $arSites))
-					$arResult["bExtranet"] = true;
-			}
-
 			$arResult["Urls"]["Group"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_GROUP"], array("group_id" => $arResult["Group"]["ID"]));
 			$arResult["Urls"]["Search"] = $arParams["PATH_TO_SEARCH"];
 
-			$arResult["CurrentUserPerms"] = CSocNetUserToGroup::InitUserPerms($USER->GetID(), $arResult["Group"], CSocNetUser::IsCurrentUserModuleAdmin());
+			$arResult["CurrentUserPerms"] = CSocNetUserToGroup::InitUserPerms($GLOBALS["USER"]->GetID(), $arResult["Group"], CSocNetUser::IsCurrentUserModuleAdmin());
 
 			if ($arParams["SET_TITLE"] == "Y")
 				$APPLICATION->SetTitle($arResult["Group"]["NAME"].": ".GetMessage("SONET_C33_PAGE_TITLE"));
@@ -144,7 +119,9 @@ else
 			}
 
 			if (!$arResult["CurrentUserPerms"] || !$arResult["CurrentUserPerms"]["UserCanInitiate"])
+			{
 				$arResult["FatalError"] = GetMessage("SONET_C33_NO_PERMS").". ";
+			}
 			else
 			{
 				$arSuccessUsers = array();
@@ -169,20 +146,23 @@ else
 						if (!$bAnyUser && strlen($arParams["IUS_INPUT_NAME_SUSPICIOUS"]) > 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS"]]) > 0)
 							$bAnyUser = true;
 
-						if (!$bAnyUser && $arResult["bExtranet"] && strlen($arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]) > 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]]) > 0)
+						if (!$bAnyUser && CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite() && strlen($arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]) > 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]]) > 0)
 							$bAnyUser = true;
 					}
-
+					
 					/* if data from intranet.user.search not found or there is no intranet module */
 					if (!$bAnyUser)
 					{
-						if ($arResult["bExtranet"])
+						if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite())
 						{
 							if (strlen($_POST["EMAILS"]) > 0)
 								$bAnyUser = true;
 						}
-						elseif (strlen($_POST["users_list"]) > 0)
-							$bAnyUser = true;
+						else
+						{
+							if (strlen($_POST["users_list"]) > 0)
+								$bAnyUser = true;
+						}
 					}
 
 					if (!$bAnyUser)
@@ -234,16 +214,20 @@ else
 									$arUsersList[] = $userTmp;
 							}
 
-							if (!$arResult["bExtranet"])
+							if (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite())
 							{
 								if (Count($arUsersList) <= 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS"]]) <= 0)
 									$errorMessage .= GetMessage("SONET_C33_NO_USERS").". ";
 							}
-							elseif (Count($arUsersList) <= 0 && strlen($_POST["EMAILS"]) <= 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]]) <= 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS"]]) <= 0)
-								$errorMessage .= GetMessage("SONET_C33_NO_USERS").". ";
+							else
+							{
+								if (Count($arUsersList) <= 0 && strlen($_POST["EMAILS"]) <= 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]]) <= 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS"]]) <= 0)
+									$errorMessage .= GetMessage("SONET_C33_NO_USERS").". ";
+							}
 
 							if (StrLen($errorMessage) <= 0)
 							{
+
 								$arUsersIDByInput = array();
 								foreach ($arUsersList as $user)
 								{
@@ -273,32 +257,33 @@ else
 						}
 					}
 
+
 					if (StrLen($errorMessage) <= 0)
 					{
 						foreach ($arUsersFull as $arUserToRequest)
 						{
-							$isCurrentUserTmp = ($USER->GetID() == $arUserToRequest["ID"]);
-							$canInviteGroup = CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUserToRequest["ID"], "invitegroup", CSocNetUser::IsCurrentUserModuleAdmin());
+							$isCurrentUserTmp = ($GLOBALS["USER"]->GetID() == $arUserToRequest["ID"]);
+							$canInviteGroup = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserToRequest["ID"], "invitegroup", CSocNetUser::IsCurrentUserModuleAdmin());
 							$user2groupRelation = CSocNetUserToGroup::GetUserRole($arUserToRequest["ID"], $arResult["Group"]["ID"]);
 
 							if ($isCurrentUserTmp)
 							{
-								$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
+								$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
 								$warningMessage .= Str_Replace("#NAME#", $arUserToRequest["NAME_FORMATTED"], GetMessage("SONET_C11_ERR_SELF")).". ";
 							}
 							elseif (!$canInviteGroup)
 							{
-								$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
+								$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
 								$warningMessage .= Str_Replace("#NAME#", $arUserToRequest["NAME_FORMATTED"], GetMessage("SONET_C11_BAD_USER")).". ";
 							}
 							elseif ($user2groupRelation)
 							{
-								$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
+								$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
 								$warningMessage .= Str_Replace("#NAME#", $arUserToRequest["NAME_FORMATTED"], GetMessage("SONET_C11_BAD_RELATION")).". ";
 							}
 							else
 							{
-								if (CModule::IncludeModule('extranet') && $arResult["bExtranet"] && CExtranet::GetExtranetUserGroupID() > 0)
+								if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite() && CExtranet::GetExtranetUserGroupID() > 0)
 								{
 									$arUserGroups = CUser::GetUserGroup($arUserToRequest["ID"]);
 									if (is_array($arUserGroups) && !in_array(CExtranet::GetExtranetUserGroupID(), $arUserGroups))
@@ -307,11 +292,11 @@ else
 										CUser::SetUserGroup($arUserToRequest["ID"], $arUserGroups);
 									}
 								}
-								if (CSocNetUserToGroup::SendRequestToJoinGroup($USER->GetID(), $arUserToRequest["ID"], $arResult["Group"]["ID"], $_POST["MESSAGE"]))
-									$arSuccessUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
+								if (CSocNetUserToGroup::SendRequestToJoinGroup($GLOBALS["USER"]->GetID(), $arUserToRequest["ID"], $arResult["Group"]["ID"], $_POST["MESSAGE"]))
+									$arSuccessUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
 								else
 								{
-									$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
+									$arErrorUsers[] = array($arUserToRequest["NAME_FORMATTED"], CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUserToRequest["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUserToRequest["ID"])) : "");
 									if ($e = $APPLICATION->GetException())
 										$warningMessage .= $e->GetString();
 								}
@@ -355,14 +340,14 @@ else
 								}
 							}
 						}						
-
+						
 						// get all suspicious extranet emails
-						if ($arResult["bExtranet"])
+						if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite())
 						{
 							if (strlen($arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]) > 0 && strlen($_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]]) > 0)
 							{
 								$arEmailOriginal = preg_split("/[\n\r\t\,;]+/", $_POST[$arParams["IUS_INPUT_NAME_SUSPICIOUS_EXTRANET"]]);
-
+	
 								foreach($arEmailOriginal as $addr)
 								{
 									if(strlen($addr) > 0 && check_email($addr))
@@ -382,13 +367,13 @@ else
 										$domain = "$sub_domain(?:\\.$white_space*$sub_domain)*";
 										$addr_spec = "$localpart\@$white_space*$domain";
 										$phrase = "$word*";
-
+	
 										if(preg_match("/$addr_spec/", $addr, $arMatches))
 											$addrX = $arMatches[0];
-
+	
 										if(preg_match("/$localpart/", $addr, $arMatches))
 											$phraseX = trim(trim($arMatches[0]), "\"");
-
+	
 										$arEmail[] = array("EMAIL"=>$addrX, "NAME"=>$phraseX);
 									}
 								}
@@ -396,7 +381,7 @@ else
 						}
 						
 						// get all suspicious extranet emails from an old form
-						if ($arResult["bExtranet"] && (!is_array($arEmail) || count($arEmail) <= 0) && strlen($_POST["EMAILS"]) > 0)
+						if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite() && (!is_array($arEmail) || count($arEmail) <= 0) && strlen($_POST["EMAILS"]) > 0)
 						{
 							$arEmailOriginal = preg_split("/[\n\r\t\,;]+/", $_POST["EMAILS"]);
 	
@@ -419,13 +404,13 @@ else
 									$domain = "$sub_domain(?:\\.$white_space*$sub_domain)*";
 									$addr_spec = "$localpart\@$white_space*$domain";
 									$phrase = "$word*";
-
+	
 									if(preg_match("/$addr_spec/", $addr, $arMatches))
 										$addrX = $arMatches[0];
-
+	
 									if(preg_match("/$localpart/", $addr, $arMatches))
 										$phraseX = trim(trim($arMatches[0]), "\"");
-
+	
 									$arEmail[] = array("EMAIL"=>$addrX, "NAME"=>$phraseX);
 								}
 							}
@@ -446,16 +431,16 @@ else
 								
 							if (CModule::IncludeModule('extranet') && !CExtranet::IsExtranetSite())
 								$arFilter["!UF_DEPARTMENT"] = false;
-
+								
 							$rsUser = CUser::GetList(($by="id"), ($order="asc"), $arFilter);
 							$bFound = false;
 							while ($arUser = $rsUser->GetNext())
 							{
 								$bFound = true;
-
+									
 								if (is_array($arUsersIDByInput) && in_array($arUser["ID"], $arUsersIDByInput))
 									continue;
-
+									
 								$arUsersFull[] = array("ID" => $arUser["ID"], "NAME_FORMATTED"=> CSocNetUser::FormatNameEx(
 									$arUser["NAME"],
 									$arUser["SECOND_NAME"],
@@ -464,26 +449,26 @@ else
 									($bIntranet ? $arUser["EMAIL"] : ""),
 									$arUser["ID"])
 								);
-
+								
 								$name = "";
-
+	
 								if (strlen(trim($arUser["NAME"].$arUser["LAST_NAME"])) <= 0)
 									$name = "&lt;".$arUser["EMAIL"]."&gt;";
 								else
 									$name = trim($arUser["NAME"]." ".$arUser["LAST_NAME"])." &lt;".$arUser["EMAIL"]."&gt;";
-
+	
 								$user2groupRelation = CSocNetUserToGroup::GetUserRole($arUser["ID"], $arResult["Group"]["ID"]);
-
+	
 								if ($user2groupRelation)
 								{
-									$arErrorUsers[] = array($name, CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUser["ID"])) : "");
+									$arErrorUsers[] = array($name, CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUser["ID"])) : "");
 									$warningMessage .= Str_Replace("#NAME#", $name, GetMessage("SONET_C11_BAD_RELATION")).". ";
 									continue;
 								}
-
+	
 								$arUserToRequest[] = array("NAME"=>$name, "ID"=>$arUser["ID"]);
-
-								if ($arResult["bExtranet"] && CExtranet::GetExtranetUserGroupID() > 0)
+	
+								if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite() && CExtranet::GetExtranetUserGroupID() > 0)
 								{
 									$arUserGroups = CUser::GetUserGroup($arUser["ID"]);
 									if (is_array($arUserGroups) && !in_array(CExtranet::GetExtranetUserGroupID(), $arUserGroups))
@@ -493,16 +478,16 @@ else
 									}
 								}
 							}
-
-							if (!$bFound && $arResult["bExtranet"])
+	
+							if (!$bFound && CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite())
 								$arEmailToRegister[] = $email;
 							elseif(!$bFound && CModule::IncludeModule('extranet') && !CExtranet::IsExtranetSite())	
 								$warningMessage .= Str_Replace("#EMAIL#", HtmlSpecialCharsEx($email["EMAIL"]), GetMessage("SONET_C33_NOT_EMPLOYEE"))."<br />";
 
 						}
-
+	
 						// create new extranet users
-						if ($arResult["bExtranet"])
+						if (CModule::IncludeModule('extranet') && CExtranet::IsExtranetSite())
 						{
 							foreach($arEmailToRegister as $email)
 							{
@@ -514,7 +499,7 @@ else
 								}
 								else
 									$arPolicy = $USER->GetGroupPolicy(array());
-
+					
 								$password_min_length = intval($arPolicy["PASSWORD_LENGTH"]);
 								if($password_min_length <= 0)
 									$password_min_length = 6;
@@ -523,19 +508,19 @@ else
 									"ABCDEFGHIJKLNMOPQRSTUVWXYZ",
 									"0123456789",
 								);
-
+		
 								if($arPolicy["PASSWORD_PUNCTUATION"] === "Y")
-									$password_chars[] = ",.<>/?;:'\"[]{}\\|`~!@#\$%^&*()-_+=";
-
+									$password_chars[] = ",.<>/?;:'\"[]{}\|`~!@#\$%^&*()-_+=";
+		
 								$password = randString($password_min_length, $password_chars);
 								$checkword = randString(8);
-
+		
 								$user = new CUser;
-
+			
 								$name = $last_name = "";
 								if (strlen($email["NAME"]) > 0)
 									list($name, $last_name) = explode(" ", $email["NAME"]);
-
+		
 								$arFields = array(
 									"EMAIL"		=> $email["EMAIL"],
 									"LOGIN"		=> $email["EMAIL"],
@@ -545,13 +530,13 @@ else
 									"GROUP_ID"		=> array(2),
 									"PASSWORD"		=> $password,
 									"CONFIRM_PASSWORD"	=> $password,
-									"CONFIRM_CODE"		=> $checkword,
+									"CHECKWORD"		=> $checkword,
 									"LID"			=> SITE_ID
 								);
-
+		
 								if (CExtranet::GetExtranetUserGroupID() > 0)
 									$arFields["GROUP_ID"] = array(2, CExtranet::GetExtranetUserGroupID());
-
+		
 								$NEW_USER_ID = $user->Add($arFields);
 
 								if (intval($NEW_USER_ID) > 0)
@@ -562,19 +547,19 @@ else
 									$arFields = Array(
 										"USER_ID"	=>	$NEW_USER_ID,
 										"CHECKWORD"	=>	$checkword,
-										"EMAIL"	=>	$email["EMAIL"],
-										"USER_TEXT" => ''
+										"EMAIL"	=>	$email["EMAIL"]
 									);
+		
 									$event->Send("EXTRANET_INVITATION", SITE_ID, $arFields);
 								}
 								else
 								{
 									$strError = $user->LAST_ERROR;
-									if ($APPLICATION->GetException())
+									if ($GLOBALS['APPLICATION']->GetException())
 									{
-										$err = $APPLICATION->GetException();
+										$err = $GLOBALS['APPLICATION']->GetException();
 										$strError .= $err->GetString();
-										$APPLICATION->ResetException();
+										$GLOBALS['APPLICATION']->ResetException();
 									}
 									$warningMessage .= Str_Replace("#EMAIL#", HtmlSpecialCharsEx($email["EMAIL"]), GetMessage("SONET_C33_CANNOT_USER_ADD").$strError);
 								}
@@ -587,11 +572,13 @@ else
 						{
 							foreach($arUserToRequest as $arUser)
 							{
-								if (CSocNetUserToGroup::SendRequestToJoinGroup($USER->GetID(), $arUser["ID"], $arResult["Group"]["ID"], $_POST["MESSAGE"]))
-									$arSuccessUsers[] = array($arUser["NAME"], CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUser["ID"])) : "");
+								if (CSocNetUserToGroup::SendRequestToJoinGroup($GLOBALS["USER"]->GetID(), $arUser["ID"], $arResult["Group"]["ID"], $_POST["MESSAGE"]))
+								{
+									$arSuccessUsers[] = array($arUser["NAME"], CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUser["ID"])) : "");
+								}
 								else
 								{
-									$arErrorUsers[] = array($arUser["NAME"], CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUser["ID"])) : "");
+									$arErrorUsers[] = array($arUser["NAME"], CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arUser["ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin()) ? CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arUser["ID"])) : "");
 									if ($e = $APPLICATION->GetException())
 										$warningMessage .= $e->GetString();
 								}
@@ -615,7 +602,7 @@ else
 					$arResult["Friends"] = false;
 					if (CSocNetUser::IsFriendsAllowed())
 					{
-						$dbFriends = CSocNetUserRelations::GetRelatedUsers($USER->GetID(), SONET_RELATIONS_FRIEND, false);
+						$dbFriends = CSocNetUserRelations::GetRelatedUsers($GLOBALS["USER"]->GetID(), SONET_RELATIONS_FRIEND, false);
 						if ($dbFriends)
 						{
 							$arResult["Friends"] = array();
@@ -625,13 +612,13 @@ else
 								if ($arResult["Friends"]["List"] == false)
 									$arResult["Friends"]["List"] = array();
 
-								$pref = ((IntVal($USER->GetID()) == $arFriends["FIRST_USER_ID"]) ? "SECOND" : "FIRST");
+								$pref = ((IntVal($GLOBALS["USER"]->GetID()) == $arFriends["FIRST_USER_ID"]) ? "SECOND" : "FIRST");
 
-								if (!CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arFriends[$pref."_USER_ID"], "invitegroup", CSocNetUser::IsCurrentUserModuleAdmin()))
+								if (!CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arFriends[$pref."_USER_ID"], "invitegroup", CSocNetUser::IsCurrentUserModuleAdmin()))
 									continue;
 
 								$pu = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_USER"], array("user_id" => $arFriends[$pref."_USER_ID"]));
-								$canViewProfile = CSocNetUserPerms::CanPerformOperation($USER->GetID(), $arFriends[$pref."_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
+								$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arFriends[$pref."_USER_ID"], "viewprofile", CSocNetUser::IsCurrentUserModuleAdmin());
 
 								if (intval($arParams["THUMBNAIL_LIST_SIZE"]) > 0)
 								{
@@ -675,7 +662,7 @@ else
 									"USER_PERSONAL_PHOTO_IMG" => $arImage["IMG"],
 									"USER_PROFILE_URL" => $pu,
 									"SHOW_PROFILE_LINK" => $canViewProfile,
-									"IS_ONLINE" => ($arFriends[$pref."_USER_IS_ONLINE"] == "Y")
+									"IS_ONLINE" => CSocNetUser::IsOnLine($arFriends[$pref."_USER_ID"]),
 								);
 							}
 						}
@@ -687,3 +674,4 @@ else
 	$arResult["bIntranet"] = $bIntranet;
 }
 $this->IncludeComponentTemplate();
+?>

@@ -29,7 +29,7 @@
 		this.currentTabTarget = '';
 		this.lastTab = '';
 		this.lastTabTarget = '';
-		
+
 		this.tabItems = {};
 		this.tabRedrawTimeout = null;
 		this.userInfo = {id: 0, name: '', gender: 'M', avatar: '', profile: ''};
@@ -58,44 +58,46 @@
 		this.context = params.context || "DESKTOP";
 		this.design = params.design || "DESKTOP";
 
-		if (this.context == 'FULLSCREEN' || this.context == 'POPUP-FULLSCREEN' || this.context == 'PAGE' || this.context == 'DIALOG' || this.context == 'LINES')
+		if (this.context == 'SLIDER')
+		{
+			this.content = BX.create('div', {});
+		}
+		else if (this.context == 'FULLSCREEN' || this.context == 'POPUP-FULLSCREEN' || this.context == 'PAGE' || this.context == 'DIALOG' || this.context == 'LINES')
 		{
 			if (this.context == 'FULLSCREEN' || this.context == 'PAGE' || this.context == 'POPUP-FULLSCREEN')
 			{
 				this.contentBodyWindow = true;
 			}
-			
-			
-			
+
 			this.popup = BX('im-workarea-popup');
 			this.popupBackground = this.popup;
 			this.content = BX('im-workarea-content');
 			this.apps = BX('im-workarea-apps');
 			this.backgroundSelector = BX('im-workarea-backgound-selector');
-			
+
 			if (!this.content)
 			{
 				this.popup = BX('workarea-popup');
 				this.content = BX('workarea-content');
 			}
+
 			if (this.popup)
 			{
 				BX.addClass(this.popup, 'bx-im-fullscreen-closed');
 				BX.bind(this.popup, 'click', BX.delegate(this.closePopup, this));
 			}
-			else 
+			else
 			{
 				this.popupBackground = BX('im-workarea-popup-bg');
 			}
-			
-			
+
 			if (this.context == 'PAGE')
 			{
 				var scrollSize = window.innerWidth - document.documentElement.clientWidth;
 				BX.onCustomEvent(window, 'onMessengerWindowBodyOverflow', [this, scrollSize]);
 				BX.addClass(document.body, 'bx-im-fullscreen-block-scroll');
 			}
-			
+
 			if (this.backgroundSelector)
 			{
 				BX.bind(this.backgroundSelector.parentNode, 'click', BX.delegate(BX.PreventDefault, this));
@@ -121,7 +123,7 @@
 			{
 				BX.bind(this.apps, 'click', BX.delegate(BX.MessengerCommon.preventDefault, this));
 			}
-			
+
 			BX.bind(this.content, 'click', BX.delegate(BX.MessengerCommon.preventDefault, this));
 			if (!BX.hasClass(this.content, 'bx-desktop'))
 			{
@@ -146,20 +148,65 @@
 			document.body.insertBefore(this.content, document.body.firstChild);
 		}
 
-		if (BX.desktop && BX.desktop.apiReady && !BX.desktop.enableInVersion(29))
+		this.withMenu = false;
+		if (this.context === 'DESKTOP' || this.context === 'FULLSCREEN' || this.context === 'SLIDER')
 		{
-			BX.PULL.tryConnectSet(null, false);
+			BX.addClass(this.content, 'bx-desktop-appearance-show-menu');
+			this.withMenu = true;
+		}
+
+		if (
+			BX.desktop
+			&& BX.desktop.apiReady
+			&& (
+				navigator.userAgent.toLowerCase().indexOf('linux') > 0 && !BX.desktop.enableInVersion(29)
+				|| navigator.userAgent.toLowerCase().indexOf('linux') < 0 && !BX.desktop.enableInVersion(37)
+				|| ["11.0.20.53"].includes(BX.desktop.clientVersion.join('.'))
+			)
+		)
+		{
+			document.body.classList.remove('bx-messenger-dark');
+			document.documentElement.style = "background: #fff";
 			BX.desktop.notSupported();
 			BX.desktop.apiReady = false;
 			BX.desktop.disableLogin = true;
 
 			return false;
 		}
-		
+
+		if (
+			BX.desktop
+			&& BX.desktop.apiReady
+			&& !this.BXIM.ppServerStatus
+		)
+		{
+			document.body.classList.remove('bx-messenger-dark');
+			document.documentElement.style = "background: #fff";
+			BX.desktop.withoutPushServer();
+			BX.desktop.apiReady = false;
+			BX.desktop.disableLogin = true;
+
+			return false;
+		}
+
 		if (BX.browser.SupportLocalStorage())
 		{
 			BX.addCustomEvent(window, "onLocalStorageSet", BX.delegate(this.storageSet, this));
 		}
+
+		/*
+		['exit', 'search','mail','account','exit','disk','storage'].forEach(icon => {
+			BX.MessengerWindow.addTab({
+				id: icon,
+				title: icon,
+				target: false,
+				events: {
+					open: () => {}
+				}
+			});
+		});
+		 */
+
 		if (BX.MessengerCommon.isDesktop())
 		{
 			BX.MessengerWindow.addTab({
@@ -189,12 +236,12 @@
 		{
 			location.href = url;
 		}
-		else 
+		else
 		{
 			window.open(url,'_blank');
 		}
 	};
-	
+
 	MessengerWindow.prototype.getCurrentUrl = function ()
 	{
 		return document.location.protocol+'//'+document.location.hostname+(document.location.port == ''?'':':'+document.location.port)
@@ -220,27 +267,41 @@
 
 		return true;
 	}
-		
-	MessengerWindow.prototype.adjustSize = function (width, height)
+
+	MessengerWindow.prototype.adjustSize = function (width, height, skipTimeout)
 	{
 		if (this.context == 'POPUP-FULLSCREEN' && BX.hasClass(this.popup, 'bx-im-fullscreen-closed'))
 		{
 			return false;
 		}
+
 		var innerWidth = 0;
 		var innerHeight = 0;
-		
-		var setFirstHeight = false;
-		if (this.contentBodyWindow)
+
+		if (this.context == 'SLIDER')
+		{
+			innerHeight = this.content.parentNode? this.content.parentNode.offsetHeight: this.initHeight;
+			innerWidth = this.content.offsetWidth;
+
+			if (!skipTimeout)
+			{
+				clearTimeout(this.sliderResizeTimeout);
+				this.sliderResizeTimeout = setTimeout(function () {
+					BX.MessengerWindow.adjustSize(undefined, undefined, true);
+					BXIM.desktop.adjustSize();
+				}, 300);
+			}
+		}
+		else if (this.contentBodyWindow)
 		{
 			if (!this.popupFullscreenSizeTop && !this.popupFullscreenSizeBottom)
 			{
-				var popupPos = BX.pos(BX.MessengerWindow.content.parentNode);
+				var popupPos = BX.pos(this.content.parentNode);
 				this.popupFullscreenSizeTop = popupPos.top;
 				this.popupFullscreenSizeBottom = window.innerHeight-popupPos.top-popupPos.height;
 			}
-			innerHeight = Math.max(window.innerHeight-this.popupFullscreenSizeTop-this.popupFullscreenSizeBottom-10, this.initHeight);
-			innerWidth = BX.MessengerWindow.content.offsetWidth;
+			innerHeight = Math.max(window.innerHeight-this.popupFullscreenSizeTop-this.popupFullscreenSizeBottom, this.initHeight);
+			innerWidth = this.content.offsetWidth;
 		}
 		else if (this.contentFullWindow)
 		{
@@ -255,27 +316,25 @@
 			catch (e)
 			{
 				setTimeout(function(){
-					BX.MessengerWindow.adjustSize(width, height);
+					this.adjustSize(width, height);
 				}, 500);
 			}
 			innerWidth = Math.max(this.content.offsetWidth, this.minWidth);
 			innerHeight = Math.max(this.content.offsetHeight, this.minHeight);
 		}
-		
+
 		if (BX.desktop && BX.desktop.apiReady && (!width || !height) && (innerHeight < this.minHeight || innerWidth < this.minWidth))
 		{
-			BXDesktopWindow.SetProperty("clientSize", { Width: this.width, Height: this.height});
+			//BXDesktopWindow.SetProperty("clientSize", { Width: this.width, Height: this.height});
 			return false;
 		}
 
-		
-		
 		if (this.context == 'POPUP-FULLSCREEN' && BX.browser.IsMobile())
 		{
 			this.height = this.initHeight;
 			this.width = this.initWidth;
 		}
-		else 
+		else
 		{
 			BX.addClass(this.content, 'bx-im-fullscreen-adaptive');
 			this.width = width? width: innerWidth;
@@ -285,7 +344,7 @@
 		BX.style(this.contentMenu, 'height', this.height+'px');
 		BX.style(this.contentTabContent, 'height', this.height+'px');
 		BX.style(this.content, 'max-width', window.innerWidth+'px');
-		
+
 		return true;
 	}
 
@@ -307,6 +366,7 @@
 			})];
 		}
 		this.popupConfirm = new BX.PopupWindow('bx-desktop-confirm', null, {
+			targetContainer: document.body,
 			zIndex: 200,
 			autoHide: buttons === false,
 			buttons : buttons,
@@ -322,7 +382,7 @@
 
 		return true;
 	};
-	
+
 	MessengerWindow.prototype.addSeparator = function (params)
 	{
 		params.type = 'separator';
@@ -334,13 +394,15 @@
 
 	MessengerWindow.prototype.addTab = function (params)
 	{
-		if (!params || !params.id || !params.title)
+		if (!params || !params.id)
 			return false;
 
 		if (!params.order)
 			params.order = 500;
 
-		params.hide = params.hide? true: false;
+		params.title = params.title || '';
+		params.hide = !!params.hide;
+		params.toggleEnable = params.toggleEnable !== false;
 
 		if (parseInt(params.badge) > 0)
 		{
@@ -375,7 +437,7 @@
 
 		this.drawTabs();
 	}
-	
+
 	MessengerWindow.prototype.hideTab = function (id)
 	{
 		if (!id || !this.tabItems[id])
@@ -385,7 +447,7 @@
 
 		this.drawTabs();
 	}
-	
+
 	MessengerWindow.prototype.showTab = function (id)
 	{
 		if (!id || !this.tabItems[id])
@@ -395,7 +457,7 @@
 
 		this.drawTabs();
 	}
-	
+
 	MessengerWindow.prototype.existsTab = function (id)
 	{
 		return this.tabItems[id];
@@ -440,11 +502,6 @@
 			}
 		}
 
-		if (BX.desktop && BX.desktop.apiReady)
-		{
-			BX.desktop.updateTabBadge();
-		}
-
 		return true;
 	}
 
@@ -458,17 +515,37 @@
 		}
 		else
 		{
+			var counterLabel = (params.badge > 99? '99+': params.badge);
+			var counterType = 'digits';
+			if (counterLabel.toString().length === 2)
+			{
+				counterType = 'dozens';
+			}
+			else if (counterLabel.toString().length > 2)
+			{
+				counterType = 'hundreds';
+			}
+
 			this.contentTab.appendChild(
 				BX.create('div', { attrs : { 'data-id' : params.id, id: 'bx-desktop-tab-'+params.id, title: params.title}, props : { className : "bx-desktop-tab bx-desktop-tab-"+params.id+(this.currentTab == params.id? ' bx-desktop-tab-active': '')+(params.hide? ' bx-desktop-tab-hide': '') }, children: [
-					BX.create('span', { props : { className : "bx-desktop-tab-counter" }, html: params.badge > 0? '<span class="bx-desktop-tab-counter-digit">'+(params.badge > 50? '50+': params.badge)+'</span>': ''}),
+					BX.create('span', { props : { className : "bx-desktop-tab-counter" }, html: params.badge > 0? '<span class="bx-desktop-tab-counter-digit" data-counter-type="'+counterType+'" >'+counterLabel+'</span>': ''}),
 					BX.create('div', { props : { className : "bx-desktop-tab-icon bx-desktop-tab-icon-"+params.id }})
 				]})
 			);
 
 			if (!BX('bx-desktop-tab-content-'+params.id) && params.id == params.target)
 			{
+				var isActive = false;
+				if (
+					this.currentTab == params.id
+					|| this.tabItems[this.currentTab] && this.tabItems[this.currentTab].target == params.id
+				)
+				{
+					isActive = true;
+				}
+
 				this.contentTabContent.appendChild(
-					BX.create('div', { attrs : { 'data-id': params.id, id: 'bx-desktop-tab-content-'+params.id}, props : { className : "bx-desktop-tab-content bx-desktop-tab-content-"+params.id+(this.currentTab == params.id? ' bx-desktop-tab-content-active': '') }, children: params.initContent? [params.initContent]: []})
+					BX.create('div', { attrs : { 'data-id': params.id, id: 'bx-desktop-tab-content-'+params.id}, props : { className : "bx-desktop-tab-content bx-desktop-tab-content-"+params.id+(isActive? ' bx-desktop-tab-content-active': '') }, children: params.initContent? [params.initContent]: []})
 				);
 				params.events.init();
 			}
@@ -483,7 +560,7 @@
 
 		this.content.innerHTML = '';
 		this.content.appendChild(
-			this.contentBox = BX.create("div", { props : { className : 'bx-desktop-appearance'}, style: {minHeight: this.minHeight+'px'}, children: [
+			this.contentBox = BX.create("div", { props : { className : 'bx-desktop-appearance '+(BX.MessengerTheme.isDark()? 'bx-messenger-dark': '')}, style: {minHeight: this.minHeight+'px'}, children: [
 				this.contentMenu = BX.create("div", { props : { className : 'bx-desktop-appearance-menu'}, children: [
 					this.contentAvatar = BX.create("div", { props : { className : 'bx-desktop-appearance-avatar'}}),
 					this.contentTab = BX.create("div", { props : { className : 'bx-desktop-appearance-tab'}})
@@ -497,15 +574,16 @@
 			BX.PreventDefault(event);
 		}, this));
 		this.adjustSize();
-		
+
 		BX.onCustomEvent(window, 'onMessengerWindowInit', [this, this.BXIM]);
 
 		return true;
 	}
 
-	MessengerWindow.prototype.changeTab = function (tabId, force)
+	MessengerWindow.prototype.changeTab = function (tabId, force, skipFireEvent)
 	{
 		force = typeof(force) == 'undefined'? true: force;
+		skipFireEvent = typeof(skipFireEvent) == 'undefined'? false: skipFireEvent;
 
 		if (typeof(tabId) == 'object')
 		{
@@ -515,10 +593,10 @@
 			}
 			tabId = BX.proxy_context.getAttribute('data-id');
 		}
-		
+
 		if (!this.tabItems[tabId])
 			return false;
-		
+
 		if (this.tabItems[tabId].target)
 		{
 			var fireEvent = false;
@@ -556,8 +634,16 @@
 				BX.addClass(BX('bx-desktop-tab-content-'+this.currentTabTarget), 'bx-desktop-tab-content-active');
 			}
 
-			if (fireEvent)
+			if (fireEvent && !skipFireEvent)
 			{
+				if (
+					this.lastTab === this.currentTab
+					&& !this.tabItems[this.lastTab].toggleEnable
+				)
+				{
+					return false;
+				}
+
 				if (this.tabItems[this.lastTab])
 				{
 					this.tabItems[this.lastTab].events.close();
@@ -568,10 +654,9 @@
 					BX.onCustomEvent(this, 'OnDesktopTabChange', [this.currentTab, this.lastTab]);
 					this.tabItems[this.currentTab].events.open();
 				}
-
 			}
 		}
-		else
+		else if (!skipFireEvent)
 		{
 			this.tabItems[tabId].events.open();
 		}
@@ -612,26 +697,32 @@
 		value = parseInt(value);
 		this.tabItems[tabId].badge = value>0? value: 0;
 
-		if (value > 50)
-			value = '50+';
-
 		if (BX('bx-desktop-tab-'+tabId))
 		{
 			var counter = BX.findChild(BX('bx-desktop-tab-'+tabId), {className : "bx-desktop-tab-counter"}, true);
 			if (counter)
-				counter.innerHTML = value? '<span class="bx-desktop-tab-counter-digit">'+value+'</span>': '';
-		}
-
-		if (BX.desktop && BX.desktop.apiReady)
-		{
-			BX.desktop.updateTabBadge();
+			{
+				var counterLabel = (value > 99? '99+': value);
+				var counterType = 'digits';
+				if (counterLabel.toString().length === 2)
+				{
+					counterType = 'dozens';
+				}
+				else if (counterLabel.toString().length > 2)
+				{
+					counterType = 'hundreds';
+				}
+				counter.innerHTML = value? '<span class="bx-desktop-tab-counter-digit"  data-counter-type="'+counterType+'">'+counterLabel+'</span>': '';
+			}
 		}
 	}
 
 	MessengerWindow.prototype.setTabContent = function (tabId, content)
 	{
 		if (!this.tabItems[tabId])
+		{
 			return false;
+		}
 
 		if (BX('bx-desktop-tab-content-'+tabId))
 		{
@@ -662,7 +753,7 @@
 	{
 		return this.currentTabTarget;
 	}
-	
+
 	MessengerWindow.prototype.setUserInfo = function (params)
 	{
 		if (!this.userInfo)
@@ -673,10 +764,12 @@
 
 		if (params)
 		{
+			params = BX.clone(params);
+
 			if (!params.gender)
 				params.gender = 'M';
 
-			if (!params.avatar || !params.profile)
+			if (!params.avatar)
 				params.avatar = '';
 
 			this.userInfo = params;
@@ -690,18 +783,15 @@
 
 		var events = {};
 
-		if (this.userInfo.onclick)
-		{
-			events.click = function(e){
-				BX.MessengerWindow.userInfo.onclick();
-				return BX.PreventDefault(e);
-			}
-		}
+		events.click = function(e){
+			BXIM.openMessenger(BXIM.userId);
+			return BX.PreventDefault(e);
+		};
 
 		this.contentAvatar.innerHTML = '';
 		this.contentAvatar.appendChild(
-			BX.create('a', { attrs : { href : this.userInfo.profile, title : BX.util.htmlspecialcharsback(this.userInfo.name), target: "_blank" }, props : { className : "bx-desktop-avatar" }, events: events, children: [
-				BX.create('img', { attrs : { src : this.userInfo.avatar, style: (BX.MessengerCommon.isBlankAvatar(this.userInfo.avatar)? 'background-color: '+this.userInfo.color: '')}, props : { className : "bx-desktop-avatar-img bx-desktop-avatar-img-default" }})
+			BX.create('a', { attrs : { href : this.userInfo.profile, title : BX.util.htmlspecialcharsback(this.userInfo.name), target: "_blank", "data-slider-ignore-autobinding": "true" }, props : { className : "bx-desktop-avatar" }, events: events, children: [
+				BX.create('span', { attrs : { style: (BX.MessengerCommon.getAvatarStyle(this.userInfo, true))}, props : { className : "bx-desktop-avatar-img"+(BX.MessengerCommon.isBlankAvatar(this.userInfo.avatar)? ' bx-desktop-avatar-img-default': '') }})
 			]})
 		);
 
@@ -721,19 +811,27 @@
 	{
 		return this.userInfo;
 	}
-	
+
 	MessengerWindow.prototype.isPopupShow = function()
 	{
 		if (this.context == 'DESKTOP')
 			return true;
+		else if (this.context == 'PAGE')
+			return true;
 		else if (this.context == 'POPUP-FULLSCREEN' && !BX.hasClass(this.popup, 'bx-im-fullscreen-closed'))
 			return true;
-		
+		else if (this.context == 'SLIDER' && BX.MessengerSlider.isOpen())
+			return true;
+
 		return false;
 	}
-	
+
 	MessengerWindow.prototype.backgroundChange = function()
 	{
+		if (!this.backgroundSelector)
+		{
+			return;
+		}
 		var backgroundImage = this.backgroundSelector.value;
 		if (backgroundImage == 'transparent')
 		{
@@ -749,59 +847,78 @@
 			BX.style(this.popupBackground, 'background', 'url(/bitrix/js/im/images/bg-image-'+backgroundImage+'.jpg) #ccc');
 			BX.style(this.popupBackground, 'backgroundSize', 'cover');
 		}
-		else 
+		else
 		{
 			BX.removeClass(this.popupBackground, 'bx-im-fullscreen-popup-transparent');
 			BX.addClass(this.popupBackground, 'bx-im-fullscreen-popup-bitrix24');
 			BX.style(this.popupBackground, 'background', '');
 			BX.style(this.popupBackground, 'backgroundSize', '');
-		}	
+		}
 	}
-	
+
+	MessengerWindow.prototype.setZIndex = function(zindex)
+	{
+		BX.style(this.popup, 'z-index', zindex);
+	};
+
 	MessengerWindow.prototype.showPopup = function(dialogId)
 	{
 		if (this.isPopupShow())
 			return false;
-		
+
 		this.popupTimestart = +new Date();
 		clearTimeout(this.popupTimeout);
-		
+
 		var scrollSize = window.innerWidth - document.documentElement.clientWidth;
 		BX.onCustomEvent(window, 'onMessengerWindowBodyOverflow', [this, scrollSize]);
 		BX.addClass(document.body, 'bx-im-fullscreen-block-scroll');
-		
+
 		BX.addClass(this.popup, 'bx-im-fullscreen-opening');
 		BX.removeClass(this.popup, 'bx-im-fullscreen-closing');
 		BX.removeClass(this.popup, 'bx-im-fullscreen-closed');
 		this.adjustSize();
-		this.BXIM.desktop.initHeight = BX.MessengerWindow.content.offsetHeight;
-		
+		this.BXIM.desktop.initHeight = this.content.offsetHeight;
+
 		this.popupTimeout = setTimeout(BX.delegate(function(){
 			BX.removeClass(this.popup, 'bx-im-fullscreen-opening');
 			BX.addClass(this.popup, 'bx-im-fullscreen-open');
-			if (this.BXIM.webrtc.callOverlay)
-			{
-				BX.style(this.BXIM.webrtc.callOverlay, 'height', (this.BXIM.messenger.popupMessengerFullHeight-1)+'px');
-			}
 		}, this), 400);
-		
+
+		if (BX.SidePanel && BX.SidePanel.Instance.getTopSlider())
+		{
+			var zIndex = BX.SidePanel.Instance.getTopSlider().getZindex();
+			this.setZIndex(zIndex+1);
+		}
+
 		BX.onCustomEvent(this, 'OnMessengerWindowShowPopup', [dialogId]);
 		return true;
 	}
-	
-	MessengerWindow.prototype.closePopup = function()
+
+	MessengerWindow.prototype.closePopup = function(params)
 	{
-		if (!this.isPopupShow() || this.BXIM.webrtc.callInit)
+		if(!BX.type.isPlainObject(params))
+		{
+			params = {};
+		}
+
+		if (!this.isPopupShow() || this.BXIM.callController.hasActiveCall() || this.redirectFlag)
 			return false;
-		
+
 		if (this.popupTimestart+400 > (+new Date()))
 			return false;
-		
+
+		if (params.redirect)
+		{
+			this.redirectFlag = true;
+			document.location.href = params.redirect;
+			return true;
+		}
+
 		clearTimeout(this.popupTimeout);
 		BX.removeClass(document.body, 'bx-im-fullscreen-block-scroll');
 		BX.onCustomEvent(this, 'OnMessengerWindowClosePopup', []);
 		BX.onCustomEvent(window, 'onMessengerWindowBodyOverflow', [this, 0]);
-		
+
 		BX.addClass(this.popup, 'bx-im-fullscreen-open');
 		BX.addClass(this.popup, 'bx-im-fullscreen-closing');
 		BX.removeClass(this.popup, 'bx-im-fullscreen-opening');
@@ -809,19 +926,23 @@
 			BX.removeClass(this.popup, 'bx-im-fullscreen-closing');
 			BX.removeClass(this.popup, 'bx-im-fullscreen-open');
 			BX.addClass(this.popup, 'bx-im-fullscreen-closed');
-			
+			BX.style(this.popup, 'z-index', '');
 		}, this), 400);
-		
+
+
 		return true;
 	}
-	
+
 	MessengerWindow.prototype.storageSet = function(params)
 	{
-		if (params.key == 'imFullscreenBackground')
-		{
-			this.backgroundSelector.value = params.value;
-			this.backgroundChange();
-		}
+		if (!this.backgroundSelector)
+			return false;
+
+		if (params.key != 'imFullscreenBackground')
+			return false;
+
+		this.backgroundSelector.value = params.value;
+		this.backgroundChange();
 	};
 
 	BX.MessengerWindow = new MessengerWindow();

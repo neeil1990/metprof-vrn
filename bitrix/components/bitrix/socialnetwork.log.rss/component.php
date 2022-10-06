@@ -35,7 +35,7 @@ if (array_key_exists($arParams["EVENTS_VAR"], $_REQUEST) && strlen(trim($_REQUES
 else
 	$arParams["EVENT_ID"] = false;
 
-$arParams['NAME_TEMPLATE'] = $arParams['NAME_TEMPLATE'] ? $arParams['NAME_TEMPLATE'] : CSite::GetNameFormat();
+$arParams['NAME_TEMPLATE'] = $arParams['NAME_TEMPLATE'] ? $arParams['NAME_TEMPLATE'] : '#NAME# #LAST_NAME#';
 $arParams["NAME_TEMPLATE"] = str_replace(
 		array("#NOBR#", "#/NOBR#"), 
 		array("", ""), 
@@ -84,8 +84,8 @@ if ($arParams["ENTITY_TYPE"] == SONET_ENTITY_GROUP)
 		$arResult["Events"] = array(
 						array(
 							"LOG_DATE" => date("r"),
-							"TITLE_FORMAT" => htmlspecialcharsbx(GetMessage("SONET_LOG_RSS_GROUP_NO_PERMS_TITLE")),
-							"MESSAGE_FORMAT" => htmlspecialcharsbx(GetMessage("SONET_LOG_RSS_GROUP_NO_PERMS_MESSAGE")),
+							"TITLE_FORMAT" => htmlspecialchars(GetMessage("SONET_LOG_RSS_GROUP_NO_PERMS_TITLE")),
+							"MESSAGE_FORMAT" => htmlspecialchars(GetMessage("SONET_LOG_RSS_GROUP_NO_PERMS_MESSAGE")),
 							"URL" => "",
 						)
 					);
@@ -103,11 +103,11 @@ if ($arParams["ENTITY_TYPE"] == SONET_ENTITY_GROUP)
 	$arResult["NAME"] = $arGroup["NAME"];
 	$arResult["DESCRIPTION"] = $arGroup["DESCRIPTION"];
 	$arResult["URL"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_GROUP"], array("group_id" => $arParams["ENTITY_ID"]));
-	$arResult["URL"] = htmlspecialcharsbx(__RSSCheckServerName($arResult["URL"], $arResult["SERVER_NAME"]));
+	$arResult["URL"] = htmlspecialchars(__RSSCheckServerName($arResult["URL"], $arResult["SERVER_NAME"]));
 }
 else
 {
-	$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $arParams["ENTITY_ID"], "viewprofile", $bCurrentUserIsAdmin);
+	$canViewProfile = CSocNetUserPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $$arParams["ENTITY_ID"], "viewprofile", $bCurrentUserIsAdmin);
 
 	if (!$canViewProfile)
 	{
@@ -116,8 +116,8 @@ else
 		$arResult["Events"] = array(
 						array(
 							"LOG_DATE" => date("r"),
-							"TITLE_FORMAT" => htmlspecialcharsbx(GetMessage("SONET_LOG_RSS_USER_NO_PERMS_TITLE")),
-							"MESSAGE_FORMAT" => htmlspecialcharsbx(GetMessage("SONET_LOG_RSS_USER_NO_PERMS_MESSAGE")),
+							"TITLE_FORMAT" => htmlspecialchars(GetMessage("SONET_LOG_RSS_USER_NO_PERMS_TITLE")),
+							"MESSAGE_FORMAT" => htmlspecialchars(GetMessage("SONET_LOG_RSS_USER_NO_PERMS_MESSAGE")),
 							"URL" => "",
 						)
 					);
@@ -241,10 +241,7 @@ if ($arResult["NAME"])
 
 		$arResult["Events"] = array();
 
-		CTimeZone::Disable();
 		$dbEvents = CSocNetLog::GetList(array("LOG_DATE"=>"DESC"), $arFilter, false, false, array(), array("USER_ID" => ($bCurrentUserIsAdmin ? "A" : $GLOBALS["USER"]->GetID())));
-		CTimeZone::Enable();
-
 		while ($arEvents = $dbEvents->GetNext())
 		{
 	
@@ -379,8 +376,8 @@ if ($arResult["NAME"])
 				"ID" => $arEvents["ID"],
 				"LOG_DATE" => $arEvents["LOG_DATE"],
 				"TITLE_FORMAT" => CSocNetLog::MakeTitle($arEvents["TITLE_TEMPLATE"], $arEvents["TITLE"], "", true),
-				"MESSAGE_FORMAT" => htmlspecialcharsbx($arEvents["MESSAGE_FORMAT"]),
-				"URL" => htmlspecialcharsbx($arEvents["URL"]),
+				"MESSAGE_FORMAT" => htmlspecialchars($arEvents["MESSAGE_FORMAT"]),
+				"URL" => htmlspecialchars($arEvents["URL"]),
 			);
 			
 			$arResult["Events"][] = $arTmpEvent;

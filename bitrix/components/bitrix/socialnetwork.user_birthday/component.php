@@ -20,7 +20,7 @@ if (strLen($arParams["PAGE_VAR"]) <= 0)
 
 $arParams["PATH_TO_USER"] = trim($arParams["PATH_TO_USER"]);
 if (strlen($arParams["PATH_TO_USER"]) <= 0)
-	$arParams["PATH_TO_USER"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
+	$arParams["PATH_TO_USER"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=user&".$arParams["USER_VAR"]."=#user_id#");
 
 $arParams["ITEMS_COUNT"] = IntVal($arParams["ITEMS_COUNT"]);
 if ($arParams["ITEMS_COUNT"] <= 0)
@@ -159,7 +159,7 @@ if (CSocNetUser::IsFriendsAllowed())
 							"SHOW_PROFILE_LINK" => $canViewProfile,
 							"BIRTHDAY" => $val,
 							"NOW" => ($nowDay == $day && $nowMonth == $month),
-							"IS_ONLINE" => ($arFriends["IS_ONLINE"] == "Y")
+							"IS_ONLINE" => CSocNetUser::IsOnLine($arFriends["ID"]),
 						);
 
 						$cnt++;

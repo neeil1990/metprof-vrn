@@ -1,11 +1,6 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-/** @var CBitrixComponentTemplate $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @global CDatabase $DB */
-/** @global CUser $USER */
-/** @global CMain $APPLICATION */
+<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
 
+<?
 $pageId = "group_blog";
 include("util_group_menu.php");
 include("util_group_profile.php");
@@ -28,20 +23,17 @@ $APPLICATION->IncludeComponent(
 		"SET_NAV_CHAIN" => $arResult["SET_NAV_CHAIN"],
 		"GROUP_ID" => $arParams["BLOG_GROUP_ID"], 
 		"PATH_TO_MODERATION" => $arResult["PATH_TO_GROUP_BLOG_MODERATION"],
-		"CURRENT_PAGE" => "moderation",
-		'HIDE_OWNER_IN_TITLE' => $arParams['HIDE_OWNER_IN_TITLE'],
-		"PATH_TO_BLOG" => $arResult["PATH_TO_GROUP_BLOG"],
 	),
-	$this->getComponent()
+	$component
 );
 
-if(strlen($arParams["PATH_TO_USER_POST"]) <= 0)	
-	$arParams["PATH_TO_USER_POST"] = "/company/personal/user/#user_id#/blog/#post_id#/";
-if(strlen($arParams["PATH_TO_USER_POST_EDIT"]) <= 0)	
-	$arParams["PATH_TO_USER_POST_EDIT"] = "/company/personal/user/#user_id#/blog/edit/#post_id#/";
+if(strpos($arResult["PATH_TO_GROUP_BLOG"], "?") === false)
+	$arResult["PATH_TO_BLOG_CATEGORY"] = $arResult["PATH_TO_GROUP_BLOG"]."?category=#category_id#";
+else
+	$arResult["PATH_TO_BLOG_CATEGORY"] = $arResult["PATH_TO_GROUP_BLOG"]."&category=#category_id#";
 
 $APPLICATION->IncludeComponent(
-	"bitrix:socialnetwork.blog.moderation",
+	"bitrix:blog.blog.moderation",
 	"",
 	Array(
 		"MESSAGE_COUNT" => "25", 
@@ -49,8 +41,8 @@ $APPLICATION->IncludeComponent(
 		"PATH_TO_BLOG" => $arResult["PATH_TO_USER_BLOG"], 
 		"PATH_TO_GROUP_BLOG" => $arResult["PATH_TO_GROUP_BLOG"], 
 		"PATH_TO_BLOG_CATEGORY" => $arResult["PATH_TO_BLOG_CATEGORY"],
-		"PATH_TO_POST" => $arParams["PATH_TO_USER_POST"], 
-		"PATH_TO_POST_EDIT" => $arParams["PATH_TO_USER_POST_EDIT"], 
+		"PATH_TO_POST" => $arResult["PATH_TO_GROUP_BLOG_POST"], 
+		"PATH_TO_POST_EDIT" => $arResult["PATH_TO_GROUP_BLOG_POST_EDIT"], 
 		"PATH_TO_USER" => $arParams["PATH_TO_USER"],
 		"PATH_TO_SMILE" => $arParams["PATH_TO_BLOG_SMILE"], 
 		"USER_ID" => $arResult["VARIABLES"]["user_id"], 
@@ -69,15 +61,13 @@ $APPLICATION->IncludeComponent(
 		"USE_SOCNET" => "Y",
 		"NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"],
 		"SHOW_LOGIN" => $arParams["SHOW_LOGIN"],
-		"PATH_TO_CONPANY_DEPARTMENT" => $arParams["PATH_TO_CONPANY_DEPARTMENT"],
+               	"PATH_TO_CONPANY_DEPARTMENT" => $arParams["PATH_TO_CONPANY_DEPARTMENT"],
 		"PATH_TO_MESSAGES_CHAT" => $arResult["PATH_TO_MESSAGES_CHAT"],
 		"PATH_TO_VIDEO_CALL" => $arResult["PATH_TO_VIDEO_CALL"],
 		"IMAGE_MAX_WIDTH" => $arParams["BLOG_IMAGE_MAX_WIDTH"],
 		"IMAGE_MAX_HEIGHT" => $arParams["BLOG_IMAGE_MAX_HEIGHT"],
 		"ALLOW_POST_CODE" => $arParams["BLOG_ALLOW_POST_CODE"],
-		"BLOG_NO_URL_IN_COMMENTS" => $arParams["BLOG_NO_URL_IN_COMMENTS"],
-		"BLOG_NO_URL_IN_COMMENTS_AUTHORITY" => $arParams["BLOG_NO_URL_IN_COMMENTS_AUTHORITY"],
 	),
-	$this->getComponent()
+	$component
 );
 ?>

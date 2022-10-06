@@ -1,4 +1,4 @@
-<?
+﻿<?
 $arTooltips = array(
 	"PATH_TO_DETAIL" => GetMessage("PATH_TO_DETAIL_TIP"),
 	"PATH_TO_COPY" => GetMessage("PATH_TO_COPY_TIP"),

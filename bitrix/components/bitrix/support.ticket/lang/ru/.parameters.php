@@ -15,5 +15,4 @@ $MESS["SUP_TICKET_ID_DESC"] = "Идентификатор обращения";
 $MESS["SUP_TICKET_LIST_DESC"] = "Список обращений";
 $MESS["SUP_TICKET_EDIT_DESC"] = "Редактирование обращения";
 $MESS["SUP_SHOW_COUPON_FIELD"] = "Показывать поле ввода купона";
-$MESS['SUP_SHOW_USER_FIELD'] = "Показывать пользовательские поля";
 ?>

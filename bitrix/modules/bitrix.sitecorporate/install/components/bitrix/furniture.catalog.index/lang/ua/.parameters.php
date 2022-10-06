@@ -1,9 +1,9 @@
 <?
-$MESS["IBLOCK_TYPE"] = "Ð¢Ð¸Ð¿ Ñ–Ð½Ñ„Ð¾Ð±Ð»Ð¾ÐºÐ°";
-$MESS["IBLOCK_IBLOCK"] = "Ð†Ð½Ñ„Ð¾Ð±Ð»Ð¾Ðº";
-$MESS["IBLOCK_BINDING"] = "ÐŸÐ¾ÐºÐ°Ð·ÑƒÐ²Ð°Ñ‚Ð¸";
-$MESS["IBLOCK_BINDING_SECTION"] = "Ñ€Ð¾Ð·Ð´Ñ–Ð»Ð¸";
-$MESS["IBLOCK_BINDING_ELEMENT"] = "ÐµÐ»ÐµÐ¼ÐµÐ½Ñ‚Ð¸";
-$MESS["IBLOCK_ANY"] = "(Ð±ÑƒÐ´ÑŒ-ÑÐºÐ¸Ð¹)";
-$MESS["CP_BPR_CACHE_GROUPS"] = "Ð’Ñ€Ð°Ñ…Ð¾Ð²ÑƒÐ²Ð°Ñ‚Ð¸ Ð¿Ñ€Ð°Ð²Ð° Ð´Ð¾ÑÑ‚ÑƒÐ¿Ñƒ";
+$MESS["IBLOCK_TYPE"] = "Òèï ³íôîáëîêà";
+$MESS["IBLOCK_IBLOCK"] = "²íôîáëîê";
+$MESS["IBLOCK_BINDING"] = "Ïîêàçóâàòè";
+$MESS["IBLOCK_BINDING_SECTION"] = "ðîçä³ëè";
+$MESS["IBLOCK_BINDING_ELEMENT"] = "åëåìåíòè";
+$MESS["IBLOCK_ANY"] = "(áóäü-ÿêèé)";
+$MESS["CP_BPR_CACHE_GROUPS"] = "Âðàõîâóâàòè ïðàâà äîñòóïó";
 ?>

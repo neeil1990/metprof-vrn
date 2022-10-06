@@ -1,29 +1,13 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-/** @var CBitrixComponent $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @var string $componentPath */
-/** @var string $componentName */
-/** @var string $componentTemplate */
-/** @global CDatabase $DB */
-/** @global CUser $USER */
-/** @global CMain $APPLICATION */
-
 if (!CModule::IncludeModule("socialnetwork"))
 {
 	ShowError(GetMessage("SONET_MODULE_NOT_INSTALL"));
 	return;
 }
-
 $arDefaultUrlTemplates404 = array(
 	"index" => "index.php",
 
-	"reindex" => "reindex.php",
-	"group_content_search" => "group/#group_id#/search/",
-	"user_content_search" => "user/#user_id#/search/",
-
 	"user" => "user/#user_id#/",
-	"user_current" => "user/index.php",
 	"user_friends" => "user/#user_id#/friends/",
 	"user_friends_add" => "user/#user_id#/friends/add/",
 	"user_friends_delete" => "user/#user_id#/friends/delete/",
@@ -34,17 +18,12 @@ $arDefaultUrlTemplates404 = array(
 	"user_settings_edit" => "user/#user_id#/settings/",
 	"user_features" => "user/#user_id#/features/",
 	"user_subscribe" => "user/#user_id#/subscribe/",
-	"user_requests" => "user/#user_id#/requests/",
-	"user_security" => "user/#user_id#/security/",
-	"user_codes" => "user/#user_id#/codes/",
-	"user_passwords" => "user/#user_id#/passwords/",
-
-	"group_request_group_search" => "group/#user_id#/group_search/",
-	"group_request_user" => "group/#group_id#/user/#user_id#/request/",
 
 	"search" => "search.php",
+	"reindex" => "reindex.php",
+	"group_content_search" => "group/#group_id#/search/",
+	"user_content_search" => "user/#user_id#/search/",
 
-	"message_form" => "messages/form/#user_id#/",
 	"group" => "group/#group_id#/",
 	"group_edit" => "group/#group_id#/edit/",
 	"group_requests" => "group/#group_id#/requests/",
@@ -61,9 +40,14 @@ $arDefaultUrlTemplates404 = array(
 	"user_leave_group" => "group/#group_id#/user_leave/",
 	"user_request_group" => "group/#group_id#/user_request/",
 	"group_request_search" => "group/#group_id#/user_search/",
+
+	"group_request_user" => "group/#group_id#/user/#user_id#/request/",
+	"group_request_group_search" => "group/#user_id#/group_search/",
+
 	"message_to_group" => "group/#group_id#/chat/",
 	"message_form_mess" => "messages/chat/#user_id#/#message_id#/",
 	"messages_chat" => "messages/chat/#user_id#/",
+	"message_form" => "messages/form/#user_id#/",
 	"messages_users" => "messages/",
 	"messages_users_messages" => "messages/#user_id#/",
 	"messages_input" => "messages/input/",
@@ -72,7 +56,6 @@ $arDefaultUrlTemplates404 = array(
 	"messages_output_user" => "messages/output/#user_id#/",
 	"user_ban" => "messages/ban/",
 	"log" => "log/",
-	"log_entry" => "log/#log_id#/",
 	"activity" => "user/#user_id#/activity/",
 	"subscribe" => "subscribe/",
 	"bizproc" => "bizproc/",
@@ -102,7 +85,19 @@ $arDefaultUrlTemplates404 = array(
 	"user_photofull_element_edit" => "user/#user_id#/photo/photo/#user_alias#/#section_id#/#element_id#/action/#action#/",
 	"user_photofull_element_slide_show" => "user/#user_id#/photo/photo/#user_alias#/#section_id#/#element_id#/slide_show/",
 
+
+	"user_forum" => "user/#user_id#/forum/",
+	"user_forum_topic" => "user/#user_id#/forum/#topic_id#/",
+	"user_forum_topic_edit" => "user/#user_id#/forum/edit/#action#/#topic_id#/#message_id#/",
+	"user_forum_message" => "user/#user_id#/forum/message/#topic_id#/#message_id#/",
+	"user_forum_message_edit" => "user/#user_id#/forum/message/#action#/#topic_id#/#message_id#/",
+
 	"user_calendar" => "user/#user_id#/calendar/",
+
+	"user_tasks" => "user/#user_id#/tasks/",
+	"user_tasks_task" => "user/#user_id#/tasks/task/#action#/#task_id#/",
+	"user_tasks_view" => "user/#user_id#/tasks/view/#action#/#view_id#/",
+	"user_tasks_report" => "user/#user_id#/tasks/report/",
 
 	"user_files" => "user/#user_id#/files/lib/#path#",
 	"user_files_short" => "folder/view/#section_id#/#element_id#/#element_name#",
@@ -116,7 +111,6 @@ $arDefaultUrlTemplates404 = array(
 	"user_files_element_versions" => "user/#user_id#/files/element/versions/#element_id#/",
 	"user_files_element_upload" => "user/#user_id#/files/element/upload/#section_id#/",
 	"user_files_help" => "user/#user_id#/files/help/",
-	"user_files_connector" => "user/#user_id#/files/connector/",
 	"user_files_webdav_bizproc_history" => "user/#user_id#/files/bizproc/history/#element_id#/",
 	"user_files_webdav_bizproc_history_get" => "user/#user_id#/files/bizproc/historyget/#element_id#/#id#/#element_name#",
 	"user_files_webdav_bizproc_log" => "user/#user_id#/files/bizproc/log/#element_id#/#id#/",
@@ -146,7 +140,19 @@ $arDefaultUrlTemplates404 = array(
 	"group_photofull_element_edit" => "group/#group_id#/photo/photo/#user_alias#/#section_id#/#element_id#/action/#action#/",
 	"group_photofull_element_slide_show" => "group/#group_id#/photo/photo/#user_alias#/#section_id#/#element_id#/slide_show/",
 
+
+	"group_forum" => "group/#group_id#/forum/",
+	"group_forum_topic" => "group/#group_id#/forum/#topic_id#/",
+	"group_forum_topic_edit" => "group/#group_id#/forum/edit/#topic_id#/",
+	"group_forum_message" => "group/#group_id#/forum/message/#topic_id#/#message_id#/",
+	"group_forum_message_edit" => "group/#group_id#/forum/message/#action#/#topic_id#/#message_id#/",
+
 	"group_calendar" => "group/#group_id#/calendar/",
+
+	"group_tasks" => "group/#group_id#/tasks/",
+	"group_tasks_task" => "group/#group_id#/tasks/task/#action#/#task_id#/",
+	"group_tasks_view" => "group/#group_id#/tasks/view/#action#/#view_id#/",
+	"group_tasks_report" => "group/#group_id#/tasks/report/",
 
 	"group_files" => "group/#group_id#/files/lib/#path#/",
 	"group_files_short" => "folder/view/#section_id#/#element_id#/#element_name#",
@@ -160,7 +166,6 @@ $arDefaultUrlTemplates404 = array(
 	"group_files_element_versions" => "group/#group_id#/files/element/versions/#element_id#/",
 	"group_files_element_upload" => "group/#group_id#/files/element/upload/#section_id#/",
 	"group_files_help" => "group/#group_id#/files/help/",
-	"group_files_connector" => "group/#group_id#/files/connector/",
 	"group_files_webdav_bizproc_history" => "group/#group_id#/files/bizproc/history/#element_id#/",
 	"group_files_webdav_bizproc_history_get" => "group/#group_id#/files/bizproc/historyget/#element_id#/#id#/#element_name#",
 	"group_files_webdav_bizproc_log" => "group/#group_id#/files/bizproc/log/#element_id#/#id#/",
@@ -168,77 +173,34 @@ $arDefaultUrlTemplates404 = array(
 	"group_files_webdav_bizproc_workflow_admin" => "group/#group_id#/files/bizproc/admin/",
 	"group_files_webdav_bizproc_workflow_edit" => "group/#group_id#/files/bizproc/edit/#id#/",
 	"group_files_webdav_start_bizproc" => "group/#group_id#/files/bizproc/start/#element_id#/",
-	"group_files_webdav_task_list" => "group/#group_id#/files/bizproc/task/list/",
-	"group_files_webdav_task" => "group/#group_id#/files/bizproc/task/read/#id#/",
 
 	"user_blog" => "user/#user_id#/blog/",
-	"user_blog_post_important" => "user/#user_id#/blog/important/",
 	"user_blog_post_edit" => "user/#user_id#/blog/edit/#post_id#/",
 	"user_blog_rss" => "user/#user_id#/blog/rss/#type#/",
-	"user_blog_post_rss" => "user/#user_id#/blog/rss/#type#/#post_id#/",
+	"user_blog_post_rss" => "user/#user_id#/blog/rss/#type#/#post_id#",
 	"user_blog_draft" => "user/#user_id#/blog/draft/",
 	"user_blog_moderation" => "user/#user_id#/blog/moderation/",
-	"user_blog_tags" => "user/#user_id#/blog/tags/",
 	"user_blog_post" => "user/#user_id#/blog/#post_id#/",
-
 	"user_microblog" => "user/#user_id#/microblog/",
 	"user_microblog_post" => "user/#user_id#/microblog/#post_id#/",
-
-	"user_tasks" => "user/#user_id#/tasks/",
-	"user_tasks_task" => "user/#user_id#/tasks/task/#action#/#task_id#/",
-	"user_tasks_view" => "user/#user_id#/tasks/view/#action#/#view_id#/",
-	"user_tasks_departments_overview" => "user/#user_id#/tasks/departments/",
-	"user_tasks_projects_overview" => "user/#user_id#/tasks/projects/",
-	"user_tasks_report" => "user/#user_id#/tasks/report/",
-	"user_tasks_report_construct" => "user/#user_id#/tasks/report/construct/#report_id#/#action#/",
-	"user_tasks_report_view" => "user/#user_id#/tasks/report/view/#report_id#/",
-	"user_tasks_templates" => "user/#user_id#/tasks/templates/",
-	"user_templates_template" => "user/#user_id#/tasks/templates/template/#action#/#template_id#/",
-
-	"user_forum" => "user/#user_id#/forum/",
-	"user_forum_topic" => "user/#user_id#/forum/#topic_id#/",
-	"user_forum_topic_edit" => "user/#user_id#/forum/edit/#action#/#topic_id#/#message_id#/",
-	"user_forum_message" => "user/#user_id#/forum/message/#topic_id#/#message_id#/",
-	"user_forum_message_edit" => "user/#user_id#/forum/message/#action#/#topic_id#/#message_id#/",
 
 	"group_blog" => "group/#group_id#/blog/",
 	"group_blog_post_edit" => "group/#group_id#/blog/edit/#post_id#/",
 	"group_blog_rss" => "group/#group_id#/blog/rss/#type#/",
-	"group_blog_post_rss" => "group/#group_id#/blog/rss/#type#/#post_id#/",
+	"group_blog_post_rss" => "group/#group_id#/blog/rss/#type#/#post_id#",
 	"group_blog_draft" => "group/#group_id#/blog/draft/",
 	"group_blog_moderation" => "group/#group_id#/blog/moderation/",
 	"group_blog_post" => "group/#group_id#/blog/#post_id#/",
 	"group_microblog" => "group/#group_id#/microblog/",
 	"group_microblog_post" => "group/#group_id#/microblog/#post_id#/",
-
-	"group_forum" => "group/#group_id#/forum/",
-	"group_forum_topic" => "group/#group_id#/forum/#topic_id#/",
-	"group_forum_topic_edit" => "group/#group_id#/forum/edit/#topic_id#/",
-	"group_forum_message" => "group/#group_id#/forum/message/#topic_id#/#message_id#/",
-	"group_forum_message_edit" => "group/#group_id#/forum/message/#action#/#topic_id#/#message_id#/",
-
-	"group_tasks" => "group/#group_id#/tasks/",
-	"group_tasks_task" => "group/#group_id#/tasks/task/#action#/#task_id#/",
-	"group_tasks_view" => "group/#group_id#/tasks/view/#action#/#view_id#/",
-	"group_tasks_report" => "group/#group_id#/tasks/report/",
-	"group_tasks_report_construct" => "group/#group_id#/tasks/report/construct/#report_id#/#action#/",
-	"group_tasks_report_view" => "group/#group_id#/tasks/report/view/#report_id#/",
-
+	
 	"group_log" => "group/#group_id#/log/",
 	"group_log_rss" => "group/#group_id#/log/rss/?bx_hit_hash=#sign#&events=#events#",
 	"group_log_rss_mask" => "group/#group_id#/log/rss/",
 );
 
-if (IsModuleInstalled('extranet'))
-{
-	unset($arDefaultUrlTemplates404["search"]);
-}
-
 $arDefaultUrlTemplatesN404 = array(
 	"index" => "",
-
-	"reindex" => "page=reindex",
-	"user_content_search" => "page=user_content_search&user_id=#user_id#",
 
 	"user" => "page=user&user_id=#user_id#",
 	"user_friends" => "page=user_friends&user_id=#user_id#",
@@ -252,7 +214,10 @@ $arDefaultUrlTemplatesN404 = array(
 	"user_features" => "page=user_features&user_id=#user_id#",
 	"user_subscribe" => "page=user_subscribe&user_id=#user_id#",
 
+	"search" => "page=search",
+	"reindex" => "page=reindex",
 	"group_content_search" => "page=group_content_search&group_id=#group_id#",
+	"user_content_search" => "page=user_content_search&user_id=#user_id#",
 
 	"group" => "page=group&group_id=#group_id#",
 	"group_edit" => "page=group_edit&group_id=#group_id#",
@@ -268,21 +233,16 @@ $arDefaultUrlTemplatesN404 = array(
 	"group_search" => "page=group_search",
 	"group_search_subject" => "page=group_search_subject&subject_id=#subject_id#",
 	"user_leave_group" => "page=user_leave_group&group_id=#group_id#",
-	"group_request_user" => "page=group_request_user&group_id=#group_id#&user_id=#user_id#",
 	"user_request_group" => "page=user_request_group&group_id=#group_id#",
 	"group_request_search" => "page=group_request_search&group_id=#group_id#",
-	"user_requests" => "page=user_requests&user_id=#user_id#",
-	"user_security" => "page=user_security&user_id=#user_id#",
-	"user_codes" => "page=user_codes&user_id=#user_id#",
-	"user_passwords" => "page=user_passwords&user_id=#user_id#",
 
-	"search" => "page=search",
-
-	"message_form" => "page=message_form&user_id=#user_id#",
+	"group_request_user" => "page=group_request_user&group_id=#group_id#&user_id=#user_id#",
 	"group_request_group_search" => "page=group_request_group_search&user_id=#user_id#",
 
+	"message_to_group" => "page=message_to_group&group_id=#group_id#",
 	"message_form_mess" => "page=message_form_mess&user_id=#user_id#&message_id=#message_id#",
 	"messages_chat" => "page=messages_chat&user_id=#user_id#",
+	"message_form" => "page=message_form&user_id=#user_id#",
 	"messages_users" => "page=messages_users",
 	"messages_users_messages" => "page=messages_users_messages&user_id=#user_id#",
 	"messages_input" => "page=messages_input",
@@ -291,7 +251,6 @@ $arDefaultUrlTemplatesN404 = array(
 	"messages_output_user" => "page=messages_output_user&user_id=#user_id#",
 	"user_ban" => "page=user_ban",
 	"log" => "page=log",
-	"log_entry" => "page=log_entry&log_id=#log_id#",
 	"activity" => "page=activity&user_id=#user_id#",
 	"subscribe" => "page=subscribe",
 	"bizproc" => "page=bizproc",
@@ -321,7 +280,18 @@ $arDefaultUrlTemplatesN404 = array(
 	"user_photofull_element_edit" => "page=user_photofull_element_edit&user_id=#user_id#&user_alias=#user_alias#&section_id=#section_id#&element_id=#element_id#&action=#action#",
 	"user_photofull_element_slide_show" => "page=user_photofull_element_slide_show&user_id=#user_id#&user_alias=#user_alias#&section_id=#section_id#&element_id=#element_id#",
 
+	"user_forum" => "page=user_forum&user_id=#user_id#",
+	"user_forum_topic" => "page=user_forum_topic&user_id=#user_id#&topic_id=#topic_id#",
+	"user_forum_topic_edit" => "page=user_forum_topic_edit&user_id=#user_id#&topic_id=#topic_id#",
+	"user_forum_message" => "page=user_forum_message&user_id=#user_id#&topic_id=#topic_id#&message_id=#message_id#",
+	"user_forum_message_edit" => "page=user_forum_message_edit&user_id=#user_id#&topic_id=#topic_id#&message_id=#message_id#&action=#action#",
+
 	"user_calendar" => "page=user_calendar&user_id=#user_id#",
+
+	"user_tasks" => "page=user_tasks&user_id=#user_id#",
+	"user_tasks_task" => "page=user_tasks_task&user_id=#user_id#&action=#action#&task_id=#task_id#",
+	"user_tasks_view" => "page=user_tasks_view&user_id=#user_id#&action=#action#&view_id=#view_id#",
+	"user_tasks_report" => "page=user_tasks_report&user_id=#user_id#",
 
 	"user_files" => "page=user_files&user_id=#user_id#&path=#path#",
 	"user_files_short" => "page=user_files_short&user_id=#user_id#&section_id=#section_id#&element_id=#element_id#&element_name=#element_name#",
@@ -335,7 +305,6 @@ $arDefaultUrlTemplatesN404 = array(
 	"user_files_element_versions" => "page=user_files_element_versions&user_id=#user_id#&element_id=#element_id#",
 	"user_files_element_upload" => "page=user_files_element_upload&user_id=#user_id#&section_id=#section_id#",
 	"user_files_help" => "page=user_files_help&user_id=#user_id#",
-	"user_files_connector" => "page=user_files_connector&user_id=#user_id#",
 	"user_files_webdav_bizproc_history" => "page=user_files_webdav_bizproc_history&user_id=#user_id#&element_id=#element_id#",
 	"user_files_webdav_bizproc_history_get" => "page=user_files_webdav_bizproc_history_get&user_id=#user_id#&element_id=#element_id#&element_name=#element_name#",
 	"user_files_webdav_bizproc_log" => "page=user_files_webdav_bizproc_log&user_id=#user_id#&element_id=#element_id#&id=#id#",
@@ -365,35 +334,18 @@ $arDefaultUrlTemplatesN404 = array(
 	"group_photofull_element_edit" => "page=group_photofull_element_edit&group_id=#group_id#&user_alias=#user_alias#&section_id=#section_id#&element_id=#element_id#&action=#action#",
 	"group_photofull_element_slide_show" => "page=group_photofull_element_slide_show&group_id=#group_id#&user_alias=#user_alias#&section_id=#section_id#&element_id=#element_id#",
 
-	"user_blog" => "page=user_blog&user_id=#user_id#",
-	"user_blog_post_edit" => "page=user_blog_post_edit&user_id=#user_id#&post_id=#post_id#",
-	"user_blog_rss" => "page=user_blog_rss&user_id=#user_id#&type=#type#",
-	"user_blog_post_rss" => "page=user_blog_post_rss&user_id=#user_id#&type=#type#&post_id=#post_id#",
-	"user_blog_draft" => "page=user_blog_draft&user_id=#user_id#",
-	"user_blog_moderation" => "page=user_blog_moderation&user_id=#user_id#",
-	"user_blog_tags" => "page=user_blog_tags&user_id=#user_id#",
-	"user_blog_post" => "page=user_blog_post&user_id=#user_id#&post_id=#post_id#",
-	"user_microblog" => "page=user_microblog&user_id=#user_id#",
-	"user_microblog_post" => "page=user_microblog_post&user_id=#user_id#&post_id=#post_id#",
-
-	"user_tasks" => "page=user_tasks&user_id=#user_id#",
-	"user_tasks_task" => "page=user_tasks_task&user_id=#user_id#&action=#action#&task_id=#task_id#",
-	"user_tasks_view" => "page=user_tasks_view&user_id=#user_id#&action=#action#&view_id=#view_id#",
-	"user_tasks_report" => "page=user_tasks_report&user_id=#user_id#",
-	"user_tasks_report_construct" => "page=user_tasks_report_construct&user_id=#user_id#&action=#action#&report_id=#report_id#",
-	"user_tasks_report_view" => "page=user_tasks_report_view&user_id=#user_id#&report_id=#report_id#",
-	"user_tasks_templates" => "page=user_tasks_templates&user_id=#user_id#",
-	"user_templates_template" => "page=user_templates_template&user_id=#user_id#&action=#action#&template_id=#template_id#",
-
-	"user_forum" => "page=user_forum&user_id=#user_id#",
-	"user_forum_topic" => "page=user_forum_topic&user_id=#user_id#&topic_id=#topic_id#",
-	"user_forum_topic_edit" => "page=user_forum_topic_edit&user_id=#user_id#&topic_id=#topic_id#",
-	"user_forum_message" => "page=user_forum_message&user_id=#user_id#&topic_id=#topic_id#&message_id=#message_id#",
-	"user_forum_message_edit" => "page=user_forum_message_edit&user_id=#user_id#&topic_id=#topic_id#&message_id=#message_id#&action=#action#",
+	"group_forum" => "page=group_forum&group_id=#group_id#",
+	"group_forum_topic" => "page=group_forum_topic&group_id=#group_id#&topic_id=#topic_id#",
+	"group_forum_topic_edit" => "page=group_forum_topic_edit&group_id=#group_id#&topic_id=#topic_id#",
+	"group_forum_message" => "page=group_forum_message&group_id=#group_id#&topic_id=#topic_id#&message_id=#message_id#",
+	"group_forum_message_edit" => "page=group_forum_message_edit&group_id=#group_id#&topic_id=#topic_id#&message_id=#message_id#&action=#action#",
 
 	"group_calendar" => "page=group_calendar&group_id=#group_id#",
 
-	"message_to_group" => "page=message_to_group&group_id=#group_id#",
+	"group_tasks" => "page=group_tasks&group_id=#group_id#",
+	"group_tasks_task" => "page=group_tasks_task&group_id=#group_id#&action=#action#&task_id=#task_id#",
+	"group_tasks_view" => "page=group_tasks_view&group_id=#group_id#&action=#action#&view_id=#view_id#",
+	"group_tasks_report" => "page=group_tasks_report&group_id=#group_id#",
 
 	"group_files" => "page=group_files&group_id=#group_id#&path=#path#",
 	"group_files_short" => "page=group_files_short&group_id=#group_id#&section_id=#section_id#&element_id=#element_id#&element_name=#element_name#",
@@ -407,7 +359,6 @@ $arDefaultUrlTemplatesN404 = array(
 	"group_files_element_versions" => "page=group_files_element_versions&group_id=#group_id#&element_id=#element_id#",
 	"group_files_element_upload" => "page=group_files_element_upload&group_id=#group_id#&section_id=#section_id#",
 	"group_files_help" => "page=group_files_help&group_id=#group_id#",
-	"group_files_connector" => "page=group_files_connector&group_id=#group_id#",
 	"group_files_webdav_bizproc_history" => "page=group_files_webdav_bizproc_history&group_id=#group_id#&element_id=#element_id#",
 	"group_files_webdav_bizproc_history_get" => "page=group_files_webdav_bizproc_history_get&group_id=#group_id#&element_id=#element_id#&element_name=#element_name#",
 	"group_files_webdav_bizproc_log" => "page=group_files_webdav_bizproc_log&group_id=#group_id#&element_id=#element_id#&id=#id#",
@@ -415,8 +366,16 @@ $arDefaultUrlTemplatesN404 = array(
 	"group_files_webdav_bizproc_workflow_admin" => "page=group_files_webdav_bizproc_workflow_admin&group_id=#group_id#",
 	"group_files_webdav_bizproc_workflow_edit" => "page=group_files_webdav_bizproc_workflow_edit&group_id=#group_id#&id=#id#",
 	"group_files_webdav_start_bizproc" => "page=group_files_webdav_start_bizproc&group_id=#group_id#&element_id=#element_id#",
-	"group_files_webdav_task_list" => "page=group_files_webdav_task_list&group_id=#group_id#",
-	"group_files_webdav_task" => "page=group_files_webdav_task&group_id=#group_id#&id=#id#",
+
+	"user_blog" => "page=user_blog&user_id=#user_id#",
+	"user_blog_post_edit" => "page=user_blog_post_edit&user_id=#user_id#&post_id=#post_id#",
+	"user_blog_rss" => "page=user_blog_rss&user_id=#user_id#&type=#type#",
+	"user_blog_post_rss" => "page=user_blog_post_rss&user_id=#user_id#&type=#type#&post_id=#post_id#",
+	"user_blog_draft" => "page=user_blog_draft&user_id=#user_id#",
+	"user_blog_moderation" => "page=user_blog_moderation&user_id=#user_id#",
+	"user_blog_post" => "page=user_blog_post&user_id=#user_id#&post_id=#post_id#",
+	"user_microblog" => "page=user_microblog&user_id=#user_id#",
+	"user_microblog_post" => "page=user_microblog_post&user_id=#user_id#&post_id=#post_id#",
 
 	"group_blog" => "page=group_blog&group_id=#group_id#",
 	"group_blog_post_edit" => "page=group_blog_post_edit&group_id=#group_id#&post_id=#post_id#",
@@ -428,19 +387,6 @@ $arDefaultUrlTemplatesN404 = array(
 	"group_microblog" => "page=group_microblog&group_id=#group_id#",
 	"group_microblog_post" => "page=group_microblog_post&group_id=#group_id#&post_id=#post_id#",
 
-	"group_forum" => "page=group_forum&group_id=#group_id#",
-	"group_forum_topic" => "page=group_forum_topic&group_id=#group_id#&topic_id=#topic_id#",
-	"group_forum_topic_edit" => "page=group_forum_topic_edit&group_id=#group_id#&topic_id=#topic_id#",
-	"group_forum_message" => "page=group_forum_message&group_id=#group_id#&topic_id=#topic_id#&message_id=#message_id#",
-	"group_forum_message_edit" => "page=group_forum_message_edit&group_id=#group_id#&topic_id=#topic_id#&message_id=#message_id#&action=#action#",
-
-	"group_tasks" => "page=group_tasks&group_id=#group_id#",
-	"group_tasks_task" => "page=group_tasks_task&group_id=#group_id#&action=#action#&task_id=#task_id#",
-	"group_tasks_view" => "page=group_tasks_view&group_id=#group_id#&action=#action#&view_id=#view_id#",
-	"group_tasks_report" => "page=group_tasks_report&group_id=#group_id#",
-	"group_tasks_report_construct" => "page=group_tasks_report_construct&group_id=#group_id#&action=#action#&report_id=#report_id#",
-	"group_tasks_report_view" => "page=group_tasks_report_view&group_id=#group_id#&report_id=#report_id#",
-
 	"group_log" => "page=group_log&group_id=#group_id#",
 	"group_log_rss" => "page=group_log_rss&group_id=#group_id#&sign=#sign#&events=#events#",
 //	"group_log_rss_mask" => "page=group_log_rss&group_id=#group_id#"
@@ -448,35 +394,27 @@ $arDefaultUrlTemplatesN404 = array(
 $arDefaultVariableAliases404 = array();
 $arDefaultVariableAliases = array();
 $componentPage = "";
-$arComponentVariables = array("user_id", "group_id", "page", "message_id", "subject_id", "path", "section_id", "element_id", "action", "post_id", "category", "topic_id", "task_id", "view_id", "type", "report_id", "log_id");
+$arComponentVariables = array("user_id", "group_id", "page", "message_id", "subject_id", "path", "section_id", "element_id", "action", "post_id", "category", "topic_id", "task_id", "view_id", "type");
 
-if (
-	$_REQUEST["auth"]=="Y" 
-	&& $USER->IsAuthorized()
-)
-{
+if ($_REQUEST["auth"]=="Y" && $USER->IsAuthorized())
 	LocalRedirect($APPLICATION->GetCurPageParam("", array("login", "logout", "register", "forgot_password", "change_password", "backurl", "auth")));
-}
 
 if (!array_key_exists("SET_NAV_CHAIN", $arParams))
-{
 	$arParams["SET_NAV_CHAIN"] = $arParams["SET_NAVCHAIN"];
-}
 $arParams["SET_NAV_CHAIN"] = ($arParams["SET_NAV_CHAIN"] == "N" ? "N" : "Y");
-$arParams["LOG_AUTH"] = ((StrToUpper($arParams["LOG_AUTH"]) == "Y") ? "Y" : "N");
-$arParams["HIDE_OWNER_IN_TITLE"] = ($arParams["HIDE_OWNER_IN_TITLE"] == "Y" ? "Y" : "N");
 
 if (!array_key_exists("ALLOW_GROUP_CREATE_REDIRECT_REQUEST", $arParams))
-{
 	$arParams["ALLOW_GROUP_CREATE_REDIRECT_REQUEST"] = "Y";
-}
 
-if (!is_array($arParams["VARIABLE_ALIASES"]))
-{
-	$arParams["VARIABLE_ALIASES"] = array();
-}
+if (strlen(trim($arParams["NAME_TEMPLATE"])) <= 0)
+	$arParams["NAME_TEMPLATE"] = GetMessage('SONET_NAME_TEMPLATE_DEFAULT');
+$arParams['SHOW_LOGIN'] = $arParams['SHOW_LOGIN'] != "N" ? "Y" : "N";
 
-if ($arParams["GROUP_USE_KEYWORDS"] != "N") $arParams["GROUP_USE_KEYWORDS"] = "Y";
+if (IsModuleInstalled("intranet"))
+	$arParams['CAN_OWNER_EDIT_DESKTOP'] = $arParams['CAN_OWNER_EDIT_DESKTOP'] != "Y" ? "N" : "Y";
+else
+	$arParams['CAN_OWNER_EDIT_DESKTOP'] = $arParams['CAN_OWNER_EDIT_DESKTOP'] != "N" ? "Y" : "N";
+
 // for bitrix:main.user.link
 if (IsModuleInstalled('intranet'))
 {
@@ -509,44 +447,12 @@ else
 }
 
 if (!array_key_exists("SHOW_FIELDS_TOOLTIP", $arParams))
-{
 	$arParams["SHOW_FIELDS_TOOLTIP"] = unserialize(COption::GetOptionString("socialnetwork", "tooltip_fields", $arTooltipFieldsDefault));
-}
-
 if (!array_key_exists("USER_PROPERTY_TOOLTIP", $arParams))
-{
 	$arParams["USER_PROPERTY_TOOLTIP"] = unserialize(COption::GetOptionString("socialnetwork", "tooltip_properties", $arTooltipPropertiesDefault));
-}
 
-if (IsModuleInstalled('intranet') && !array_key_exists("PATH_TO_CONPANY_DEPARTMENT", $arParams))
-{
+if (!array_key_exists("PATH_TO_CONPANY_DEPARTMENT", $arParams))
 	$arParams["PATH_TO_CONPANY_DEPARTMENT"] = "/company/structure.php?set_filter_structure=Y&structure_UF_DEPARTMENT=#ID#";
-}
-
-if (
-	IsModuleInstalled("search")
-	&& !array_key_exists("PATH_TO_SEARCH_TAG", $arParams)
-)
-{
-	$arParams["PATH_TO_SEARCH_TAG"] = SITE_DIR."search/?tags=#tag#";
-}
-
-if (strlen(trim($arParams["NAME_TEMPLATE"])) <= 0)
-{
-	$arParams["NAME_TEMPLATE"] = CSite::GetNameFormat();
-}
-
-$arParams['SHOW_LOGIN'] = $arParams['SHOW_LOGIN'] != "N" ? "Y" : "N";
-
-if (IsModuleInstalled("intranet"))
-	$arParams['CAN_OWNER_EDIT_DESKTOP'] = $arParams['CAN_OWNER_EDIT_DESKTOP'] != "Y" ? "N" : "Y";
-else
-	$arParams['CAN_OWNER_EDIT_DESKTOP'] = $arParams['CAN_OWNER_EDIT_DESKTOP'] != "N" ? "Y" : "N";
-if (IsModuleInstalled("blog"))
-{
-	if (!array_key_exists("BLOG_ALLOW_POST_CODE", $arParams))
-		$arParams["BLOG_ALLOW_POST_CODE"] = "Y";
-}
 
 $arParams["USE_MAIN_MENU"] = (isset($arParams["USE_MAIN_MENU"]) && $arParams["USE_MAIN_MENU"] == "Y" ? $arParams["USE_MAIN_MENU"] : false);
 
@@ -560,32 +466,24 @@ $arParams["LOG_RSS_TTL"] = (isset($arParams["LOG_RSS_TTL"]) && intval($arParams[
 $arParams["GROUP_USE_BAN"] = $arParams["GROUP_USE_BAN"] != "N" ? "Y" : "N";
 
 $arParams["ALLOW_RATING_SORT"] = $arParams["ALLOW_RATING_SORT"] != "Y" ? "N" : "Y";
-
-// activation rating
-CRatingsComponentsMain::GetShowRating($arParams);
+$arParams["SHOW_RATING"] = $arParams["SHOW_RATING"] != "Y" ? "N" : "Y";
 
 if (
 	!array_key_exists("RATING_ID", $arParams)
-	|| (
+	||
+	(
 		!is_array($arParams["RATING_ID"])
 		&& intval($arParams["RATING_ID"]) <= 0
 	)
 )
-{
 	$arParams["RATING_ID"] = 0;
-}
 
 if (IsModuleInstalled("search"))
 {
 	if (!array_key_exists("SEARCH_FILTER_NAME", $arParams))
-	{
 		$arParams["SEARCH_FILTER_NAME"] = "sonet_search_filter";
-	}
-
 	if (!array_key_exists("SEARCH_FILTER_DATE_NAME", $arParams))
-	{
 		$arParams["SEARCH_FILTER_DATE_NAME"] = "sonet_search_filter_date";
-	}
 }
 
 $arCustomPagesPath = array();
@@ -621,38 +519,10 @@ if ($arParams["SEF_MODE"] == "Y")
 	CComponentEngine::InitComponentVariables($componentPage, $arComponentVariables, $arVariableAliases, $arVariables);
 
 	foreach ($arUrlTemplates as $url => $value)
-	{
 		$arResult["PATH_TO_".strToUpper($url)] = $arParams["SEF_FOLDER"].$value;
-	}
 
 	if ($_REQUEST["auth"] == "Y")
-	{
 		$componentPage = "auth";
-	}
-
-	\Bitrix\Socialnetwork\ComponentHelper::setComponentOption(
-		array(
-			array(
-				'CHECK_SEF_FOLDER' => true,
-				'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'workgroups_page'),
-				'VALUE' => $arParams["SEF_FOLDER"]
-			),
-			array(
-				'CHECK_SEF_FOLDER' => true,
-				'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'user_page'),
-				'VALUE' => $arParams["SEF_FOLDER"]
-			),
-			array(
-				'CHECK_SEF_FOLDER' => true,
-				'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'workgroups_list_page'),
-				'VALUE' => $arResult["PATH_TO_GROUP_SEARCH"]
-			)
-		),
-		array(
-			'SEF_FOLDER' => $arParams["SEF_FOLDER"],
-			'SITE_ID' => SITE_ID
-		)
-	);
 }
 else
 {
@@ -672,6 +542,7 @@ else
 		ExecuteModuleEventEx($arEvent, array(&$arVariableAliases, &$arCustomPagesPath));
 
 	CComponentEngine::InitComponentVariables(false, $arComponentVariables, $arVariableAliases, $arVariables);
+
 	if (!empty($arDefaultUrlTemplatesN404) && !empty($arParams["VARIABLE_ALIASES"]))
 	{
 		foreach ($arDefaultUrlTemplatesN404 as $url => $value)
@@ -697,12 +568,10 @@ else
 	{
 		$arParamsKill = array("page", "path",
 				"section_id", "element_id", "action", "user_id", "group_id", "action", "use_light_view", "AJAX_CALL", "MUL_MODE",
-				"edit_section", "sessid", "post_id", "category", "topic_id", "result", "MESSAGE_TYPE", "user_settings_id", "q", "how", "tags", "where",
-				"log_id");
+				"edit_section", "sessid", "post_id", "category", "topic_id", "result", "MESSAGE_TYPE", "user_settings_id", "q", "how", "tags", "where");
 		$arParamsKill = array_merge($arParamsKill, $arParams["VARIABLE_ALIASES"], array_values($arVariableAliases));
 		$arResult["PATH_TO_".strToUpper($url)] = $GLOBALS["APPLICATION"]->GetCurPageParam($value, $arParamsKill);
 	}
-
 	if (array_key_exists($arVariables["page"], $arDefaultUrlTemplatesN404))
 		$componentPage = $arVariables["page"];
 
@@ -716,41 +585,6 @@ else
 
 	$arResult["PATH_TO_GROUP_LOG_RSS_MASK"] = $arResult["~PATH_TO_GROUP_LOG_RSS_MASK"] = $APPLICATION->GetCurPage(true)."?page=group_log_rss&group_id=".$arVariables["group_id"];
 }
-
-\Bitrix\Socialnetwork\ComponentHelper::setComponentOption(
-	array(
-		array(
-			'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'friends_page'),
-			'VALUE' => (COption::GetOptionString("socialnetwork", "allow_frields", "Y") == "Y" ? $arResult["PATH_TO_USER_FRIENDS"] : false)
-		),
-		array(
-			'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'userblogpost_page'),
-			'VALUE' => $arResult["PATH_TO_USER_BLOG_POST"]
-		),
-		array(
-			'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'userbloggroup_id'),
-			'VALUE' => $arParams["BLOG_GROUP_ID"]
-		),
-		array(
-			'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'smile_page'),
-			'VALUE' => $arParams["PATH_TO_SMILE"]
-		),
-		array(
-			'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'user_request_page'),
-			'VALUE' => $arResult["PATH_TO_USER_REQUESTS"]
-		),
-		array(
-			'CHECK_SEF_FOLDER' => true,
-			'OPTION' => array('MODULE_ID' => 'socialnetwork', 'NAME' => 'log_entry_page'),
-			'VALUE' => $arResult["PATH_TO_LOG_ENTRY"]
-		)
-	),
-	array(
-		'SEF_FOLDER' => $arParams["SEF_FOLDER"],
-		'SITE_ID' => SITE_ID
-	)
-);
-
 
 $arResult = array_merge(
 	array(
@@ -788,49 +622,6 @@ $arResult = array_merge(
 	$arResult
 );
 
-// set options for tooltip
-$tooltipPathToUser = COption::GetOptionString("main", "TOOLTIP_PATH_TO_USER", false, SITE_ID);
-if (!$tooltipPathToUser)
-{
-	COption::SetOptionString("main", "TOOLTIP_PATH_TO_USER", $arResult["PATH_TO_USER"], false, SITE_ID);
-	$tooltipPathToUser = $arResult["PATH_TO_USER"];
-}
-if (substr($tooltipPathToUser, 0, strlen($arParams["SEF_FOLDER"])) !== $arParams["SEF_FOLDER"])
-{
-	COption::SetOptionString("main", "TOOLTIP_PATH_TO_USER", $arParams["SEF_FOLDER"]."user/#user_id#/", false, SITE_ID);
-}
-
-\Bitrix\Socialnetwork\ComponentHelper::setComponentOption(array(
-	array(
-		'OPTION' => array('MODULE_ID' => 'main', 'NAME' => 'TOOLTIP_PATH_TO_MESSAGES_CHAT'),
-		'VALUE' => $arResult["PATH_TO_MESSAGES_CHAT"]
-	),
-	array(
-		'OPTION' => array('MODULE_ID' => 'main', 'NAME' => 'TOOLTIP_PATH_TO_VIDEO_CALL'),
-		'VALUE' => $arResult["PATH_TO_VIDEO_CALL"]
-	),
-	array(
-		'OPTION' => array('MODULE_ID' => 'main', 'NAME' => 'TOOLTIP_DATE_TIME_FORMAT'),
-		'VALUE' => $arResult["DATE_TIME_FORMAT"]
-	),
-	array(
-		'OPTION' => array('MODULE_ID' => 'main', 'NAME' => 'TOOLTIP_SHOW_YEAR'),
-		'VALUE' => $arParams["SHOW_YEAR"]
-	),
-	array(
-		'OPTION' => array('MODULE_ID' => 'main', 'NAME' => 'TOOLTIP_NAME_TEMPLATE'),
-		'VALUE' => $arParams["NAME_TEMPLATE"]
-	),
-	array(
-		'OPTION' => array('MODULE_ID' => 'main', 'NAME' => 'TOOLTIP_SHOW_LOGIN'),
-		'VALUE' => $arParams["SHOW_LOGIN"]
-	),
-	array(
-		'OPTION' => array('MODULE_ID' => 'main', 'NAME' => 'TOOLTIP_PATH_TO_CONPANY_DEPARTMENT'),
-		'VALUE' => $arParams["PATH_TO_CONPANY_DEPARTMENT"]
-	)
-));
-
 $arResult["PATH_TO_SEARCH_INNER"] = $arResult["PATH_TO_SEARCH"];
 $arParams["PATH_TO_SEARCH_EXTERNAL"] = Trim($arParams["PATH_TO_SEARCH_EXTERNAL"]);
 if (StrLen($arParams["PATH_TO_SEARCH_EXTERNAL"]) > 0)
@@ -844,22 +635,17 @@ $arParams["NOTE_MESSAGE"] = "";
 if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] == "PUT")
 {
 	global $bxSocNetSearch;
-	if(
-		!is_object($bxSocNetSearch)
-		&& CModule::IncludeModule("socialnetwork")
-	)
+	if(!is_object($bxSocNetSearch))
 	{
 		$bxSocNetSearch = new CSocNetSearch($arResult["VARIABLES"]["user_id"], $arResult["VARIABLES"]["group_id"],
 			array(
-				"PATH_TO_GROUP" => $arResult["PATH_TO_GROUP"],
-
 				"BLOG_GROUP_ID" => $arParams["BLOG_GROUP_ID"],
 				"PATH_TO_GROUP_BLOG" => $arResult["PATH_TO_GROUP_BLOG"],
 				"PATH_TO_GROUP_BLOG_POST" => $arResult["PATH_TO_GROUP_BLOG_POST"],
-				"PATH_TO_GROUP_BLOG_COMMENT" => $arResult["PATH_TO_GROUP_BLOG_POST"]."?commentId=#comment_id##com#comment_id#",
+				"PATH_TO_GROUP_BLOG_COMMENT" => $arResult["PATH_TO_GROUP_BLOG_POST"]."?commentId=#comment_id###comment_id#",
 				"PATH_TO_USER_BLOG" => $arResult["PATH_TO_USER_BLOG"],
 				"PATH_TO_USER_BLOG_POST" => $arResult["PATH_TO_USER_BLOG_POST"],
-				"PATH_TO_USER_BLOG_COMMENT" => $arResult["PATH_TO_USER_BLOG_POST"]."?commentId=#comment_id##com#comment_id#",
+				"PATH_TO_USER_BLOG_COMMENT" => $arResult["PATH_TO_USER_BLOG_POST"]."?commentId=#comment_id###comment_id#",
 				"PATH_TO_USER_MICROBLOG" => $arResult["PATH_TO_USER_MICROBLOG"],
 				"PATH_TO_USER_MICROBLOG_POST" => $arResult["PATH_TO_USER_MICROBLOG_POST"],
 				"PATH_TO_GROUP_MICROBLOG" => $arResult["PATH_TO_GROUP_MICROBLOG"],
@@ -878,6 +664,7 @@ if(check_bitrix_sessid() || $_SERVER['REQUEST_METHOD'] == "PUT")
 				"CALENDAR_GROUP_IBLOCK_ID" => $arParams["CALENDAR_GROUP_IBLOCK_ID"],
 				"PATH_TO_GROUP_CALENDAR_ELEMENT" => $arResult["PATH_TO_GROUP_CALENDAR"]."?EVENT_ID=#element_id#",
 
+				"TASK_IBLOCK_ID" => $arParams["TASK_IBLOCK_ID"],
 				"PATH_TO_GROUP_TASK_ELEMENT" => $arResult["PATH_TO_GROUP_TASKS_TASK"],
 				"PATH_TO_USER_TASK_ELEMENT" => $arResult["PATH_TO_USER_TASKS_TASK"],
 				"TASK_FORUM_ID" => $arParams["TASK_FORUM_ID"],
@@ -931,302 +718,8 @@ if (strPos($componentPage, "user_files") === false && strPos($componentPage, "gr
 		}
 	}
 }
-
-if (
-	strPos($componentPage, "group_files") !== false 
-	|| strPos($componentPage, "group_blog") !== false
-	|| strPos($componentPage, "group_log") !== false
-	|| $componentPage == "group"
-)
+if (strPos($componentPage, "user_files")!== false || strPos($componentPage, "group_files")!== false)
 {
-	if (intval($arResult["VARIABLES"]["group_id"]) > 0)
-	{
-		$cache_time = 31536000;
-		$arEvent = array();
-
-		$cache = new CPHPCache;
-		$cache_id = "files_iblock_id";
-		$cache_path = "/sonet/group_comp/".$arResult["VARIABLES"]["group_id"]."/";
-
-		if (
-			is_object($cache)
-			&& $cache->InitCache($cache_time, $cache_id, $cache_path)
-		)
-		{
-			$arCacheVars = $cache->GetVars();
-			$arParams["FILES_GROUP_IBLOCK_ID"] = $arCacheVars["FILES_GROUP_IBLOCK_ID"];
-		}
-		elseif (CModule::IncludeModule("iblock"))
-		{
-			if (is_object($cache))
-				$cache->StartDataCache($cache_time, $cache_id, $cache_path);
-
-			$arFilesIBlockID = array();
-			$rsIBlock = CIBlock::GetList(array(), array("ACTIVE" => "Y", "CHECK_PERMISSIONS"=>"N", "CODE"=>"group_files%"));
-			while($arIBlock = $rsIBlock->Fetch())
-				$arFilesIBlockID[] = $arIBlock["ID"];
-
-			if (count($arFilesIBlockID) > 0)
-			{
-				$rsFilesSection = CIBlockSection::GetList(
-					array("timestamp_x"=>"desc"),
-					array(
-						"IBLOCK_ID" => $arFilesIBlockID,
-						"SOCNET_GROUP_ID" => $arResult["VARIABLES"]["group_id"]
-					)
-				);
-				if ($arFilesSection = $rsFilesSection->Fetch())
-					$arParams["FILES_GROUP_IBLOCK_ID"] = $arFilesSection["IBLOCK_ID"];
-			}
-
-			if (is_object($cache))
-			{
-				$arCacheData = Array(
-					"FILES_GROUP_IBLOCK_ID" => $arParams["FILES_GROUP_IBLOCK_ID"]
-				);
-				$cache->EndDataCache($arCacheData);
-			}
-		}
-	}
-
-	if (
-		intval($arResult["VARIABLES"]["group_id"]) > 0
-		&& intval($arResult["VARIABLES"]["element_id"]) > 0
-		&& intval($arParams["FILES_FORUM_ID"]) > 0
-		&& intval($arParams["FILES_GROUP_IBLOCK_ID"]) > 0
-	)
-	{
-		$cache_time = 31536000;
-		$arEvent = array();
-
-		$cache = new CPHPCache;
-
-		$arCacheID = array();
-		$arKeys = array(
-			"FILES_GROUP_IBLOCK_ID",
-		);
-		foreach($arKeys as $param_key)
-		{
-			if (array_key_exists($param_key, $arParams))
-				$arCacheID[$param_key] = $arParams[$param_key];
-			else
-				$arCacheID[$param_key] = false;
-		}
-		$cache_id = "files_forum_id_".md5(serialize($arCacheID));
-		$cache_path = "/sonet/group_comp/".$arResult["VARIABLES"]["group_id"]."/".$arResult["VARIABLES"]["element_id"];
-
-		if (
-			is_object($cache)
-			&& $cache->InitCache($cache_time, $cache_id, $cache_path)
-		)
-		{
-			$arCacheVars = $cache->GetVars();
-			$arParams["FILES_FORUM_ID"] = $arCacheVars["FILES_FORUM_ID"];
-		}
-		elseif (
-			CModule::IncludeModule("forum")
-			&& CModule::IncludeModule("iblock")
-		)
-		{
-			if (is_object($cache))
-				$cache->StartDataCache($cache_time, $cache_id, $cache_path);
-
-			$rsIBlockElement = CIBlockElement::GetList(
-				array(),
-				array(
-					"IBLOCK_ID" => $arParams["FILES_GROUP_IBLOCK_ID"],
-					"ID" => $arResult["VARIABLES"]["element_id"]
-				),
-				false,
-				false,
-				array("IBLOCK_ID", "PROPERTY_FORUM_TOPIC_ID")
-			);
-
-			if (
-				($arIBlockElement = $rsIBlockElement->Fetch())
-				&& array_key_exists("PROPERTY_FORUM_TOPIC_ID_VALUE", $arIBlockElement)
-				&& intval($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"] > 0)
-			)
-			{
-				$arForumTopic = CForumTopic::GetByID($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"]);
-				$arParams["FILES_FORUM_ID"] = $arForumTopic["FORUM_ID"];
-			}
-			
-			if (is_object($cache))
-			{
-				$arCacheData = Array(
-					"FILES_FORUM_ID" => $arParams["FILES_FORUM_ID"]
-				);
-				$cache->EndDataCache($arCacheData);
-			}
-		}
-	}
-}
-
-$path2 = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/webdav_2.php");
-if (file_exists($path2))
-	include_once($path2);
-
-if (strPos($componentPage, "user_files") !== false || strPos($componentPage, "group_files") !== false)
-{
-	if (
-		IsModuleInstalled("extranet")
-		&& strPos($componentPage, "user_files") !== false 
-		&& CModule::IncludeModule("iblock")
-	)
-	{
-		$bIsUserExtranet = false;
-
-		$obCache = new CPHPCache;
-		$strCacheID = $arResult["VARIABLES"]["user_id"];
-		$path = "/sonet_user_files_iblock_".intval($arResult["VARIABLES"]["user_id"] / 100)."_".SITE_ID;
-
-		if($obCache->StartDataCache(60*60*24*365, $strCacheID, $path))
-		{
-			if (defined("BX_COMP_MANAGED_CACHE"))
-			{
-				$GLOBALS["CACHE_MANAGER"]->StartTagCache($path);
-				$GLOBALS["CACHE_MANAGER"]->RegisterTag("USER_CARD_".intval($arResult["VARIABLES"]["user_id"] / TAGGED_user_card_size));
-			}
-
-			$extranet_site_id = COption::GetOptionString("extranet", "extranet_site");
-
-			$rsIBlock = CIBlock::GetList(array(), array("ACTIVE" => "Y", "CHECK_PERMISSIONS"=>"N", "CODE"=>"user_files%"));
-
-			while($arIBlock = $rsIBlock->Fetch())
-			{
-				$rsSite = CIBlock::GetSite($arIBlock["ID"]);
-				while($arSite = $rsSite->Fetch())
-				{
-					if (
-						$arSite["SITE_ID"] == $extranet_site_id
-						&& intval($extranet_iblock_id) <= 0
-					)
-						$extranet_iblock_id = $arIBlock["ID"];
-					elseif (
-						$arSite["SITE_ID"] != $extranet_site_id
-						&& intval($intranet_iblock_id) <= 0
-					)
-						$intranet_iblock_id = $arIBlock["ID"];
-				}
-
-				if (
-					intval($intranet_iblock_id) > 0
-					&& intval($extranet_iblock_id) > 0					
-				)
-					break;
-			}
-
-			if (
-				intval($intranet_iblock_id) > 0
-				&& intval($extranet_iblock_id) > 0
-			)
-			{
-				if (CSocNetUser::IsUserModuleAdmin($arResult["VARIABLES"]["user_id"]))
-					$bIsUserExtranet = false;
-				else
-				{
-					$rsUser = CUser::GetList(($by="id"), ($order="asc"), array("ID" => $arResult["VARIABLES"]["user_id"]), array("SELECT" => array("UF_DEPARTMENT"), "FIELDS" => array("ID")));
-					if ($arUser = $rsUser->Fetch())
-						$bIsUserExtranet = (
-							(
-								is_array($arUser["UF_DEPARTMENT"]) 
-								&& count($arUser["UF_DEPARTMENT"]) <= 0
-							)
-							|| (
-								!is_array($arUser["UF_DEPARTMENT"]) 
-								&& intval($arUser["UF_DEPARTMENT"]) <= 0
-							)
-						);
-				}
-
-				$arCachedResult["FILES_USER_IBLOCK_ID"] = ($bIsUserExtranet ? $extranet_iblock_id : $intranet_iblock_id);
-
-			}
-			else
-			{
-				$arCachedResult["FILES_USER_IBLOCK_ID"] = (
-					(intval($extranet_iblock_id) > 0)
-						? intval($extranet_iblock_id)
-						: ((intval($intranet_iblock_id) > 0)
-							? intval($intranet_iblock_id)
-							: 0)
-				);
-			}
-
-			$obCache->EndDataCache($arCachedResult);
-			if(defined("BX_COMP_MANAGED_CACHE"))
-				$GLOBALS["CACHE_MANAGER"]->EndTagCache();
-		}
-		else
-			$arCachedResult = $obCache->GetVars();
-
-		if (
-			isset($arCachedResult["FILES_USER_IBLOCK_ID"])
-			&& intval($arCachedResult["FILES_USER_IBLOCK_ID"]) > 0
-		)
-		{
-			$arParams["FILES_USER_IBLOCK_ID"]= $arCachedResult["FILES_USER_IBLOCK_ID"];
-		}
-
-		$arCachedResult = false;
-		$obCache = new CPHPCache;
-		$strCacheID = $arResult["VARIABLES"]["user_id"];
-		$path = "/sonet_user_files_forum_".intval($arResult["VARIABLES"]["user_id"] / 100)."_".SITE_ID;
-
-		if($obCache->StartDataCache(60*60*24*365, $strCacheID, $path))
-		{
-			if (defined("BX_COMP_MANAGED_CACHE"))
-			{
-				$GLOBALS["CACHE_MANAGER"]->StartTagCache($path);
-				$GLOBALS["CACHE_MANAGER"]->RegisterTag("USER_CARD_".intval($arResult["VARIABLES"]["user_id"] / TAGGED_user_card_size));
-			}
-
-			if (
-				intval($arResult["VARIABLES"]["element_id"]) > 0
-				&& intval($arParams["FILES_FORUM_ID"]) > 0
-				&& intval($arParams["FILES_USER_IBLOCK_ID"]) > 0
-				&& CModule::IncludeModule("forum")
-			)
-			{
-				$rsIBlockElement = CIBlockElement::GetList(
-					array(),
-					array(
-						"IBLOCK_ID" => $arParams["FILES_USER_IBLOCK_ID"],
-						"ID" => $arResult["VARIABLES"]["element_id"]
-					),
-					false,
-					false,
-					array("IBLOCK_ID", "PROPERTY_FORUM_TOPIC_ID")
-				);
-
-				if (
-					($arIBlockElement = $rsIBlockElement->Fetch())
-					&& array_key_exists("PROPERTY_FORUM_TOPIC_ID_VALUE", $arIBlockElement)
-					&& intval($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"] > 0)
-				)
-				{
-					$arForumTopic = CForumTopic::GetByID($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"]);
-					$arCachedResult["FILES_FORUM_ID"] = $arForumTopic["FORUM_ID"];
-				}
-			}
-
-			$obCache->EndDataCache($arCachedResult);
-			if(defined("BX_COMP_MANAGED_CACHE"))
-				$GLOBALS["CACHE_MANAGER"]->EndTagCache();
-		}
-		else
-			$arCachedResult = $obCache->GetVars();
-
-		if (
-			isset($arCachedResult["FILES_FORUM_ID"])
-			&& intval($arCachedResult["FILES_FORUM_ID"]) > 0
-		)
-		{
-			$arParams["FILES_FORUM_ID"]= $arCachedResult["FILES_FORUM_ID"];
-		}
-	}
-	
 	$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/webdav.php");
 	if (!file_exists($path))
 	{
@@ -1234,11 +727,12 @@ if (strPos($componentPage, "user_files") !== false || strPos($componentPage, "gr
 		$res = 0;
 	}
 	else
+	{
 		$res = include_once($path);
+	}
 
 	$arParams["FATAL_ERROR"] = ($res <= 0 ? "Y" : "N");
 }
-
 /********************************************************************
 				/WebDav
 ********************************************************************/
@@ -1247,7 +741,7 @@ if (strPos($componentPage, "user_files") !== false || strPos($componentPage, "gr
 ********************************************************************/
 elseif (strPos($componentPage, "user_photo")!== false || strPos($componentPage, "group_photo")!== false)
 {
-	if (strPos($componentPage, "user_photofull") !== false || strPos($componentPage, "group_photofull") !== false)
+	if (strPos($componentPage, "user_photofull")!== false || strPos($componentPage, "group_photofull")!== false)
 		$componentPage = str_replace("_photofull", "_photo", $componentPage);
 
 	$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/photogallery.php");
@@ -1257,60 +751,10 @@ elseif (strPos($componentPage, "user_photo")!== false || strPos($componentPage, 
 		$res = 0;
 	}
 	else
-		$res = include_once($path);
-
-	$arParams["FATAL_ERROR"] = ($res <= 0 ? "Y" : "N");
-
-	if (strPos($componentPage, "group_photo") !== false && CModule::IncludeModule('iblock'))
 	{
-		$arPhotoIBlockID = array();
-		$rsIBlock = CIBlock::GetList(array(), array("ACTIVE" => "Y", "CODE"=>"group_photogallery%"));
-		while($arIBlock = $rsIBlock->Fetch())
-			$arPhotoIBlockID[] = $arIBlock["ID"];
-
-		if (count($arPhotoIBlockID) > 0)
-		{
-			$rsPhotoSection = CIBlockSection::GetList(
-				array("timestamp_x"=>"desc"),
-				array(
-					"IBLOCK_ID" => $arPhotoIBlockID,
-					"SOCNET_GROUP_ID" => $arResult["VARIABLES"]["group_id"]
-				)
-			);
-			if ($arPhotoSection = $rsPhotoSection->Fetch())
-			{
-				$arParams["PHOTO_GROUP_IBLOCK_ID"] = $arPhotoSection["IBLOCK_ID"];
-
-				if (
-					intval($_GET["ELEMENT_ID"]) > 0
-					&& intval($arParams["PHOTO"]["ALL"]["FORUM_ID"]) > 0
-					&& $arParams["PHOTO"]["ALL"]["COMMENTS_TYPE"] == "FORUM"
-					&& CModule::IncludeModule("forum")
-				)
-				{
-					$rsIBlockElement = CIBlockElement::GetList(
-						array(),
-						array(
-							"IBLOCK_ID" => $arParams["PHOTO_GROUP_IBLOCK_ID"],
-							"ID" => $_GET["ELEMENT_ID"]
-						),
-						false,
-						false,
-						array("IBLOCK_ID", "PROPERTY_FORUM_TOPIC_ID")
-					);
-
-					if (
-						($arIBlockElement = $rsIBlockElement->Fetch())
-						&& array_key_exists("PROPERTY_FORUM_TOPIC_ID_VALUE", $arIBlockElement)
-					)
-					{
-						$arForumTopic = CForumTopic::GetByID($arIBlockElement["PROPERTY_FORUM_TOPIC_ID_VALUE"]);
-						$arParams["PHOTO"]["ALL"]["FORUM_ID"] = $arForumTopic["FORUM_ID"];
-					}
-				}
-			}
-		}
+		$res = include_once($path);
 	}
+	$arParams["FATAL_ERROR"] = ($res <= 0 ? "Y" : "N");
 }
 /********************************************************************
 				/Photogalley
@@ -1328,8 +772,9 @@ elseif (strPos($componentPage, "user_forum")!== false || strPos($componentPage, 
 		$res = 0;
 	}
 	else
+	{
 		$res = include_once($path);
-
+	}
 	$arParams["FATAL_ERROR"] = ($res <= 0 ? "Y" : "N");
 }
 /********************************************************************
@@ -1356,14 +801,18 @@ elseif (strPos($componentPage, "user_content_search")!== false || strPos($compon
 				/Content search
 ********************************************************************/
 
+
 /********************************************************************
 				Buziness-process
 ********************************************************************/
 elseif ($componentPage == "bizproc_task")
+{
 	$componentPage = "bizproc_edit";
+}
 elseif ($componentPage == "bizproc_task_list")
+{
 	$componentPage = "bizproc";
-
+}
 /********************************************************************
 				/Buziness-process
 ********************************************************************/
@@ -1373,6 +822,16 @@ $this->IncludeComponentTemplate($componentPage, array_key_exists($componentPage,
 /********************************************************************
 				Activity after
 ********************************************************************/
+if (strPos($componentPage, "group_photo")!== false || strPos($componentPage, "group_file")!== false ||
+	strPos($componentPage, "user_photo")!== false || strPos($componentPage, "user_file")!== false)
+{
+	if (strPos($componentPage, "group_photo")!== false || strPos($componentPage, "user_photo")!== false)
+		$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/photogallery_2.php");
+	else
+		$path = str_replace(array("\\", "//"), "/", dirname(__FILE__)."/include/webdav_2.php");
+	if (file_exists($path))
+		include_once($path);
+}
 
 //top panel button to reindex
 if($GLOBALS['USER']->IsAdmin())

@@ -31,12 +31,3 @@ $APPLICATION->IncludeComponent(
 	array("HIDE_ICONS" => "Y")
 );
 ?>
-<?
-$APPLICATION->IncludeComponent(
-	"bitrix:socialnetwork.admin.set",
-	"",
-	Array(),
-	$component,
-	array("HIDE_ICONS" => "Y")
-);
-?>

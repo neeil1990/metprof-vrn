@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS ['SPOD_RECORDS_LIST'] = "В список заказов";
 $MESS ['P_ORDER_PRICE'] = "Сумма заказа";
 $MESS ['P_ORDER_CANCELED'] = "Отменен";

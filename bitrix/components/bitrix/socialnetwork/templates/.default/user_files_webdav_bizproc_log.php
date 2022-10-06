@@ -39,7 +39,6 @@ if ($arParams["SET_NAV_CHAIN"] != "N")
 ?><?$APPLICATION->IncludeComponent("bitrix:bizproc.log", "webdav.bizproc.log", Array(
 	"MODULE_ID" => $arResult["VARIABLES"]["MODULE_ID"], 
 	"ENTITY" => $arResult["VARIABLES"]["ENTITY"], 
-    "COMPONENT_VERSION" => 2,
 	"DOCUMENT_TYPE" => $arResult["VARIABLES"]["DOCUMENT_TYPE"], 
 	"DOCUMENT_ID" => $arResult["VARIABLES"]["ELEMENT_ID"], 
 	"ID" => $arResult["VARIABLES"]["ID"],

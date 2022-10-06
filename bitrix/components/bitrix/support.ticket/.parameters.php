@@ -6,13 +6,6 @@ $arYesNo = Array(
 	"N" => GetMessage("SUP_DESC_NO"),
 );
 
-global $USER_FIELD_MANAGER;
-$SHOW_USER_FIELD = array( ""=>"" );
-$arrUF = $USER_FIELD_MANAGER->GetUserFields( "SUPPORT", 0, LANGUAGE_ID );
-foreach( $arrUF as $FIELD_ID => $arField )
-{
-	$SHOW_USER_FIELD[$FIELD_ID] = $arField["EDIT_FORM_LABEL"];
-}
 
 $arComponentParameters = array(
 	"PARAMETERS" => array(
@@ -85,14 +78,6 @@ $arComponentParameters = array(
 			"TYPE" => "CHECKBOX",
 			"PARENT" => "ADDITIONAL_SETTINGS",
 			"DEFAULT" => "N",
-		),
-		
-		"SET_SHOW_USER_FIELD" => Array(
-			"NAME"=>GetMessage("SUP_SHOW_USER_FIELD"), 
-			"TYPE"=>"LIST", 
-			"MULTIPLE"=>"Y", 
-			"PARENT" => "ADDITIONAL_SETTINGS", 
-			"VALUES"=>$SHOW_USER_FIELD
 		),
 
 	)

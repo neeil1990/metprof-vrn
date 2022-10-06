@@ -4,16 +4,16 @@ if (!function_exists("__bp_sort_in_template_by_modified"))
 {
 	function __bp_sort_in_template_by_modified($arr1, $arr2)
 	{
-		if ($arr1["STATE_MODIFIED"] == $arr2["STATE_MODIFIED"])
-			return 0;
-		elseif (strlen($arr1["STATE_MODIFIED"]) <= 0 && strlen($arr1["STATE_MODIFIED"]) > 0)
-			return -1;
-		elseif (strlen($arr1["STATE_MODIFIED"]) > 0 && strlen($arr1["STATE_MODIFIED"]) <= 0)
-			return 1;
-		$res1 = MakeTimeStamp($arr1["STATE_MODIFIED"]);
-		$res2 = MakeTimeStamp($arr2["STATE_MODIFIED"]);
-
-		return ($res1 < $res2) ? 1 : -1;
+	    if ($arr1["STATE_MODIFIED"] == $arr2["STATE_MODIFIED"])
+	        return 0;
+	    elseif (strlen($arr1["STATE_MODIFIED"]) <= 0 && strlen($arr1["STATE_MODIFIED"]) > 0)
+	    	return -1;
+	    elseif (strlen($arr1["STATE_MODIFIED"]) > 0 && strlen($arr1["STATE_MODIFIED"]) <= 0)
+	    	return 1;
+	    $res1 = MakeTimeStamp($arr1["STATE_MODIFIED"]);
+	    $res2 = MakeTimeStamp($arr2["STATE_MODIFIED"]);
+	    
+	    return ($res1 < $res2) ? 1 : -1;		
 	}
 }
 
@@ -38,7 +38,7 @@ uasort($arDocumentStates, "__bp_sort_in_template_by_modified");
 
 <form action="<?=POST_FORM_ACTION_URI?>" method="POST" class="bizproc-form" name="start_workflow_form1" id="start_workflow_form1">
 	<?=bitrix_sessid_post()?>
-	<input type="hidden" name="back_url" value="<?=htmlspecialcharsbx($arParams["back_url"]);?>" />
+	<input type="hidden" name="back_url" value="<?=htmlspecialchars($arParams["back_url"]);?>" />
 
 <ul class="bizproc-list bizproc-document-states">
 <?
@@ -46,14 +46,14 @@ $iCount = 0;
 if ($arParams["StartWorkflowPermission"] == "Y"):
 	$bEmpty = false;
 	$iCount++;
-	$url = CComponentEngine::MakePathFromTemplate($arParams["WORKFLOW_START_URL"],
-					array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1],
-						"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2],
+	$url = CComponentEngine::MakePathFromTemplate($arParams["WORKFLOW_START_URL"], 
+					array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1], 
+						"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2], 
 						"ID" => $arParams["DOCUMENT_ID"][2]));
 	$url .= (strpos($url, "?") === false ? "?" : "&")."back_url=".
 		urlencode(!empty($arParams["back_url"]) ? $arParams["back_url"] : $APPLICATION->GetCurPageParam("", array("back_url")));
-
-
+	
+	
 ?>
 	<li class="bizproc-list-item bizproc-document-start bizproc-list-item-first">
 		<table class="bizproc-table-main" cellpadding="0" border="0">
@@ -72,16 +72,16 @@ endif;
 foreach ($arDocumentStates as $arDocumentState)
 {
 	$bizProcIndex++;
-
+	
 	if (intVal($arDocumentState["WORKFLOW_STATUS"]) < 0 || $arDocumentState["ID"] <= 0):
 		continue;
 	elseif (!CBPDocument::CanUserOperateDocument(
-		CBPCanUserOperateOperation::ViewWorkflow,
+		IBLOCK_DOCUMENT_OPERATION_VIEW_WORKFLOW,
 		$GLOBALS["USER"]->GetID(),
 		$arParams["DOCUMENT_ID"],
 		array(
-			"DocumentStates" => $arDocumentStates,
-			"WorkflowId" => $arDocumentState["ID"]))):
+			"DocumentStates" => $arDocumentStates, 
+			"WorkflowId" => $arDocumentState["ID"]))): 
 		continue;
 	endif;
 	$arTasks = array();
@@ -89,14 +89,9 @@ foreach ($arDocumentStates as $arDocumentState)
 	$arTasks = CBPDocument::GetUserTasksForWorkflow($USER->GetID(), $arDocumentState["ID"]);
 	if (strlen($arDocumentState["WORKFLOW_STATUS"]) > 0)
 	{
-		$dbDmpWorkflow = CBPTrackingService::GetList(
-			array("ID" => "DESC"),
-			array("WORKFLOW_ID" => $arDocumentState["ID"], "TYPE" => array(CBPTrackingType::Report, CBPTrackingType::Custom, CBPTrackingType::FaultActivity)),
-			false,
-			array("nTopCount" => 5),
-			array("ID", "TYPE", "MODIFIED", "ACTION_NOTE", "ACTION_TITLE", "ACTION_NAME", "EXECUTION_STATUS", "EXECUTION_RESULT")
-		);
-		while ($track = $dbDmpWorkflow->GetNext())
+		$arDmpWorkflow = array_reverse(CBPTrackingService::DumpWorkflow($arDocumentState["ID"]));
+		$track = $tmp = reset($arDmpWorkflow);
+		do 
 		{
 			$strMessageTemplate = "";
 			switch ($track["TYPE"])
@@ -174,8 +169,8 @@ foreach ($arDocumentStates as $arDocumentState)
 			$strMessageTemplate = str_replace(
 					$arPattern,
 					$arReplace,
-					$strMessageTemplate);
-
+					$strMessageTemplate); 
+					
 			if (preg_match_all("/(?<=\{\=user\:)([^\}]+)(?=\})/is", $strMessageTemplate, $arMatches))
 			{
 				$arPattern = array(); $arReplacement = array();
@@ -194,7 +189,7 @@ foreach ($arDocumentStates as $arDocumentState)
 						if (!array_key_exists($id, $arUsers)):
 							$db_res = CUser::GetByID($id);
 							$arUsers[$id] = false;
-							if ($db_res && $arUser = $db_res->GetNext()):
+							if ($db_res && $arUser = $db_res->GetNext()): 
 								$name = trim($arUser["NAME"]." ".$arUser["LAST_NAME"]);
 								$arUser["FULL_NAME"] = (empty($name) ? $arUser["LOGIN"] : $name);
 								$arUsers[$id] = $arUser;
@@ -205,7 +200,7 @@ foreach ($arDocumentStates as $arDocumentState)
 								CComponentEngine::MakePathFromTemplate($arParams["~USER_VIEW_URL"], array("USER_ID" => $id))."\">".
 								$arUsers[$id]["FULL_NAME"]."</a>";
 					}
-
+					
 					if (!empty($replace))
 					{
 						$arPattern[] = "{=user:".$user."}";
@@ -218,7 +213,8 @@ foreach ($arDocumentStates as $arDocumentState)
 			}
 
 			$arDumpWorkflow[] = $strMessageTemplate;
-		}
+			$track = next($arDmpWorkflow);
+		} while ($tmp["LEVEL"] == $track["LEVEL"]);
 	}
 	$arEvents = CBPDocument::GetAllowableEvents($GLOBALS["USER"]->GetID(), $arParams["USER_GROUPS"], $arDocumentState);
 
@@ -227,9 +223,9 @@ foreach ($arDocumentStates as $arDocumentState)
 	$iCountRow = 0;
 
 ?>
-	<li class="bizproc-list-item bizproc-document-process <?=(strlen($arDocumentState["WORKFLOW_STATUS"]) > 0 ?
-				"bizproc-document-inprogress" :
-				"bizproc-document-finished")?> <?=(empty($arTasks) ? "" :
+	<li class="bizproc-list-item bizproc-document-process <?=(strlen($arDocumentState["WORKFLOW_STATUS"]) > 0 ? 
+				"bizproc-document-inprogress" : 
+				"bizproc-document-finished")?> <?=(empty($arTasks) ? "" : 
 				"bizproc-document-hastasks")
 				?> <?
 				?><?=($iCount == 1 ? "bizproc-list-item-first" : "")?> <?
@@ -245,19 +241,19 @@ foreach ($arDocumentStates as $arDocumentState)
 						$tmp = true;?>
 					<span class="bizproc-document-control-first">
 						<a href="<?=$APPLICATION->GetCurPageParam("id=".$arDocumentState["ID"]."&action=stop_bizproc&".bitrix_sessid_get().
-						(!empty($arParams["back_url"]) ? "&back_url=".urlencode($arParams["back_url"]) : ""),
+						(!empty($arParams["back_url"]) ? "&back_url=".urlencode($arParams["back_url"]) : ""), 
 						array("id", "action", "sessid", "back_url"))?>"><?=GetMessage("IBEL_BIZPROC_STOP")?></a></span>
-					<?elseif ($arParams["DropWorkflowPermission"] == "Y"):
+					<?elseif ($arParams["DropWorkflowPermission"] == "Y"): 
 						$tmp = true;?>
 					<span class="bizproc-document-control-first">
 						<a href="<?=$APPLICATION->GetCurPageParam("id=".$arDocumentState["ID"]."&action=del_bizproc&".bitrix_sessid_get().
-						(!empty($arParams["back_url"]) ? "&back_url=".urlencode($arParams["back_url"]) : ""),
+						(!empty($arParams["back_url"]) ? "&back_url=".urlencode($arParams["back_url"]) : ""), 
 						array("id", "action", "sessid", "back_url"))?>"><?=GetMessage("IBEL_BIZPROC_DEL")?></a></span>
 					<?endif;?>
 					<span class="<?=($tmp ? "bizproc-document-control-second" : "bizproc-document-control-single")?>">
-						<a href="<?=CComponentEngine::MakePathFromTemplate($arParams["WORKFLOW_LOG_URL"],
-						array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1],
-							"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2],
+						<a href="<?=CComponentEngine::MakePathFromTemplate($arParams["WORKFLOW_LOG_URL"], 
+						array("MODULE_ID" => $arParams["DOCUMENT_ID"][0], "ENTITY" => $arParams["DOCUMENT_ID"][1], 
+							"DOCUMENT_ID" => $arParams["DOCUMENT_ID"][2], "DOCUMENT_TYPE" => $arParams["DOCUMENT_TYPE"][2], 
 							"ID" => $arDocumentState["ID"], "STATE_ID" => $arDocumentState["ID"]))?>"><?=GetMessage("IBEL_BIZPROC_LOG")?></a></span>
 				</div>
 				<?=$arDocumentState["TEMPLATE_NAME"]?>
@@ -285,7 +281,7 @@ foreach ($arDocumentStates as $arDocumentState)
 			</td>
 		</tr>
 		<?endif;
-
+		
 		if (count($arEvents) > 0)
 		{
 			$bShowButtons = true;
@@ -300,8 +296,8 @@ foreach ($arDocumentStates as $arDocumentState)
 					<?
 					foreach ($arEvents as $e)
 					{
-					?><option value="<?= htmlspecialcharsbx($e["NAME"]) ?>"<?= ($_REQUEST["bizproc_event_".$bizProcIndex] == $e["NAME"]) ? " selected" : ""?>><?
-						?><?= htmlspecialcharsbx($e["TITLE"]) ?></option><?
+					?><option value="<?= htmlspecialchars($e["NAME"]) ?>"<?= ($_REQUEST["bizproc_event_".$bizProcIndex] == $e["NAME"]) ? " selected" : ""?>><?
+						?><?= htmlspecialchars($e["TITLE"]) ?></option><?
 					}
 					?>
 				</select>
@@ -321,7 +317,7 @@ foreach ($arDocumentStates as $arDocumentState)
 				{
 					$url = CComponentEngine::MakePathFromTemplate($arParams["TASK_EDIT_URL"], array("ID" => $arTask["ID"]));
 					$url .= (strpos($url, "?") === false ? "?" : "&")."back_url=".urlencode($APPLICATION->GetCurPageParam("", array()));
-					?><a href="<?=$url?>" title="<?= htmlspecialcharsbx($arTask["DESCRIPTION"]) ?>"><?= $arTask["NAME"] ?></a><br /><?
+					?><a href="<?=$url?>" title="<?= htmlspecialchars($arTask["DESCRIPTION"]) ?>"><?= $arTask["NAME"] ?></a><br /><?
 				}
 				?>
 			</td>
@@ -338,7 +334,7 @@ if ($bEmpty):
 ?><?
 elseif ($bShowButtons):
 ?>
-
+	
 	<li class="bizproc-item-buttons">
 		<div class="bizproc-item-buttons">
 			<table class="bizproc-table-main" cellpadding="0" border="0">

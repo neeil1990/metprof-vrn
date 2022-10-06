@@ -68,36 +68,12 @@ include($_SERVER["DOCUMENT_ROOT"].$this->GetFolder()."/lang/".LANGUAGE_ID."/resu
 
 $arActiveFeatures = CSocNetFeatures::GetActiveFeaturesNames(SONET_ENTITY_USER, $arParams["SOCNET_USER_ID"]);
 
-$events = GetModuleEvents("socialnetwork", "OnFillSocNetMenu");
-while ($arEvent = $events->Fetch())
-{
-	ExecuteModuleEventEx($arEvent, array(&$arMenuTmp, array("ENTITY_TYPE" => SONET_ENTITY_USER, "ENTITY_ID" => $arParams["SOCNET_USER_ID"])));
-}
-
-$arSocNetFeaturesSettings = CSocNetAllowed::GetAllowedFeatures();
-
-foreach($arSocNetFeaturesSettings as $feature_id => $arFeatureTmp)
-{
-	if (
-		array_key_exists("allowed", $arFeatureTmp)
-		&& is_array($arFeatureTmp["allowed"])
-		&& count($arFeatureTmp["allowed"]) > 0
-		&& !in_array(SONET_ENTITY_USER, $arFeatureTmp["allowed"])
-	)
-		continue;
-
-	$arFeaturesTitles[$feature_id] = (
-		array_key_exists($feature_id, $arActiveFeatures) && StrLen($arActiveFeatures[$feature_id]) > 0 
-		? $arActiveFeatures[$feature_id] 
-		: (
-			isset($arMenuTmp["Title"])
-			&& isset($arMenuTmp["Title"][$feature_id])
-			&& strlen($arMenuTmp["Title"][$feature_id]) > 0
-				? $arMenuTmp["Title"][$feature_id]
-				: GetMessage("SEARCH_CONTENT_TYPE_".strtoupper($feature_id)."_".SONET_ENTITY_USER)
-		)
-	);
-}
+$arFeaturesTitles["blog"] = ((array_key_exists("blog", $arActiveFeatures) && StrLen($arActiveFeatures["blog"]) > 0) ? $arActiveFeatures["blog"] : GetMessage("SEARCH_CONTENT_TYPE_BLOG_".SONET_ENTITY_USER));
+$arFeaturesTitles["photo"] = ((array_key_exists("photo", $arActiveFeatures) && StrLen($arActiveFeatures["photo"]) > 0) ? $arActiveFeatures["photo"] : GetMessage("SEARCH_CONTENT_TYPE_PHOTO_".SONET_ENTITY_USER));
+$arFeaturesTitles["forum"] = ((array_key_exists("forum", $arActiveFeatures) && StrLen($arActiveFeatures["forum"]) > 0) ? $arActiveFeatures["forum"] : GetMessage("SEARCH_CONTENT_TYPE_FORUM_".SONET_ENTITY_USER));
+$arFeaturesTitles["calendar"] = ((array_key_exists("calendar", $arActiveFeatures) && StrLen($arActiveFeatures["calendar"]) > 0) ? $arActiveFeatures["calendar"] : GetMessage("SEARCH_CONTENT_TYPE_CALENDAR_".SONET_ENTITY_USER));
+$arFeaturesTitles["tasks"] = ((array_key_exists("tasks", $arActiveFeatures) && StrLen($arActiveFeatures["tasks"]) > 0) ? $arActiveFeatures["tasks"] : GetMessage("SEARCH_CONTENT_TYPE_TASKS_".SONET_ENTITY_USER));
+$arFeaturesTitles["files"] = ((array_key_exists("files", $arActiveFeatures) && StrLen($arActiveFeatures["files"]) > 0) ? $arActiveFeatures["files"] : GetMessage("SEARCH_CONTENT_TYPE_FILES_".SONET_ENTITY_USER));
 
 if (array_key_exists("PATH_TO_USER_TASKS_SECTION", $arParams))
 {
@@ -392,7 +368,7 @@ if(CModule::IncludeModule('intranet'))
 
 				$arUser["DETAIL_URL"] = $arItem["URL"];
 
-				$arUser['IS_ONLINE'] = ($bSoNet && $arUser['IS_ONLINE'] == "Y");
+				$arUser['IS_ONLINE'] = $bSoNet && CSocNetUser::IsOnLine($arUser['ID']);
 
 				if ($arUser['PERSONAL_BIRTHDAY'])
 				{
@@ -422,6 +398,7 @@ if(CModule::IncludeModule('intranet'))
 
 $arrDropdown = array();
 $arResult["DROPDOWN_SONET"] = array();
+global $arSocNetFeaturesSettings;
 
 $EntityType = (array_key_exists("arrFILTER", $arParams) && in_array("socialnetwork_group", $arParams["arrFILTER"]) ? SONET_ENTITY_GROUP : SONET_ENTITY_USER);
 $EntityID = ($EntityType == SONET_ENTITY_GROUP ? $arParams["arrFILTER_socialnetwork"][0] : $arParams["arrFILTER_socialnetwork_user"]);
@@ -429,18 +406,14 @@ $EntityID = ($EntityType == SONET_ENTITY_GROUP ? $arParams["arrFILTER_socialnetw
 $arActiveFeaturesNames = CSocNetFeatures::GetActiveFeaturesNames($EntityType, $EntityID);
 foreach($arParams["arrWHERE_SONET"] as $feature_id)
 {
-	if (
-		strlen($feature_id) > 0
-		&& array_key_exists($feature_id, $arActiveFeaturesNames) 
-		&& CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $EntityType, $EntityID, $feature_id, $arSocNetFeaturesSettings[$feature_id]["minoperation"][0], CSocNetUser::IsCurrentUserModuleAdmin())
-		&& array_key_exists($feature_id, $arSocNetFeaturesSettings)
-	)
+	if(strlen($feature_id)>0)
 	{
-		$arrDropdown[$feature_id] = (strlen($arActiveFeaturesNames[$feature_id]) > 0 ? $arActiveFeaturesNames[$feature_id] : GetMessage("SEARCH_CONTENT_TYPE_".strtoupper($feature_id)."_".$EntityType));
+		$bCanView = (array_key_exists($feature_id, $arActiveFeaturesNames) && CSocNetFeaturesPerms::CanPerformOperation($GLOBALS["USER"]->GetID(), $EntityType, $EntityID, $feature_id, $arSocNetFeaturesSettings[$feature_id]["minoperation"][0], CSocNetUser::IsCurrentUserModuleAdmin()));
+		if ($bCanView && array_key_exists($feature_id, $arSocNetFeaturesSettings))
+			$arrDropdown[$feature_id] = (strlen($arActiveFeaturesNames[$feature_id]) > 0 ? $arActiveFeaturesNames[$feature_id] : GetMessage("SEARCH_CONTENT_TYPE_".strtoupper($feature_id)."_".$EntityType));
 	}
+
 }
 if (count($arrDropdown) > 0)
-{
 	$arResult["DROPDOWN_SONET"] = htmlspecialcharsex($arrDropdown);
-}
 ?>

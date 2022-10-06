@@ -1,14 +1,4 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-/** @var CBitrixComponent $this */
-/** @var array $arParams */
-/** @var array $arResult */
-/** @var string $componentPath */
-/** @var string $componentName */
-/** @var string $componentTemplate */
-/** @global CDatabase $DB */
-/** @global CUser $USER */
-/** @global CMain $APPLICATION */
-
 if (!CModule::IncludeModule("forum")):
 	ShowError(GetMessage("F_NO_MODULE"));
 	return false;
@@ -23,12 +13,13 @@ endif;
 				Input params
 ********************************************************************/
 /***************** BASE ********************************************/
-	$GLOBALS["FID"] = $arParams["FID"] = intVal($arParams["FID"]);
+	$arParams["FID"] = intVal($arParams["FID"]);
+	$GLOBALS["FID"] = $arParams["FID"];
 	$arParams["USE_DESC_PAGE"] = ($arParams["USE_DESC_PAGE"] == "N" ? "N" : "Y");
-
+	
 	$arParams["MODE"] = ($arParams["SOCNET_GROUP_ID"] > 0 ? "GROUP" : "USER");
 	$arParams["SOCNET_GROUP_ID"] = intVal($arParams["SOCNET_GROUP_ID"]);
-	$arParams["USER_ID"] = intVal(!empty($arParams["USER_ID"]) ? $arParams["USER_ID"] : $USER->GetID());
+	$arParams["USER_ID"] = intVal(intVal($arParams["USER_ID"]) > 0 ? $arParams["USER_ID"] : $USER->GetID());
 /***************** URL *********************************************/
 	$URL_NAME_DEFAULT = array(
 			"topic_list" => "PAGE_NAME=topic_list",
@@ -41,7 +32,7 @@ endif;
 		if (strLen(trim($arParams["URL_TEMPLATES_".strToUpper($URL)])) <= 0)
 			$arParams["URL_TEMPLATES_".strToUpper($URL)] = $APPLICATION->GetCurPage()."?".$URL_VALUE;
 		$arParams["~URL_TEMPLATES_".strToUpper($URL)] = $arParams["URL_TEMPLATES_".strToUpper($URL)];
-		$arParams["URL_TEMPLATES_".strToUpper($URL)] = htmlspecialcharsbx($arParams["~URL_TEMPLATES_".strToUpper($URL)]);
+		$arParams["URL_TEMPLATES_".strToUpper($URL)] = htmlspecialchars($arParams["~URL_TEMPLATES_".strToUpper($URL)]);
 	}
 /***************** ADDITIONAL **************************************/
 	$arParams["PAGEN"] = (intVal($arParams["PAGEN"]) <= 0 ? 1 : intVal($arParams["PAGEN"]));
@@ -52,14 +43,13 @@ endif;
 	$arParams["MESSAGES_PER_PAGE"] = intVal($arParams["MESSAGES_PER_PAGE"] > 0 ? $arParams["MESSAGES_PER_PAGE"] : COption::GetOptionString("forum", "MESSAGES_PER_PAGE", "10"));
 	$arParams["DATE_FORMAT"] = trim(empty($arParams["DATE_FORMAT"]) ? $DB->DateFormatToPHP(CSite::GetDateFormat("SHORT")) : $arParams["DATE_FORMAT"]);
 	$arParams["DATE_TIME_FORMAT"] = trim(empty($arParams["DATE_TIME_FORMAT"]) ? $DB->DateFormatToPHP(CSite::GetDateFormat("FULL")) : $arParams["DATE_TIME_FORMAT"]);
-	$arParams["NAME_TEMPLATE"] = (!empty($arParams["NAME_TEMPLATE"]) ? $arParams["NAME_TEMPLATE"] : CSite::GetNameFormat());
-
+	
 	$arParams["WORD_LENGTH"] = intVal($arParams["WORD_LENGTH"]);
 /***************** STANDART ****************************************/
 	if ($arParams["CACHE_TYPE"] == "Y" || ($arParams["CACHE_TYPE"] == "A" && COption::GetOptionString("main", "component_cache_on", "Y") == "Y"))
 		$arParams["CACHE_TIME"] = intval($arParams["CACHE_TIME"]);
 	else
-		$arParams["CACHE_TIME"] = 0;
+		$arParams["CACHE_TIME"] = 0;	
 	$arParams["SET_TITLE"] = ($arParams["SET_TITLE"] == "N" ? "N" : "Y");
 /********************************************************************
 				/Input params
@@ -97,7 +87,6 @@ if (empty($arResult["FORUM"]))
 		"id" => "forum_is_lost", 
 		"text" => GetMessage("F_FID_IS_LOST"));
 }
-
 elseif ($arParams["MODE"] == "GROUP")
 {
 	if (CSocNetFeaturesPerms::CanPerformOperation($user_id, SONET_ENTITY_GROUP, $arParams["SOCNET_GROUP_ID"], "forum", "full", $bCurrentUserIsAdmin))
@@ -193,34 +182,7 @@ if ($_REQUEST["topic_edit"] == "Y")
 					break;
 				case "DEL_TOPIC":
 				case "DELETE":
-					$arLogID = array();
-					foreach($arTopic as $topic_id_tmp)
-					{
-						// delete message log records
-						$dbForumMessage = CForumMessage::GetList(
-										array("ID" => "ASC"),
-										array("TOPIC_ID" => $topic_id_tmp)
-									);
-						while ($arForumMessage = $dbForumMessage->Fetch())
-						{
-							$dbRes = CSocNetLog::GetList(
-								array("ID" => "DESC"),
-								array(
-									"EVENT_ID" => "forum",
-									"SOURCE_ID" => $arForumMessage["ID"]
-								),
-								false,
-								false,
-								array("ID", "PARAMS")
-							);
-							while ($arRes = $dbRes->Fetch())
-								$arLogID[] = $arRes["ID"];
-						}
-					}
 					$result = ForumDeleteTopic($arTopic, $strErrorMessage, $strOkMessage, array("PERMISSION" => $arParams["PERMISSION"]));
-					if ($result)
-						foreach($arLogID as $log_id)
-							CSocNetLog::Delete($log_id);
 					break;
 				case "STATE_Y":
 				case "STATE_N":
@@ -416,28 +378,22 @@ $arResult["SortingEx"]["USER_START_NAME"] = SortingEx("USER_START_NAME");
 $arResult["SortingEx"]["POSTS"] = SortingEx("POSTS");
 $arResult["SortingEx"]["VIEWS"] = SortingEx("VIEWS");
 $arResult["SortingEx"]["LAST_POST_DATE"] = SortingEx("LAST_POST_DATE");
-$by = ($by == "LAST_POST_DATE" && $arParams["PERMISSION"] >= "Q" ? "ABS_LAST_POST_DATE" : $by);
-
-$parser = new forumTextParser(false, false, false, "light");
+if ($by == "LAST_POST_DATE" && $arParams["PERMISSION"] >= "Q"):
+	$by = "ABS_LAST_POST_DATE";
+endif;
+$parser = new textParser(false, false, false, "light");
 $parser->MaxStringLen = $arParams["WORD_LENGTH"];
-
 $arResult["TOPICS"] = array();
 
 if ($arParams["PERMISSION"] > "E")
-	$arResult["CanUserAddTopic"] = CForumTopic::CanUserAddTopic(
-		$arParams["FID"],
-		$USER->GetUserGroupArray(),
-		$USER->GetID(),
-		$arResult["FORUM"],
-		$arParams["PERMISSION"]);
+	$arResult["CanUserAddTopic"] = CForumTopic::CanUserAddTopic($arParams["FID"], $USER->GetUserGroupArray(), $USER->GetID(), $arResult["FORUM"], $arParams["PERMISSION"]);
 else
 	$arResult["CanUserAddTopic"] = false;
 
 $arResult["URL"] = array(
-	"TOPIC_NEW" => CComponentEngine::MakePathFromTemplate(
-		$arParams["URL_TEMPLATES_TOPIC_EDIT"],
+	"TOPIC_NEW" => CComponentEngine::MakePathFromTemplate($arParams["URL_TEMPLATES_TOPIC_EDIT"], 
 		array("FID" => $arParams["FID"], "TID" => "new", "ACTION" => "new", "MESSAGE_TYPE" => "NEW",
-			"UID" => $arParams["USER_ID"], "GID" => $arParams["SOCNET_GROUP_ID"], "MID" => 0)));
+			"UID" => $arParams["USER_ID"], "GID" => $arParams["SOCNET_GROUP_ID"])));
 /********************************************************************
 				/Default params # 2
 ********************************************************************/
@@ -445,34 +401,22 @@ $arResult["URL"] = array(
 /********************************************************************
 				Data
 ********************************************************************/
-$arFilter = array(
-//	"FORUM_ID" => $arParams["FID"],
-	"SOCNET_GROUP_ID" => false);
-if ($arParams["PERMISSION"] < "Q")
-	$arFilter["APPROVED"] = "Y";
-if ($USER->IsAuthorized())
-	$arFilter["USER_ID"] = $USER->GetID();
-if ($arParams["MODE"] == "GROUP")
-	$arFilter["SOCNET_GROUP_ID"] = $arParams["SOCNET_GROUP_ID"];
-else
-{
-	$arFilter["OWNER_ID"] = $arParams["USER_ID"];
-	$arFilter["FORUM_ID"] = $arParams["FID"];
-}
-
-$db_res = CForumTopic::GetListEx(
-	array("SORT"=>"ASC", $by=>$order),
-	$arFilter,
-	false,
-	false,
-	array(
-		"bDescPageNumbering" => ($arParams["USE_DESC_PAGE"] == "Y" ? true : false),
-		"nPageSize" => $arParams["TOPICS_PER_PAGE"],
-		"bShowAll" => false,
-		"sNameTemplate" => $arParams["NAME_TEMPLATE"]
-	)
-);
-$db_res->NavStart($arParams["TOPICS_PER_PAGE"], false);
+	$arFilter = array(
+		"FORUM_ID" => $arParams["FID"], 
+		"SOCNET_GROUP_ID" => false);
+	if ($arParams["PERMISSION"] < "Q")
+		$arFilter["APPROVED"] = "Y";
+	if ($USER->IsAuthorized())
+		$arFilter["USER_ID"] = $USER->GetID();
+	if ($arParams["MODE"] == "GROUP")
+		$arFilter["SOCNET_GROUP_ID"] = $arParams["SOCNET_GROUP_ID"];
+	else 
+		$arFilter["OWNER_ID"] = $arParams["USER_ID"];
+	
+	$db_res = CForumTopic::GetListEx(array("SORT"=>"ASC", $by=>$order), 
+		$arFilter, false, false, 
+		array("bDescPageNumbering"=>(($arParams["USE_DESC_PAGE"] == "Y") ? true : false), "nPageSize"=>$arParams["TOPICS_PER_PAGE"], "bShowAll" => false));
+	$db_res->NavStart($arParams["TOPICS_PER_PAGE"], false);
 //******************************************************************/
 $arResult["NAV_RESULT"] = $db_res;
 $arResult["NAV_STRING"] = $db_res->GetPageNavStringEx($navComponentObject, GetMessage("F_TOPIC_LIST"), $arParams["PAGE_NAVIGATION_TEMPLATE"]);
@@ -496,7 +440,6 @@ while ($res = $db_res->GetNext())
 	}
 	$res["TopicStatus"] = $res["STATUS"];
 
-	$res["numMessages"] = $res["POSTS"];
 	/*******************************************************************/
 	if($arParams["PERMISSION"] >= "Q"):
 		$res["LAST_POSTER_ID"] = $res["ABS_LAST_POSTER_ID"];
@@ -504,11 +447,11 @@ while ($res = $db_res->GetNext())
 		$res["LAST_POSTER_NAME"] = $res["ABS_LAST_POSTER_NAME"];
 		$res["LAST_MESSAGE_ID"] = $res["ABS_LAST_MESSAGE_ID"];
 		$res["mCnt"] = intVal($res["POSTS_UNAPPROVED"]);
-		$res["numMessages"] += $res["mCnt"];
+		$res["numMessages"] = $res["POSTS"] + $res["mCnt"];
 		$res["mCntURL"] = $res["URL"]["MODERATE_MESSAGE"];
 	endif;
 	/*******************************************************************/
-	$res["numMessages"]++;
+	$res["numMessages"] = $res["POSTS"] + 1;
 	/*******************************************************************/
 	/*******************************************************************/
 	$res["pages"] = ForumShowTopicPages($res["numMessages"], $res["URL"]["READ"], 
@@ -539,13 +482,13 @@ while ($res = $db_res->GetNext())
 			array("UID" => $res["LAST_POSTER_ID"], "GID" => $arParams["SOCNET_GROUP_ID"])));
 	foreach ($res["URL"] as $key => $val):
 		$res["URL"]["~".$key] = $val;
-		$res["URL"][$key] = htmlspecialcharsbx($val);
+		$res["URL"][$key] = htmlspecialchars($val);
 	endforeach;
 /*******************************************************************/
 	$arResult["TOPICS"][] = $res;
 }
 
-if($arParams["SOCNET_GROUP_ID"] > 0 && $USER->IsAuthorized() && CModule::IncludeModule("mail"))
+if($arParams["SOCNET_GROUP_ID"]>0 && $USER->IsAuthorized() && CModule::IncludeModule("mail"))
 {
 	$arResult["EMAIL_INTEGRATION"] = CForumEMail::GetForumFilters($arParams["FID"], $arParams["SOCNET_GROUP_ID"]);
 	if($arResult["EMAIL_INTEGRATION"])
@@ -562,7 +505,7 @@ if($arParams["SOCNET_GROUP_ID"] > 0 && $USER->IsAuthorized() && CModule::Include
 	}
 	
 
-	// if user has mail module permissions:
+	// если пользователь имеет право на модуль почты:
 	if($arParams["PERMISSION"] >= "Y" && $APPLICATION->GetGroupRight("mail")>"R")
 	{
 		$arResult["MAILBOXES"] = Array();
@@ -580,16 +523,15 @@ if($arParams["SOCNET_GROUP_ID"] > 0 && $USER->IsAuthorized() && CModule::Include
 				/Data
 ********************************************************************/
 
-$this->IncludeComponentTemplate();
-
 /********************************************************************
 				Standart Action
- ********************************************************************/
+********************************************************************/
 if ($arParams["SET_TITLE"] != "N"):
 	$APPLICATION->AddChainItem(GetMessage("FL_FORUM_CHAIN"));
 	$APPLICATION->SetTitle(GetMessage("FL_FORUM_CHAIN"));
 endif;
 /********************************************************************
-				/Standart Action
- ********************************************************************/
+				Standart Action
+********************************************************************/
+$this->IncludeComponentTemplate();
 ?>

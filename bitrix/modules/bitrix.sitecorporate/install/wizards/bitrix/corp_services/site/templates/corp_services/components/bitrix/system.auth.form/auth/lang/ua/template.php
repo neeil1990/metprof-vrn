@@ -1,16 +1,16 @@
 <?
-$MESS["AUTH_LOGIN"] = "Ð›Ð¾Ð³Ñ–Ð½";
-$MESS["AUTH_PASSWORD"] = "ÐŸÐ°Ñ€Ð¾Ð»ÑŒ";
-$MESS["AUTH_REMEMBER_ME"] = "Ð·Ð°Ð¿Ð°Ð¼'ÑÑ‚Ð°Ñ‚Ð¸ Ð¼ÐµÐ½Ðµ";
-$MESS["AUTH_LOGIN_BUTTON"] = "Ð£Ð²Ñ–Ð¹Ñ‚Ð¸";
-$MESS["AUTH_REGISTER"] = "Ð ÐµÑ”ÑÑ‚Ñ€Ð°Ñ†Ñ–Ñ";
-$MESS["AUTH_REGISTER_DESC"] = "Ð—Ð°Ñ€ÐµÑ”ÑÑ‚Ñ€ÑƒÐ²Ð°Ñ‚Ð¸ÑÑ Ð½Ð° ÑÐ°Ð¹Ñ‚Ñ–";
-$MESS["AUTH_FORGOT_PASSWORD"] = "Ð—Ð°Ð±ÑƒÐ»Ð¸ Ð¿Ð°Ñ€Ð¾Ð»ÑŒ?";
-$MESS["AUTH_LOGOUT"] = "Ð’Ð¸Ð¹Ñ‚Ð¸";
-$MESS["AUTH_PROFILE"] = "ÐœÑ–Ð¹ Ð¿Ñ€Ð¾Ñ„Ñ–Ð»ÑŒ";
-$MESS["AUTH_BLOG"] = "ÐœÑ–Ð¹ Ð±Ð»Ð¾Ð³";
-$MESS["AUTH_BLOG_NEW_POST"] = "ÐÐ°Ð¿Ð¸ÑÐ°Ñ‚Ð¸ Ð² Ð±Ð»Ð¾Ð³";
-$MESS["AUTH_BLOG_CREATE"] = "Ð¡Ñ‚Ð²Ð¾Ñ€Ð¸Ñ‚Ð¸ Ð±Ð»Ð¾Ð³";
-$MESS["AUTH_SONET_MESSAGES"] = "ÐžÑÐ¾Ð±Ð¸ÑÑ‚Ñ– Ð¿Ð¾Ð²Ñ–Ð´Ð¾Ð¼Ð»ÐµÐ½Ð½Ñ";
-$MESS["AUTH_HELLO"] = "ÐŸÑ€Ð¸Ð²Ñ–Ñ‚,";
+$MESS["AUTH_LOGIN"] = "Ëîã³í";
+$MESS["AUTH_PASSWORD"] = "Ïàðîëü";
+$MESS["AUTH_REMEMBER_ME"] = "çàïàì'ÿòàòè ìåíå";
+$MESS["AUTH_LOGIN_BUTTON"] = "Óâ³éòè";
+$MESS["AUTH_REGISTER"] = "Ðåºñòðàö³ÿ";
+$MESS["AUTH_REGISTER_DESC"] = "Çàðåºñòðóâàòèñÿ íà ñàéò³";
+$MESS["AUTH_FORGOT_PASSWORD"] = "Çàáóëè ïàðîëü?";
+$MESS["AUTH_LOGOUT"] = "Âèéòè";
+$MESS["AUTH_PROFILE"] = "Ì³é ïðîô³ëü";
+$MESS["AUTH_BLOG"] = "Ì³é áëîã";
+$MESS["AUTH_BLOG_NEW_POST"] = "Íàïèñàòè â áëîã";
+$MESS["AUTH_BLOG_CREATE"] = "Ñòâîðèòè áëîã";
+$MESS["AUTH_SONET_MESSAGES"] = "Îñîáèñò³ ïîâ³äîìëåííÿ";
+$MESS["AUTH_HELLO"] = "Ïðèâ³ò,";
 ?>

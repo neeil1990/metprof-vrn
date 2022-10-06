@@ -90,7 +90,8 @@ else
 					?>
 					<tr>
 						<td valign="top" width="50%" align="right"><?= GetMessage("SONET_C8_PARAMS") ?>:</td>
-						<td valign="top" width="50%"><? 
+						<td valign="top" width="50%">
+						<? 
 						if (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite()):
 							?><input type="checkbox" id="GROUP_VISIBLE" value="Y" name="GROUP_VISIBLE"<?= ($arResult["POST"]["VISIBLE"] == "Y") ? " checked" : ""?>> <label for="GROUP_VISIBLE"><?= GetMessage("SONET_C8_PARAMS_VIS") ?></label><br><?
 						else:
@@ -108,16 +109,8 @@ else
 						else:
 							?><input type="hidden" value="N" name="GROUP_CLOSED"><?
 						endif;
-						
-						if (
-							CModule::IncludeModule("extranet")
-							&& strlen(COption::GetOptionString("extranet", "extranet_site")) > 0
-							&& !CExtranet::IsExtranetSite()
-						):
-							?><input type="checkbox" value="Y"<?=($arResult["POST"]["IS_EXTRANET_GROUP"] ? " checked" : "")?> name="IS_EXTRANET_GROUP"> <label for="IS_EXTRANET_GROUP"><?= GetMessage("SONET_C8_IS_EXTRANET_GROUP") ?></label><?
-						endif;
-
-						?></td>
+						?>
+						</td>
 					</tr>
 					<?
 				endif;
@@ -167,7 +160,8 @@ else
 				// not archive and not extranet
 				if ($arResult["POST"]["CLOSED"] != "Y" && (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite()))
 				{
-					?><tr>
+					?>
+					<tr>
 						<td valign="top" width="50%" align="right"><span class="required-field">*</span><?= GetMessage("SONET_C8_SPAM_PERMS") ?>:</td>
 						<td valign="top" width="50%">
 							<select name="GROUP_SPAM_PERMS">
@@ -184,7 +178,8 @@ else
 					?><input type="hidden" value="<?=$arResult["POST"]["SPAM_PERMS"]?>" name="GROUP_SPAM_PERMS"><?
 				}
 
-			?></table>
+				?>
+			</table>
 			<input type="hidden" name="SONET_USER_ID" value="<?= $GLOBALS["USER"]->GetID() ?>">
 			<input type="hidden" name="SONET_GROUP_ID" value="<?= $arParams["GROUP_ID"] ?>">
 			<?=bitrix_sessid_post()?>

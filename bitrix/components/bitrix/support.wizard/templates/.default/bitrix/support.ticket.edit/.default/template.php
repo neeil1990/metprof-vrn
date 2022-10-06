@@ -4,35 +4,20 @@ $APPLICATION->AddHeadScript($this->GetFolder() . '/script.js');
 ?>
 <?=ShowError($arResult["ERROR_MESSAGE"]);?>
 
-<script type="text/javascript">BX.loadCSS('<? echo CUtil::JSEscape( $this->GetFolder() ); ?>/style.css');</script>
 
-<? 
-/*$hkInst=CHotKeys::getInstance();
-$arHK = array("B", "I", "U", "QUOTE", "CODE", "TRANSLIT");
-foreach($arHK as $n => $s)
-{		
-	$arExecs = $hkInst->GetCodeByClassName("TICKET_EDIT_$s");
-	echo $hkInst->PrintJSExecs($arExecs);
-}*/
-
-if (!empty($arResult["TICKET"])):
-?>
+<? if (!empty($arResult["TICKET"])):?>
 
 
-<?
-	if (!empty($arResult["ONLINE"]))
-	{
-?>
+<?if (!empty($arResult["ONLINE"])):?>
 <p>
 	<?$time = intval($arResult["OPTIONS"]["ONLINE_INTERVAL"]/60)." ".GetMessage("SUP_MIN");?>
 	<?=str_replace("#TIME#",$time,GetMessage("SUP_USERS_ONLINE"));?>:<br />
 	<?foreach($arResult["ONLINE"] as $arOnlineUser):?>
-	<small>(<?=$arOnlineUser["USER_LOGIN"]?>) <?=$arOnlineUser["USER_NAME"]?> [<?=FormatDate($DB->DateFormatToPHP(CSite::GetDateFormat('FULL')), MakeTimeStamp($arOnlineUser["TIMESTAMP_X"]))?>]</small><br />
+	<small>(<?=$arOnlineUser["USER_LOGIN"]?>) <?=$arOnlineUser["USER_NAME"]?> [<?=$arOnlineUser["TIMESTAMP_X"]?>]</small><br />
 	<?endforeach?>
 </p>
-<?
-	}
-?>
+<?endif?>
+
 
 <p><b><?=$arResult["TICKET"]["TITLE"]?></b></p>
 
@@ -65,7 +50,7 @@ if (!empty($arResult["TICKET"])):
 		<br />
 
 		
-		<?=GetMessage("SUP_CREATE")?>: <?=FormatDate($DB->DateFormatToPHP(CSite::GetDateFormat('FULL')), MakeTimeStamp($arResult["TICKET"]["DATE_CREATE"]))?>
+		<?=GetMessage("SUP_CREATE")?>: <?=$arResult["TICKET"]["DATE_CREATE"]?> 
 
 		<?if (strlen($arResult["TICKET"]["CREATED_MODULE_NAME"])<=0 || $arResult["TICKET"]["CREATED_MODULE_NAME"]=="support"):?>
 			[<?=$arResult["TICKET"]["CREATED_USER_ID"]?>] 
@@ -78,7 +63,7 @@ if (!empty($arResult["TICKET"])):
 
 		
 		<?if ($arResult["TICKET"]["DATE_CREATE"]!=$arResult["TICKET"]["TIMESTAMP_X"]):?>
-				<?=GetMessage("SUP_TIMESTAMP")?>: <?=FormatDate($DB->DateFormatToPHP(CSite::GetDateFormat('FULL')), MakeTimeStamp($arResult["TICKET"]["TIMESTAMP_X"]))?>
+				<?=GetMessage("SUP_TIMESTAMP")?>: <?=$arResult["TICKET"]["TIMESTAMP_X"]?>
 
 				<?if (strlen($arResult["TICKET"]["MODIFIED_MODULE_NAME"])<=0 || $arResult["TICKET"]["MODIFIED_MODULE_NAME"]=="support"):?>
 					[<?=$arResult["TICKET"]["MODIFIED_USER_ID"]?>] 
@@ -93,7 +78,7 @@ if (!empty($arResult["TICKET"])):
 
 		
 		<? if (strlen($arResult["TICKET"]["DATE_CLOSE"])>0): ?>
-			<?=GetMessage("SUP_CLOSE")?>: <?=FormatDate($DB->DateFormatToPHP(CSite::GetDateFormat('FULL')), MakeTimeStamp($arResult["TICKET"]["DATE_CLOSE"]))?>
+			<?=GetMessage("SUP_CLOSE")?>: <?=$arResult["TICKET"]["DATE_CLOSE"]?>
 		<?endif?>
 
 		
@@ -120,7 +105,7 @@ if (!empty($arResult["TICKET"])):
 		
 		<?if (strlen($arResult["TICKET"]["SLA_NAME"])>0) :?>
 			<?=GetMessage("SUP_SLA")?>: 
-			<span title="<?=$arResult["TICKET"]["SLA_DESCRIPTION"]?>"><?=$arResult["TICKET"]["SLA_NAME"]?></span>
+			<span title="<?=$arResult["TICKET"]["SLA_DESCRIPTION"]?>"><?=$arResult["TICKET"]["SLA_DESCRIPTION"]?><?=$arResult["TICKET"]["SLA_NAME"]?></span>
 		<?endif?>
 
 
@@ -140,10 +125,10 @@ if (!empty($arResult["TICKET"])):
 	<?foreach ($arResult["MESSAGES"] as $arMessage):?>
 		<div class="ticket-edit-message">
 
-		<div class="support-float-quote">[&nbsp;<a href="#postform" OnMouseDown="javascript:SupQuoteMessage('quotetd<? echo $arMessage["ID"]; ?>')" title="<?=GetMessage("SUP_QUOTE_LINK_DESCR");?>"><?echo GetMessage("SUP_QUOTE_LINK");?></a>&nbsp;]</div>
+		<div class="support-float-quote">[&nbsp;<a href="#postform" OnMouseDown="javascript:SupQuoteMessage()" title="<?=GetMessage("SUP_QUOTE_LINK_DESCR");?>"><?echo GetMessage("SUP_QUOTE_LINK");?></a>&nbsp;]</div>
 
 		
-		<div align="left"><b><?=GetMessage("SUP_TIME")?></b>: <?=FormatDate($DB->DateFormatToPHP(CSite::GetDateFormat('FULL')), MakeTimeStamp($arMessage["DATE_CREATE"]))?></div>
+		<div align="left"><b><?=GetMessage("SUP_TIME")?></b>: <?=$arMessage["DATE_CREATE"]?></div>
 		<b><?=GetMessage("SUP_FROM")?></b>:
 
 		
@@ -167,13 +152,27 @@ if (!empty($arResult["TICKET"])):
 		<?else:?>
 			<?=$arFile["NAME"]?>
 		<?endif?>
-		(<? echo CFile::FormatSize($arFile["FILE_SIZE"]); ?>)
+		<?
+			$size = $arFile["FILE_SIZE"];
+			$a = array("b", "kb", "mb", "gb");
+			$pos = 0;
+
+			while($size >= 1024)
+			{
+				$size /= 1024;
+				$pos++;
+			}
+
+			$size = round($size,2)." ".$a[$pos];
+		?>
+
+		(<?=$size?>) 
 		[ <a title="<?=str_replace("#FILE_NAME#", $arFile["NAME"], GetMessage("SUP_DOWNLOAD_ALT"))?>" href="<?=$componentPath?>/ticket_show_file.php?hash=<?=$arFile["HASH"]?>&amp;lang=<?=LANG?>&amp;action=download"><?=GetMessage("SUP_DOWNLOAD")?></a> ]
 		<br class="clear" />
 		<?endforeach?>
 
 		
-		<br /><div id="quotetd<? echo $arMessage["ID"]; ?>"><?=$arMessage["MESSAGE"]?></div>
+		<br /><?=$arMessage["MESSAGE"]?>
 
 		</div>
 	<?endforeach?>
@@ -195,7 +194,6 @@ if (!empty($arResult["TICKET"])):
 <?=bitrix_sessid_post()?>
 <input type="hidden" name="set_default" value="Y" />
 <input type="hidden" name="ID" value=<?=(empty($arResult["TICKET"]) ? 0 : $arResult["TICKET"]["ID"])?> />
-<input type="hidden" name="edit" value="1">
 <input type="hidden" name="lang" value="<?=LANG?>" />
 <table class="support-ticket-edit-form data-table">
 
@@ -209,7 +207,7 @@ if (!empty($arResult["TICKET"])):
 	<tbody>
 	<tr>
 		<td class="field-name border-none"><?=GetMessage("SUP_TITLE")?>:</td>
-		<td class="border-none"><input type="text" name="TITLE" value="<?=htmlspecialcharsbx($_REQUEST["TITLE"])?>" size="48" maxlength="255" /></td>
+		<td class="border-none"><input type="text" name="TITLE" value="<?=htmlspecialchars($_REQUEST["TITLE"])?>" size="48" maxlength="255" /></td>
 	</tr>
 	<?else:?>
 
@@ -224,20 +222,20 @@ if (!empty($arResult["TICKET"])):
 	<tr>
 		<td class="field-name"><?=GetMessage("SUP_MESSAGE")?>:</td>
 		<td>
-			<input accesskey="b" type="button" value="<?=GetMessage("SUP_B")?>" onClick="insert_tag('B', document.forms['support_edit'].elements['MESSAGE'])"  name="B" id="B" title="<? echo GetMessage("SUP_B_ALT"); ?>" />
-			<input accesskey="i" type="button" value="<?=GetMessage("SUP_I")?>" onClick="insert_tag('I', document.forms['support_edit'].elements['MESSAGE'])" name="I" id="I" title="<? echo GetMessage("SUP_I_ALT"); ?>" />
-			<input accesskey="u" type="button" value="<?=GetMessage("SUP_U")?>" onClick="insert_tag('U', document.forms['support_edit'].elements['MESSAGE'])" name="U" id="U" title="<? echo GetMessage("SUP_U_ALT"); ?>" />
-			<input accesskey="q" type="button" value="<?=GetMessage("SUP_QUOTE")?>" onClick="insert_tag('QUOTE', document.forms['support_edit'].elements['MESSAGE'])" name="QUOTE" id="QUOTE" title="<? echo GetMessage("SUP_QUOTE_ALT"); ?>" />
-			<input accesskey="c" type="button" value="<?=GetMessage("SUP_CODE")?>" onClick="insert_tag('CODE', document.forms['support_edit'].elements['MESSAGE'])" name="CODE" id="CODE" title="<? echo GetMessage("SUP_CODE_ALT"); ?>" />
+			<input type="button" accesskey="b" value="<?=GetMessage("SUP_B")?>" onClick="insert_tag('B', document.forms['support_edit'].elements['MESSAGE'])"  name="B" title="<?=GetMessage("SUP_B_ALT")?> (alt + b)" />
+			<input type="button" accesskey="i" value="<?=GetMessage("SUP_I")?>" onClick="insert_tag('I', document.forms['support_edit'].elements['MESSAGE'])" name="I" title="<?=GetMessage("SUP_I_ALT")?> (alt + i)" />
+			<input type="button" accesskey="u" value="<?=GetMessage("SUP_U")?>" onClick="insert_tag('U', document.forms['support_edit'].elements['MESSAGE'])" name="U" title="<?=GetMessage("SUP_U_ALT")?> (alt + u)" />
+			<input type="button" accesskey="q" value="<?=GetMessage("SUP_QUOTE")?>" onClick="insert_tag('QUOTE', document.forms['support_edit'].elements['MESSAGE'])" name="QUOTE" title="<?=GetMessage("SUP_QUOTE_ALT")?> (alt + q)" />
+			<input type="button" accesskey="c" value="<?=GetMessage("SUP_CODE")?>" onClick="insert_tag('CODE', document.forms['support_edit'].elements['MESSAGE'])" name="CODE" title="<?=GetMessage("SUP_CODE_ALT")?> (alt + c)" />
 			<?if (LANG == "ru"):?>
-			<input accesskey="t" type="button" accesskey="t" value="<?=GetMessage("SUP_TRANSLIT")?>" onClick="translit(document.forms['support_edit'].elements['MESSAGE'])" name="TRANSLIT" id="TRANSLIT" title="<? echo GetMessage("SUP_TRANSLIT_ALT"); ?>" />
+			<input type="button" accesskey="t" value="<?=GetMessage("SUP_TRANSLIT")?>" onClick="translit(document.forms['support_edit'].elements['MESSAGE'])" name="TRANSLIT" title="<?=GetMessage("SUP_TRANSLIT_ALT")?> (alt + t)" />
 			<?endif?>
 		</td>
 	</tr>
 
 	<tr>
 		<td></td>
-		<td><textarea name="MESSAGE" id="MESSAGE" rows="20" cols="45" wrap="virtual"><?=htmlspecialcharsbx($_REQUEST["MESSAGE"])?></textarea></td>
+		<td><textarea name="MESSAGE" id="MESSAGE" rows="20" cols="45" wrap="virtual"><?=htmlspecialchars($_REQUEST["MESSAGE"])?></textarea></td>
 	</tr>
 
 	
@@ -268,7 +266,7 @@ if (!empty($arResult["TICKET"])):
 				if (strlen($arResult["DICTIONARY"]["CRITICALITY_DEFAULT"]) > 0 && strlen($arResult["ERROR_MESSAGE"]) <= 0)
 					$criticality = $arResult["DICTIONARY"]["CRITICALITY_DEFAULT"];
 				else
-					$criticality = htmlspecialcharsbx($_REQUEST["CRITICALITY_ID"]);
+					$criticality = htmlspecialchars($_REQUEST["CRITICALITY_ID"]);
 			}
 			else
 				$criticality = $arResult["TICKET"]["CRITICALITY_ID"];
@@ -290,7 +288,7 @@ if (!empty($arResult["TICKET"])):
 			if (strlen($arResult["DICTIONARY"]["CATEGORY_DEFAULT"]) > 0 && strlen($arResult["ERROR_MESSAGE"]) <= 0)
 				$category = $arResult["DICTIONARY"]["CATEGORY_DEFAULT"];
 			else
-				$category = htmlspecialcharsbx($_REQUEST["CATEGORY_ID"]);
+				$category = htmlspecialchars($_REQUEST["CATEGORY_ID"]);
 			?>
 			<select name="CATEGORY_ID" id="CATEGORY_ID">
 				<option value="">&nbsp;</option>
@@ -304,7 +302,7 @@ if (!empty($arResult["TICKET"])):
 	<tr>
 		<td class="field-name"><?=GetMessage("SUP_MARK")?>:</td>
 		<td>
-			<?$mark = (strlen($arResult["ERROR_MESSAGE"]) > 0 ? htmlspecialcharsbx($_REQUEST["MARK_ID"]) : $arResult["TICKET"]["MARK_ID"]);?>
+			<?$mark = (strlen($arResult["ERROR_MESSAGE"]) > 0 ? htmlspecialchars($_REQUEST["MARK_ID"]) : $arResult["TICKET"]["MARK_ID"]);?>
 			<select name="MARK_ID" id="MARK_ID">
 				<option value="">&nbsp;</option>
 			<?foreach ($arResult["DICTIONARY"]["MARK"] as $value => $option):?>
@@ -333,57 +331,16 @@ if (!empty($arResult["TICKET"])):
 	<?if ($arParams['SHOW_COUPON_FIELD'] == 'Y' && $arParams['ID'] <= 0){?>
 	<tr>
 		<td  class="field-name"><?=GetMessage("SUP_COUPON")?>:</td>
-		<td><input type="text" name="COUPON" value="<?=htmlspecialcharsbx($_REQUEST["COUPON"])?>" size="48" maxlength="255" />
+		<td><input type="text" name="COUPON" value="<?=htmlspecialchars($_REQUEST["COUPON"])?>" size="48" maxlength="255" />
 		</td>
 	</tr>
 	<?}?>
-		<?
-		global $USER_FIELD_MANAGER;
-		if( isset( $arParams["SET_SHOW_USER_FIELD_T"] ) )
-		{
-			foreach( $arParams["SET_SHOW_USER_FIELD_T"] as $k => $v )
-			{
-				$v["ALL"]["VALUE"] = $arParams[$k];
-				echo '<tr><td  class="field-name">' . htmlspecialcharsbx( $v["NAME_F"] ) . ':</td><td>';
-				$APPLICATION->IncludeComponent(
-						'bitrix:system.field.edit',
-						$v["ALL"]['USER_TYPE_ID'],
-						array(
-							'arUserField' => $v["ALL"],
-						),
-						null,
-						array('HIDE_ICONS' => 'Y')
-				);
-				echo '</td></tr>';
-			}
-		}
-	?>	
-		
 	</tbody>
 </table>
 <br />
 <input type="submit" name="save" value="<?=GetMessage("SUP_SAVE")?>" />&nbsp;
-<input type="submit" name="apply" value="<?=GetMessage("SUP_APPLY")?>" />&nbsp;
+<input type="submit" name="apply" value=<?=GetMessage("SUP_APPLY")?> />&nbsp;
 <input type="reset" value="<?=GetMessage("SUP_RESET")?>" />
 <input type="hidden" value="Y" name="apply" />
-
-<script type="text/javascript">
-BX.ready(function(){
-	var buttons = BX.findChildren(document.forms['support_edit'], {attr:{type:'submit'}});
-	for (i in buttons)
-	{
-		BX.bind(buttons[i], "click", function(e) {
-			setTimeout(function(){
-				var _buttons = BX.findChildren(document.forms['support_edit'], {attr:{type:'submit'}});
-				for (j in _buttons)
-				{
-					_buttons[j].disabled = true;
-				}
-
-			}, 30);
-		});
-	}
-});
-</script>
 
 </form>

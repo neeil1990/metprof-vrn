@@ -19,13 +19,6 @@ $MESS["F_SOCNET_GROUP_ID"] = "Group ID";
 $MESS["F_USER_ID"] = "User ID";
 $MESS["F_PAGE_NAVIGATION_WINDOW"] = "Number of pages in the page navigation";
 $MESS["F_PAGE_NAVIGATION_SHOW_ALL"] = "Enable Show All Pages Option";
+$MESS["F_SHOW_RATING"] = "Show Rating";
 $MESS["F_RATING_ID"] = "Rating";
-$MESS["SHOW_RATING"] = "Show Rating";
-$MESS["SHOW_RATING_CONFIG"] = "default";
-$MESS["RATING_TYPE"] = "Rating buttons design";
-$MESS["RATING_TYPE_CONFIG"] = "default";
-$MESS["RATING_TYPE_STANDART_TEXT"] = "Like/Unlike (text)";
-$MESS["RATING_TYPE_STANDART_GRAPHIC"] = "Like/Unlike (image)";
-$MESS["RATING_TYPE_LIKE_TEXT"] = "Like (text)";
-$MESS["RATING_TYPE_LIKE_GRAPHIC"] = "Like (image)";
 ?>

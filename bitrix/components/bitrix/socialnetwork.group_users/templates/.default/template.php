@@ -11,62 +11,31 @@ else
 		?><span class='errortext'><?=$arResult["ErrorMessage"]?></span><br /><br /><?
 	}
 
-	if ($arResult["CurrentUserPerms"]["UserCanInitiate"]):
-
-		?><?
-		$APPLICATION->IncludeComponent(
-			"bitrix:socialnetwork.group.iframe.popup",
-			".default",
-			array(
-				"PATH_TO_GROUP" => $arParams["PATH_TO_GROUP"],
-				"PATH_TO_GROUP_INVITE" => htmlspecialcharsback($arResult["Urls"]["GroupEdit"]).(strpos($arResult["Urls"]["GroupEdit"], "?") === false ? "?" : "&")."tab=invite",
-				"PATH_TO_GROUP_EDIT" => htmlspecialcharsback($arResult["Urls"]["GroupEdit"]).(strpos($arResult["Urls"]["GroupEdit"], "?") === false ? "?" : "&")."tab=edit",
-				"PATH_TO_GROUP_FEATURES" => htmlspecialcharsback($arResult["Urls"]["GroupEdit"]).(strpos($arResult["Urls"]["GroupEdit"], "?") === false ? "?" : "&")."tab=features",
-				"ON_GROUP_ADDED" => "BX.DoNothing",
-				"ON_GROUP_CHANGED" => "BX.DoNothing",
-				"ON_GROUP_DELETED" => "BX.DoNothing"
-			),
-			null,
-			array("HIDE_ICONS" => "Y")
-		);
-
-		$popupName = randString(6);
-		$APPLICATION->IncludeComponent(
-			"bitrix:socialnetwork.group_create.popup",
-			".default",
-			array(
-				"NAME" => $popupName,
-				"PATH_TO_GROUP_EDIT" => (strlen($arResult["Urls"]["GroupEdit"]) > 0
-					? htmlspecialcharsback($arResult["Urls"]["GroupEdit"])
-					: ""
-				),
-				"GROUP_NAME" => $arResult["Group"]["NAME"]
-			),
-			null,
-			array("HIDE_ICONS" => "Y")
-		);
-			
-		$strOnClick = "if (BX.SGCP) { BX.SGCP.ShowForm('invite', '".$popupName."', event); } else { return false;}";
-		?><?
-
-		?><div class="sonet-add-user-button">
-			<a class="sonet-add-user-button-left" onclick="<?=$strOnClick?>" href="<?= $arResult["Urls"]["GroupInvite"] ?>" title="<?= GetMessage("SONET_C25_T_INVITE") ?>"></a>
-			<div class="sonet-add-user-button-fill"><a onclick="<?=$strOnClick?>" href="<?= $arResult["Urls"]["GroupInvite"] ?>" class="sonet-add-user-button-fill-text"><?= GetMessage("SONET_C25_T_INVITE") ?></a></div>
-			<a class="sonet-add-user-button-right" onclick="<?=$strOnClick?>" href="<?= $arResult["Urls"]["GroupInvite"] ?>" title="<?= GetMessage("SONET_C25_T_INVITE") ?>"></a>
-			<div class="sonet-add-user-button-clear"></div>
-		</div><?
-	endif;
+	if ($arResult["CurrentUserPerms"]["UserCanInitiate"]):?>
+		<div class="sonet-add-user-button">
+		<a class="sonet-add-user-button-left" href="<?= $arResult["Urls"]["GroupInvite"] ?>" title="<?= GetMessage("SONET_C25_T_INVITE") ?>"></a>
+		<div class="sonet-add-user-button-fill"><a href="<?= $arResult["Urls"]["GroupInvite"] ?>" class="sonet-add-user-button-fill-text"><?= GetMessage("SONET_C25_T_INVITE") ?></a></div>
+		<a class="sonet-add-user-button-right" href="<?= $arResult["Urls"]["GroupInvite"] ?>" title="<?= GetMessage("SONET_C25_T_INVITE") ?>"></a>
+		<div class="sonet-add-user-button-clear"></div>
+		</div>
+	<?endif;
 	
 	if ($arResult["CurrentUserPerms"]["UserCanModifyGroup"] || $arResult["CurrentUserPerms"]["UserCanModerateGroup"]):
 		?><form method="post" name="form1" action="<?=POST_FORM_ACTION_URI?>" enctype="multipart/form-data"><?
+		if ($arResult["CurrentUserPerms"]["UserCanModifyGroup"]):
+			?><input type="submit" name="save" value="<?= GetMessage("SONET_C25_T_SAVE") ?>"><?
+			?><input type="submit" name="exclude" value="<?= GetMessage("SONET_C25_T_EXCLUDE") ?>"><?
+		endif;
+		if ($arParams["GROUP_USE_BAN"] != "N" && (!CModule::IncludeModule('extranet') || !CExtranet::IsExtranetSite())):
+			?><input type="submit" name="ban" value="<?= GetMessage("SONET_C25_T_BAN") ?>"><?
+		endif;
+		?><br /><br /><?
 	endif;
 	
 	if (StrLen($arResult["NAV_STRING"]) > 0):
 		?><?=$arResult["NAV_STRING"]?><br /><br /><?
 	endif;
-	?>
-	<div class="sonet-cntnr-group-users">
-	<table width="100%" class="sonet-user-profile-friends data-table">
+	?><table width="100%" class="sonet-user-profile-friends data-table">
 	<tr>
 		<th><?= GetMessage("SONET_C25_T_MEMBERS") ?></th>
 	</tr>
@@ -205,9 +174,8 @@ else
 		endif;
 		?></td>
 	</tr>
-	</table>
-	</div>
-	<?
+	</table><?
+	
 	if (StrLen($arResult["NAV_STRING"]) > 0):
 		?><br><?=$arResult["NAV_STRING"]?><br /><br /><?
 	endif;

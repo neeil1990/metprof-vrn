@@ -31,7 +31,7 @@ $MESS['SALE_CONVERTER_AJAX_STEP_UPDATE_SHIPMENT_BASKET_BARCODE'] = "Перепр
 $MESS['SALE_CONVERTER_AJAX_STEP_UPDATE_ORDER_PAYMENT'] = "Обновление оплаченных заказов";
 $MESS['SALE_CONVERTER_AJAX_STEP_TRANSACT'] = "Изменение структуры таблицы транзакций";
 $MESS['SALE_CONVERTER_AJAX_STEP_ORDER_CHANGE'] = "Изменение структуры таблицы истории заказа";
-$MESS['SALE_CONVERTER_AJAX_STEP_FINAL'] = "Мастер конвертации завершил свою работу";
+$MESS['SALE_CONVERTER_AJAX_STEP_FINAL'] = "Мастер конвертации завершил свою работу<br><br>Проверьте наличие доступных обновлений и обновитесь <br>до последней версии.";
 $MESS['SALE_CONVERTER_AJAX_STEP_FINAL_MESSAGE'] = "Конвертация окончена";
 $MESS['SALE_CONVERTER_BUTTON_START_AJAX'] = "Начать конвертацию";
 $MESS['SALE_CONVERTER_BUTTON_START'] = "&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Далее&nbsp;&nbsp;&gt;&gt;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;";
@@ -56,6 +56,8 @@ $MESS['SALE_CONVERTER_STEP_3_DETAILS'] = "Новая система Управл
 
 $MESS['SALE_CONVERTER_STEP_4_MESSAGE'] = "Местоположения cконвертированы";
 $MESS['SALE_CONVERTER_STEP_4_DETAILS'] = "Процесс перехода к местоположениям 2.0 успешно завершен";
+$MESS['SALE_CONVERTER_STEP_FIND_GARBAGE'] = "<b>Внимание!</b><br><br>Обнаружены следы предыдущих попыток конвертации. База данных находится не в актуальном состоянии. Для исправления ситуации в автоматическом режиме, нажмите \"Далее &gt;&gt;\"";
+$MESS['SALE_CONVERTER_STEP_CLEAR_GARBAGE'] = "Ошибки базы данных исправлены";
 $MESS['SALE_CONVERTER_STEP_5_MESSAGE'] = "Выбор службы доставки по-умолчанию";
 $MESS['SALE_CONVERTER_STEP_6_MESSAGE'] = "Конвертация Интернет-магазина";
 $MESS['SALE_CONVERTER_STEP_5_DETAILS'] = "Ваш магазин использует складской учет. <br>В магазине присутствуют отгружненные заказы, однако в некоторых из них не выбрана служба доставки.<br> Для избежания потери данных выберите службу доставки, которая применится ко <br>всем заказам, без службы доставки";
@@ -84,3 +86,5 @@ $MESS['SALE_CONVERTER_EMPTY_DELIVERY_SERVICE'] = 'Без доставки';
 $MESS['SALE_CONVERTER_TITLE'] = 'Мастер перехода на новую систему Управления заказами';
 $MESS['SALE_CONVERTER_AJAX_STEP_UPDATE_BASKET'] = 'Изменение структуры таблицы: корзина';
 $MESS['SALE_CONVERTER_ADMIN_NOTIFY_CONVERT_BASKET_DISCOUNT'] = "Необходимо сконвертировать информацию о купонах торгового каталога для существующих заказов. Для этого перейдите на страницу <a href=\"#LINK#\">настроек модуля</a> в раздел Служебные процедуры (закладка Конвертация данных)";
+$MESS['SALE_CONVERTER_MODULE_NO_ACCESS'] = "Недостаточно прав для выполнения конвертации";
+$MESS['SALE_CONVERTER_MODULE_ALREADY_CONVERTED'] = "Конвертация Интернет-магазина уже выполнена. Повторная конвертация невозможна";

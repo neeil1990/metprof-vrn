@@ -1,11 +1,9 @@
 <?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();
-$sectionTpl = (isset($_REQUEST["dialog"]) && strtoupper($_REQUEST["dialog"]) == "Y") ? "dialog" : ".default";
-$APPLICATION->IncludeComponent("bitrix:webdav.section.list", $sectionTpl, Array(
+?><?$APPLICATION->IncludeComponent("bitrix:webdav.section.list", ".default", Array(
 	"OBJECT" => $arParams["OBJECT"], 
 	"SECTION_ID"	=>	$arResult["VARIABLES"]["SECTION_ID"],
 	"SORT_BY"	=>	false,
 	"SORT_ORD"	=>	false,
-    "NAME_TEMPLATE" => $arParams["NAME_TEMPLATE"],
 	
 	"SECTIONS_URL" => $arResult["~PATH_TO_USER_FILES"],
 	"SECTION_EDIT_URL" => $arResult["~PATH_TO_USER_FILES_SECTION_EDIT"],
@@ -28,9 +26,6 @@ $APPLICATION->IncludeComponent("bitrix:webdav.section.list", $sectionTpl, Array(
 	"WEBDAV_START_BIZPROC_URL" => $arResult["~PATH_TO_USER_FILES_WEBDAV_START_BIZPROC"], 
 	"WEBDAV_TASK_LIST_URL" => $arResult["~PATH_TO_BIZPROC_TASK_LIST"], 
 	"WEBDAV_TASK_URL" => $arResult["~PATH_TO_BIZPROC_TASK"], 
-		
-	"SHOW_RATING" => $arParams["SHOW_RATING"],
-	"RATING_TYPE" => $arParams["RATING_TYPE"],
 	
 	"COLUMNS"	=>	$arParams["COLUMNS"],
 	"PAGE_ELEMENTS"	=>	$arParams["FILES_PAGE_ELEMENTS"],

@@ -20,7 +20,6 @@ else
 	}
 	?>
 	<?if ($arResult["Events"]):?>
-		<div class="sonet-cntnr-messages-requests">
 		<table width="100%" class="sonet-user-profile-friends data-table">
 			<tr>
 				<th width="10%"><?= GetMessage("SONET_C29_T_SENDER") ?></th>
@@ -126,7 +125,6 @@ else
 				</tr>
 			<?endforeach;?>
 		</table>
-		</div>
 		<br /><br />
 	<?endif;?>
 	<?

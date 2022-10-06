@@ -1,4 +1,4 @@
-<?
+﻿<?
 $MESS['SALE_MODULE_NOT_INSTALL'] = "e-Store module is not installed";
 $MESS['SALE_ACCESS_DENIED']="You need to authorise to cancel the order";
 $MESS["SPOC_TITLE"]="Cancel order # #ID#";

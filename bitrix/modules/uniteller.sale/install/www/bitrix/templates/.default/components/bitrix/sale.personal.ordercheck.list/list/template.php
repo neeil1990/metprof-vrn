@@ -1,4 +1,4 @@
-<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?><?
+﻿<?if(!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?><?
 if($_REQUEST["filter_canceled"] == "Y" && $_REQUEST["filter_history"] == "Y")
 	$page = "canceled";
 elseif($_REQUEST["filter_status"] == "F" && $_REQUEST["filter_history"] == "Y")

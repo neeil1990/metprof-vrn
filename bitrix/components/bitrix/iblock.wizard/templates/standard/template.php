@@ -131,7 +131,7 @@ elseif($arResult['MESSAGE'])
 			<? if ($arResult['CURRENT_STEP']>1) { ?>
 				<input type=submit name="back" value="<?=GetMessage('BACK')?>">
 			<? } elseif ($arParams['BACK_URL']) {?>
-				<input type=submit value="<?=GetMessage('BACK')?>" onclick="javascript:window.location='<?=htmlspecialcharsbx(addslashes($arParams['BACK_URL']))?>';return false;">
+				<input type=submit value="<?=GetMessage('BACK')?>" onclick="javascript:window.location='<?=htmlspecialchars(addslashes($arParams['BACK_URL']))?>';return false;">
 			<? } ?>
 			<img src="/bitrix/images/1.gif" width=1 height=1>
 			<input type=submit value="<?=GetMessage('NEXT')?>" name="next">
@@ -175,4 +175,4 @@ if (count($arHelp))
 }
 ?>
 </div>
-
+<?//echo '<pre>';print_r($arResult);echo '</pre>';?>

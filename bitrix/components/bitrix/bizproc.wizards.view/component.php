@@ -30,7 +30,7 @@ if (strlen($arParams["PATH_TO_INDEX"]) <= 0)
 
 $arParams["PATH_TO_LIST"] = trim($arParams["PATH_TO_LIST"]);
 if (strlen($arParams["PATH_TO_LIST"]) <= 0)
-	$arParams["PATH_TO_LIST"] = htmlspecialcharsbx($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=list&".$arParams["BLOCK_VAR"]."=#block_id#");
+	$arParams["PATH_TO_LIST"] = htmlspecialchars($APPLICATION->GetCurPage()."?".$arParams["PAGE_VAR"]."=list&".$arParams["BLOCK_VAR"]."=#block_id#");
 
 $arParams["PATH_TO_TASK"] = trim($arParams["PATH_TO_TASK"]);
 if (strlen($arParams["PATH_TO_TASK"]) <= 0)
@@ -71,7 +71,6 @@ $arResult["PATH_TO_SETVAR"] = CComponentEngine::MakePathFromTemplate($arParams["
 $arResult["PATH_TO_LOG"] = CComponentEngine::MakePathFromTemplate($arParams["PATH_TO_LOG"], array("bp_id" => $arParams["BP_ID"], "block_id" => $arParams["BLOCK_ID"]));
 
 $documentType = array("bizproc", "CBPVirtualDocument", "type_".$arParams["BLOCK_ID"]);
-$arResult["DocumentType"] = $documentType;
 
 if (strlen($arResult["FatalErrorMessage"]) <= 0)
 {
@@ -98,7 +97,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 			$v1 = @unserialize(substr($ar["~DESCRIPTION"], 3));
 			if (is_array($v1))
 			{
-				$arResult["Block"]["DESCRIPTION"] = htmlspecialcharsbx($v1["DESCRIPTION"]);
+				$arResult["Block"]["DESCRIPTION"] = htmlspecialchars($v1["DESCRIPTION"]);
 				$arResult["Block"]["FILTERABLE_FIELDS"] = $v1["FILTERABLE_FIELDS"];
 				$arResult["Block"]["VISIBLE_FIELDS"] = $v1["VISIBLE_FIELDS"];
 			}
@@ -158,8 +157,8 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 				if ($arRecord = $dbRecordsList->Fetch())
 				{
 					$arCurrentUserGroups = $GLOBALS["USER"]->GetUserGroupArray();
-					if ("user_".$GLOBALS["USER"]->GetID() == $arRecord["CREATED_BY"])
-						$arCurrentUserGroups[] = "author";
+					if ($GLOBALS["USER"]->GetID() == $arRecord["CREATED_BY"])
+						$arCurrentUserGroups[] = "Author";
 
 					$arErrorTmp = array();
 
@@ -202,10 +201,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 
 	$arResult["DocumentFields"] = $arDocumentFields = $documentService->GetDocumentFields($documentType);
 	foreach ($arDocumentFields as $key => $value)
-	{
-		if (strpos($key, 'PROPERTY_') === false)
-			$arSelectFields[] = $key;
-	}
+		$arSelectFields[] = $key;
 
 	/*$db = CIBlockElement::GetList(
 		array(),
@@ -228,17 +224,15 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 		{
 			if ($arDocumentFields[$key]["BaseType"] == "file")
 			{
-				$ar = array_filter((array)$arRecord[$key]);
-				$arRecord[$key] = '';
-				if (sizeof($ar) > 0)
+				$ar = $arRecord[$key];
+				if (!is_array($ar))
+					$ar = array($ar);
+				$arRecord[$key] = "";
+				foreach ($ar as $v)
 				{
-					$fileIterator = CFile::getList(array('ID' => 'ASC'), array('@ID' => $ar));
-					while ($file = $fileIterator->fetch())
-					{
-						if ($arRecord[$key] != '')
-							$arRecord[$key] .= ' ';
-						$arRecord[$key] .= '<a href="/bitrix/tools/bizproc_show_file.php?bp_id=' . $arParams['BP_ID'] . '&iblock_id=' . $arParams['BLOCK_ID'] . '&f=' . urlencode($key) . '&i=' . $file['ID'] . '">' . htmlspecialcharsbx($file['ORIGINAL_NAME']) . '</a>';
-					}
+					if (strlen($arRecord[$key]) > 0)
+						$arRecord[$key] .= " ";
+					$arRecord[$key] .= CFile::ShowFile($v, 100000, 300, 300, true);
 				}
 			}
 			if (is_array($arRecord[$key]))
@@ -251,10 +245,6 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 						$arRecord[$key] .= ", ";
 					$arRecord[$key] .= $val;
 				}
-			}
-			if (CheckDateTime($arRecord[$key]))
-			{
-				$arRecord[$key] = FormatDateFromDB($arRecord[$key]);
 			}
 		}
 
@@ -269,8 +259,8 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 if (strlen($arResult["FatalErrorMessage"]) <= 0)
 {
 	$arCurrentUserGroups = $GLOBALS["USER"]->GetUserGroupArray();
-	if ("user_".$GLOBALS["USER"]->GetID() == $arResult["BP"]["CREATED_BY"])
-		$arCurrentUserGroups[] = "author";
+	if ($GLOBALS["USER"]->GetID() == $arResult["BP"]["CREATED_BY"])
+		$arCurrentUserGroups[] = "Author";
 
 	$documentId = array("bizproc", "CBPVirtualDocument", $arResult["BP"]["ID"]);
 	$arDocumentStates = CBPDocument::GetDocumentStates($documentType, $documentId);
@@ -281,7 +271,7 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 		$ar = CBPDocument::GetAllowableEvents($GLOBALS["USER"]->GetID(), $arCurrentUserGroups, $arDocumentState);
 		foreach ($ar as $ar1)
 		{
-			$ar1["URL"] = $APPLICATION->GetCurPageParam("bizproc_id=".$arDocumentState["ID"]."&process_state_event=Y&bizproc_event=".htmlspecialcharsbx($ar1["NAME"])."&".bitrix_sessid_get(), array("sessid", "stop_bizproc_id", "process_state_event", "bizproc_event", "bizproc_id"));
+			$ar1["URL"] = $APPLICATION->GetCurPageParam("bizproc_id=".$arDocumentState["ID"]."&process_state_event=Y&bizproc_event=".htmlspecialchars($ar1["NAME"])."&".bitrix_sessid_get(), array("sessid", "stop_bizproc_id", "process_state_event", "bizproc_event", "bizproc_id"));
 			$arResult["BP"]["DOCUMENT_STATE_EVENTS"][] = $ar1;
 		}
 		if (count($arResult["BP"]["DOCUMENT_STATE_EVENTS"]) > 0)
@@ -302,6 +292,12 @@ if (strlen($arResult["FatalErrorMessage"]) <= 0)
 			$arResult["BP"]["CancelUrl"] = $APPLICATION->GetCurPageParam("stop_bizproc_id=".$arDocumentState["ID"]."&".bitrix_sessid_get(), array("sessid", "stop_bizproc_id"));
 	}
 }
+
+/*
+$f = fopen($_SERVER["DOCUMENT_ROOT"]."/++++++++.+++", "a");
+fwrite($f, print_r($arResult, true)."\n\n");
+fclose($f);
+*/
 
 $this->IncludeComponentTemplate();
 

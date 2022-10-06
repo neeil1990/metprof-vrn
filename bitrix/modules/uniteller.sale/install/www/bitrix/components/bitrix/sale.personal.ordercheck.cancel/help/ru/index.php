@@ -1,4 +1,4 @@
-<pre>
+﻿<pre>
 Array
 (
     [ID] => 31

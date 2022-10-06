@@ -203,12 +203,8 @@ class ps_uniteller {
 
 
 		foreach($arBasketItems as $arItem){
-			
-			//var_dump($arItem['PRICE']);
-			
-			$price = $arItem['PRICE'];
-			
-			//var_dump($price);
+
+			$price = round($arItem['PRICE'], 2);
 
 			if($arVatRates[$arVAT[$arItem['PRODUCT_ID']]]){
 				$vat = $arVAT[$arItem['PRODUCT_ID']];
@@ -220,13 +216,13 @@ class ps_uniteller {
 				'vat' => $vat,
 				'taxmode' => $taxmode,
 				'name' => self::toUtf($arItem['NAME']),
-				'price' => round($price,2),
+				'price' => $price,
 				'qty' => $arItem['QUANTITY'],
-				'sum' => round($price * $arItem['QUANTITY'],2),
+				'sum' => $price * $arItem['QUANTITY'],
                 'payattr' => $payattr,
                 'lineattr' => $lineattr,
 			);
-			$total += round($price * $arItem['QUANTITY'], 2);
+			$total += $price * $arItem['QUANTITY'];
 		}
 
 		if($includeDelivery){
@@ -251,8 +247,6 @@ class ps_uniteller {
 
 			$total += $deliveryPrice;
 		}
-		
-		//var_dump($total);
 
 		$ReceiptObject['lines'] = $lines;
 		$ReceiptObject['total'] = $total; //$arOrder['PRICE'];
