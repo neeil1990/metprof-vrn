@@ -111,12 +111,12 @@ if (!empty($arResult['ITEMS']))
                   </label>
                 </div>
                 <div class="close"></div>
-                <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="pic">
+                <a href="<?=$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE'] ?? $arItem['DETAIL_PAGE_URL']?>" class="pic">
                    <span>
                     <img src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" alt="">
                    </span>
                 </a>
-                <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="title"><?=$arItem['NAME']?></a>
+                <a href="<?=$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE'] ?? $arItem['DETAIL_PAGE_URL']?>" class="title"><?=$arItem['NAME']?></a>
 
                 <? if($arItem['DISPLAY_PROPERTIES'] && $arResult['UF_PROPERTY_LIST']): ?>
                 <div class="list-properties">
@@ -157,9 +157,9 @@ if (!empty($arResult['ITEMS']))
                 }
                 ?>
 
-                <?
-                if($arOffers['DISCOUNT_VALUE']): ?>
+				<? if(!$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE']): ?>
 
+                  <? if($arOffers['DISCOUNT_VALUE']): ?>
                   <?if(!$arItem['IS_M2']):?>
                   <div class="quantity" id="count_<?=$arItem['ID']?>">
                     <a class="minus na" href="#"></a>
@@ -271,6 +271,10 @@ if (!empty($arResult['ITEMS']))
                 <?
                 $intOrder++;
                 endif; ?>
+
+				<? else: ?>
+					<a href="<?=$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE']?>" class="add2cartOrder js-text" data-text="Подробнее"></a>
+				<? endif; ?>
               </div>
             </div>
           </div>

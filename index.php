@@ -2,7 +2,7 @@
 require($_SERVER["DOCUMENT_ROOT"]."/bitrix/header.php");
 $APPLICATION->SetPageProperty("description", "Компания «Металлинвест Профиль» реализует кровельные и фасадные материалы по низким ценам | Широкий каталог товаров ведущих производителей | Акции и скидки");
 $APPLICATION->SetTitle("«Металлинвест Профиль» — главная страница сайта");
-?>111
+?>
 <div class="mp__categories">
 
 	<?$APPLICATION->IncludeComponent("bitrix:menu", "mobile-cat-menu", Array(
