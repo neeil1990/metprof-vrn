@@ -111,12 +111,12 @@ if (!empty($arResult['ITEMS']))
                   </label>
                 </div>
                 <div class="close"></div>
-                <a href="<?=$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE'] ?? $arItem['DETAIL_PAGE_URL']?>" class="pic">
+                <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="pic">
                    <span>
                     <img src="<?=$arItem['PREVIEW_PICTURE']['SRC']?>" alt="">
                    </span>
                 </a>
-                <a href="<?=$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE'] ?? $arItem['DETAIL_PAGE_URL']?>" class="title"><?=$arItem['NAME']?></a>
+                <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="title"><?=$arItem['NAME']?></a>
 
                 <? if($arItem['DISPLAY_PROPERTIES'] && $arResult['UF_PROPERTY_LIST']): ?>
                 <div class="list-properties">
@@ -134,32 +134,47 @@ if (!empty($arResult['ITEMS']))
                 </div>
                 <? endif; ?>
 
-                <? if($intPrice < $arResult['UF_JS_TEXT_PRICE']): ?>
+                <? if($arItem['IS_PARTNER']):?>
                     <div class="cost">
-                      <?if(priceDiscount($arItem['ID'])){?>
-                        <span>цена <?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
-                      <?}else{?>
-                        <span>цена <?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
-                      <?}?>
-                      </div>
+                        <? if($price = price($arItem['ID'])): ?>
+                            <span>цена партнера <?=$price;?></span> <?=RUB?>
+                        <? else: ?>
+                            <span style="font-size: 14px;">Цена на сайте партнера</span>
+                        <? endif; ?>
+                    </div>
                 <? else: ?>
-                    <div class="cost js-text" data-text="<?if(priceDiscount($arItem['ID'])){?>
+
+                    <? if($intPrice < $arResult['UF_JS_TEXT_PRICE']): ?>
+                        <div class="cost">
+                            <?if(priceDiscount($arItem['ID'])){?>
+                                <span>цена <?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                            <?}else{?>
+                                <span>цена <?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                            <?}?>
+                        </div>
+                    <? else: ?>
+                        <div class="cost js-text" data-text="<?if(priceDiscount($arItem['ID'])){?>
                             <span>цена <?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                         <?}else{?>
                             <span>цена <?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                         <?}?>"></div>
-                <? endif;?>
-				<? 
-					$intPrice++;
-				?>
+                    <? endif;?>
+                    <?
+                    $intPrice++;
+                    ?>
+
+                <? endif; ?>
+
                 <?if(!$arOffers['DISCOUNT_VALUE']){
                   //print '<span class="noprice">Цену уточняйте у менеджера</span>';
                 }
                 ?>
 
-				<? if(!$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE']): ?>
-
-                  <? if($arOffers['DISCOUNT_VALUE']): ?>
+                 <? if($arItem['IS_PARTNER']):?>
+                     <span class="noprice" style="text-align: center;">Товар партнера</span>
+                     <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="add2cartOrder">Подробнее</a>
+                 <? else: ?>
+                    <? if($arOffers['DISCOUNT_VALUE']): ?>
                   <?if(!$arItem['IS_M2']):?>
                   <div class="quantity" id="count_<?=$arItem['ID']?>">
                     <a class="minus na" href="#"></a>
@@ -228,7 +243,7 @@ if (!empty($arResult['ITEMS']))
                         <? else: ?>
                             <span class="txt1 js-text" onclick="if(document.body.clientWidth < 659){addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>)};" data-text="Купить"></span>
                         <? endif;?>
-						
+
 						<? if($intBusket < $arResult['UF_JS_TEXT_BUSKET']): ?>
 						<span class="txt2" onclick="addToBasket2(<?=$arOffers['ID']?>, $('#count_<?=$arItem['ID']?> input').val(),this,<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);">Добавить в корзину</span>
 						<? else: ?>
@@ -271,10 +286,8 @@ if (!empty($arResult['ITEMS']))
                 <?
                 $intOrder++;
                 endif; ?>
+                 <? endif;?>
 
-				<? else: ?>
-					<a href="<?=$arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE']?>" class="add2cartOrder js-text" data-text="Подробнее"></a>
-				<? endif; ?>
               </div>
             </div>
           </div>
