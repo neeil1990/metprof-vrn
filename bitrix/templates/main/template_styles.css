@@ -26,6 +26,45 @@
 .slider_product_b .slick-arrow.slick-next{right:-21px;background-position:-51px 0}
 .slider_product_b .slick-arrow.slick-prev{left:-21px;background-position:-12px 0}
 
+.sticker {
+    position: absolute;
+    top: 15px;
+    left: 0px;
+    z-index: 1;
+}
+.sticker span {
+    width: 42px;
+    height: 22px;
+    display: block;
+    margin: 0px 0px 2px 0px;
+    padding: 0px;
+    position: relative;
+    font-size: 11px;
+    color: #fff;
+    text-align: center;
+    text-transform: uppercase;
+    line-height: 22px;
+}
+.sticker span:after {
+    width: 0px;
+    height: 0px;
+    position: absolute;
+    right: -6px;
+    top: 0px;
+}
+.sticker span:after {
+    content: "";
+    border-width: 11px 6px 11px 0px;
+    border-style: solid;
+}
+.sticker .partner {
+    background: #9cc218;
+    width: 100px;
+}
+.sticker .partner:after {
+    border-color: #9cc218 transparent #9cc218 #9cc218;
+}
+
 .navi{
     text-align: right;
     margin-top: -25px;

@@ -103,6 +103,13 @@ if (!empty($arResult['ITEMS']))
 
           <div class="item" id="product_<?=$arItem['ID']?>">
             <div class="hover">
+
+                <span class="sticker">
+                    <? if($arItem['IS_PARTNER']):?>
+                        <span class="partner">Товар партнера</span>
+                    <? endif; ?>
+                </span>
+
               <div class="inner">
                 <div class="compare">
                   <label>
@@ -171,7 +178,6 @@ if (!empty($arResult['ITEMS']))
                 ?>
 
                  <? if($arItem['IS_PARTNER']):?>
-                     <span class="noprice" style="text-align: center;">Товар партнера</span>
                      <a href="<?=$arItem['DETAIL_PAGE_URL']?>" class="add2cartOrder">Подробнее</a>
                  <? else: ?>
                     <? if($arOffers['DISCOUNT_VALUE']): ?>
