@@ -396,6 +396,15 @@ CREATE TABLE b_file_hash
 	index ix_file_hash_size_hash(FILE_SIZE, FILE_HASH)
 );
 
+CREATE TABLE b_file_version
+(
+	ORIGINAL_ID int not null,
+	VERSION_ID int not null,
+	META text null,
+	primary key (ORIGINAL_ID),
+	unique index ux_file_version_version(VERSION_ID)
+);
+
 CREATE TABLE b_file_preview
 (
 	ID INT not null auto_increment,
@@ -968,6 +977,7 @@ CREATE TABLE b_user_access_check
 
 CREATE TABLE b_user_counter
 (
+	ID bigint unsigned not null auto_increment,
 	USER_ID int not null,
 	SITE_ID char(2) not null default '**',
 	CODE varchar(50) not null,
@@ -977,7 +987,8 @@ CREATE TABLE b_user_counter
 	TAG varchar(255),
 	PARAMS text,
 	SENT char(1) null default '0',
-	PRIMARY KEY (USER_ID, SITE_ID, CODE),
+	PRIMARY KEY (ID),
+	UNIQUE index ux_user_counter_user_site_code(USER_ID, SITE_ID, CODE),
 	INDEX ix_buc_tag (TAG),
 	INDEX ix_buc_code (CODE),
 	INDEX ix_buc_ts (TIMESTAMP_X),
@@ -1432,7 +1443,9 @@ CREATE TABLE `b_numerator`
 	`CREATED_BY` INT NULL DEFAULT NULL,
 	`UPDATED_AT` DATETIME NULL DEFAULT NULL,
 	`UPDATED_BY` INT NULL DEFAULT NULL,
-	PRIMARY KEY (`ID`)
+	`CODE` VARCHAR(255) NULL DEFAULT NULL,
+	PRIMARY KEY (`ID`),
+	INDEX ix_numerator_code (`CODE`)
 );
 
 CREATE TABLE `b_numerator_sequence`

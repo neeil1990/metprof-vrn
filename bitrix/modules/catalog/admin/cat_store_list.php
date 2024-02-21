@@ -1,9 +1,12 @@
 <?php
 /** @global CUserTypeManager $USER_FIELD_MANAGER */
+
 use Bitrix\Main;
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
 use Bitrix\Catalog;
+use Bitrix\Catalog\Access\ActionDictionary;
+use Bitrix\Catalog\Access\AccessController;
 
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/include/prolog_admin_before.php");
 require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/catalog/prolog.php");
@@ -20,10 +23,15 @@ global $adminSidePanelHelper;
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if(!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_store')))
-	$APPLICATION->AuthForm('');
 Loader::includeModule('catalog');
-$bReadOnly = !$USER->CanDoOperation('catalog_store');
+
+$accessController = AccessController::getCurrent();
+if (!($accessController->check(ActionDictionary::ACTION_CATALOG_READ) || $accessController->check(ActionDictionary::ACTION_STORE_VIEW)))
+{
+	$APPLICATION->AuthForm('');
+}
+
+$bReadOnly = !$accessController->check(ActionDictionary::ACTION_STORE_VIEW);
 
 Loc::loadMessages(__FILE__);
 
@@ -80,6 +88,9 @@ $entityId = Catalog\StoreTable::getUfId();
 
 $oSort = new CAdminUiSorting($sTableID, "SORT", "ASC");
 $lAdmin = new CAdminUiList($sTableID, $oSort);
+
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 
 $bExport = $lAdmin->isExportMode();
 
@@ -515,12 +526,6 @@ if ($allowedShippingCenter)
 {
 	$arSelect[] = "SHIPPING_CENTER";
 }
-
-global $by, $order;
-if (!isset($by))
-	$by = 'ID';
-if (!isset($order))
-	$order = 'ASC';
 
 $dbResultList = CCatalogStore::GetList(array($by => $order), $filter, false, false, $arSelect);
 

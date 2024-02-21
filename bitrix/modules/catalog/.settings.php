@@ -47,10 +47,31 @@ return [
 					],
 				],
 				[
+					'entityId' => 'variation',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\VariationProvider',
+					],
+				],
+				[
 					'entityId' => 'section',
 					'provider' => [
 						'moduleId' => 'catalog',
 						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\SectionProvider',
+					],
+				],
+				[
+					'entityId' => 'iblock-element',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\IblockElementProvider',
+					],
+				],
+				[
+					'entityId' => 'iblock-element-xml',
+					'provider' => [
+						'moduleId' => 'catalog',
+						'className' => '\\Bitrix\\Catalog\\v2\\Integration\\UI\\EntitySelector\\IblockElementXmlProvider',
 					],
 				],
 				[
@@ -76,6 +97,12 @@ return [
 				],
 			],
 			'extensions' => ['catalog.entity-selector'],
+		],
+		'readonly' => true,
+	],
+	'ui.uploader' => [
+		'value' => [
+			'allowUseControllers' => true,
 		],
 		'readonly' => true,
 	],

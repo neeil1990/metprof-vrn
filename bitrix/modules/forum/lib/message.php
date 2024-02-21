@@ -19,6 +19,8 @@ use Bitrix\Main\ORM\Fields\TextField;
 use Bitrix\Main\ORM\Query\Join;
 use Bitrix\Main\Type\DateTime;
 
+Loc::loadMessages(__FILE__);
+
 /**
  * Class MessageTable
  *
@@ -248,13 +250,12 @@ class MessageTable extends Main\Entity\DataManager
 		}
 		if ($deduplication && $data["NEW_TOPIC"] !== "Y")
 		{
-			if (self::$post_message_hash[$data["TOPIC_ID"]] === $data["POST_MESSAGE_CHECK"])
+			if (self::getLastMessageHashInTopic($data["TOPIC_ID"]) === $data["POST_MESSAGE_CHECK"])
 			{
 				$result->addError(new EntityError(Loc::getmessage("F_ERR_MESSAGE_ALREADY_EXISTS"), "onBeforeMessageAdd"));
 				return $result;
 			}
 		}
-		self::$post_message_hash[$data["TOPIC_ID"]] = $data["POST_MESSAGE_CHECK"];
 		//endregion
 
 		$data["POST_MESSAGE"] = Main\Text\Emoji::encode($data["POST_MESSAGE"]);
@@ -575,6 +576,20 @@ class MessageTable extends Main\Entity\DataManager
 			}
 		}
 	}
+
+	private static function getLastMessageHashInTopic(int $topicId): ?string
+	{
+		$res = MessageTable::query()
+			->setSelect(['ID', 'POST_MESSAGE_CHECK'])
+			->where('TOPIC_ID', '=', $topicId)
+			->where('APPROVED', '=', 'Y')
+			->setOrder(['ID' => 'DESC'])
+			->setLimit(1)
+			->exec()
+			->fetch()
+		;
+		return $res ? $res['POST_MESSAGE_CHECK'] : null;
+	}
 }
 
 class Message extends Internals\Entity
@@ -782,13 +797,13 @@ class Message extends Internals\Entity
 			"TOPIC_ID" => $topic->getId(),
 
 			"USE_SMILES" => $fields["USE_SMILES"],
-			"NEW_TOPIC" => ($fields["NEW_TOPIC"] === "Y" ? "Y" : "N"),
+			"NEW_TOPIC" => (isset($fields["NEW_TOPIC"]) && $fields["NEW_TOPIC"] === "Y" ? "Y" : "N"),
 			"APPROVED" => $topic["APPROVED"] === Topic::APPROVED_DISAPPROVED || $fields["APPROVED"] === Message::APPROVED_DISAPPROVED ? Message::APPROVED_DISAPPROVED : Message::APPROVED_APPROVED,
 
 			"POST_DATE" => $fields["POST_DATE"] ?: new Main\Type\DateTime(),
 			"POST_MESSAGE" => $fields["POST_MESSAGE"],
-			"ATTACH_IMG" => $fields["ATTACH_IMG"],
-			"FILES" => $fields["FILES"],
+			"ATTACH_IMG" => $fields["ATTACH_IMG"] ?? null,
+			"FILES" => $fields["FILES"] ?? [],
 
 			"AUTHOR_ID" => $fields["AUTHOR_ID"],
 			"AUTHOR_NAME" => $fields["AUTHOR_NAME"],

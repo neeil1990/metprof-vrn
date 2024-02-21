@@ -83,6 +83,7 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 		"CURRENCY_ID" => "RUB",
 		"DETAIL_ADD_DETAIL_TO_SLIDER" => "N",
 		"DETAIL_ADD_TO_BASKET_ACTION" => array(
+			0 => "ADD",
 		),
 		"DETAIL_BACKGROUND_IMAGE" => "-",
 		"DETAIL_BRAND_USE" => "N",
@@ -411,6 +412,7 @@ if($_REQUEST['ELEMENT_SORT_FIELD'] == "CATALOG_AVAILABLE" OR $_REQUEST['ELEMENT_
 		"URL_TEMPLATES_READ" => "",
 		"SHOW_LINK_TO_FORUM" => "N",
 		"FILE_404" => "",
+		"SHOW_SKU_DESCRIPTION" => "N",
 		"SEF_URL_TEMPLATES" => array(
 			"sections" => "/catalog/",
 			"section" => "#SECTION_CODE#/",

@@ -1,4 +1,4 @@
-<?
+<?php
 
 namespace Bitrix\Seo\Retargeting\Services;
 
@@ -73,6 +73,11 @@ class AudienceYandex extends Audience
 		return true;
 	}
 
+	public static function isSupportCreateLookalikeFromSegments(): bool
+	{
+		return false;
+	}
+
 	/**
 	 * @param array $data Data.
 	 * @return \Bitrix\Seo\Retargeting\Response
@@ -144,7 +149,7 @@ class AudienceYandex extends Audience
 	 * @return Result|\Bitrix\Seo\Retargeting\Response
 	 * @throws \Bitrix\Main\SystemException
 	 */
-	public function importContacts($audienceId, array $contacts = array(), array $options)
+	public function importContacts($audienceId, array $contacts, array $options)
 	{
 		$createNewAudience = ($audienceId == static::NEW_AUDIENCE_FAKE_ID);
 		$audienceData = $this->getById($audienceId);
@@ -194,7 +199,7 @@ class AudienceYandex extends Audience
 	 * @deprecated Not supported by Yandex anymore
 	 * @return \Bitrix\Seo\Retargeting\Response|null
 	 */
-	public function removeContacts($audienceId, array $contacts = array(), array $options)
+	public function removeContacts($audienceId, array $contacts, array $options)
 	{
 		$response = Response::create(static::TYPE_CODE);
 		return $response;
@@ -247,5 +252,50 @@ class AudienceYandex extends Audience
 			'hashed' => false,
 		]);
 		return $data;
+	}
+
+	/**
+	 * @return array
+	 */
+	public function getLookalikeAudiencesParams(): array
+	{
+		return [
+			'FIELDS' => [
+				'AUDIENCE_LOOKALIKE',
+				'DEVICE_DISTRIBUTION',
+				'GEO_DISTRIBUTION'
+			],
+			'AUDIENCE_LOOKALIKE' => [
+				'MIN' => 1,
+				'MAX' => 5,
+			],
+		];
+	}
+
+	/**
+	 * @param $sourceAudienceId
+	 * @param array $options
+	 * @return Response
+	 * @throws \Bitrix\Main\SystemException
+	 */
+	public function createLookalike($sourceAudienceId, array $options): Response
+	{
+		$result = $this->getRequest()->send([
+			'methodName' => 'retargeting.audience.lookalike.add',
+			'parameters' => [
+				'name' => (string) $options['name'],
+				'lookalike_link' => (int) $sourceAudienceId,
+				'lookalike_value' => (int) $options['lookalike_value'],
+				'maintain_device_distribution' => (bool) $options['maintain_device_distribution'],
+				'maintain_geo_distribution' => (bool) $options['maintain_geo_distribution'],
+			],
+		]);
+
+		if ($result->isSuccess())
+		{
+			$result->setId($result->getData()['id']);
+		}
+
+		return $result;
 	}
 }

@@ -4,6 +4,7 @@
 namespace Bitrix\Catalog\Controller;
 
 
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\PriceTable;
 use Bitrix\Main\Engine\Response\DataType\Page;
 use Bitrix\Main\Error;
@@ -29,10 +30,10 @@ final class Price extends Controller implements EventBindInterface
 	 * @param array $select
 	 * @param array $filter
 	 * @param array $order
-	 * @param PageNavigation $pageNavigation
+	 * @param PageNavigation|null $pageNavigation
 	 * @return Page
 	 */
-	public function listAction(array $select = [], array $filter = [], array $order = [], PageNavigation $pageNavigation): Page
+	public function listAction(PageNavigation $pageNavigation, array $select = [], array $filter = [], array $order = []): Page
 	{
 		return new Page(
 			'PRICES',
@@ -332,7 +333,6 @@ final class Price extends Controller implements EventBindInterface
 		$items = array_values($items);
 		$basePriceType = GroupTable::getBasePriceType();
 		$basePriceTypeId = $basePriceType['ID'];
-
 		$groupTypes = GroupTable::getTypeList();
 		$sortedByType = [];
 		$extendPrices = false;
@@ -382,7 +382,7 @@ final class Price extends Controller implements EventBindInterface
 		}
 
 		$basePrices = $this->sortPriceRanges($basePrices);
-		
+
 		foreach ($sortedByType as $typeId => $prices)
 		{
 			$count = count($prices);
@@ -489,7 +489,7 @@ final class Price extends Controller implements EventBindInterface
 	private function sortPriceRanges(array $prices): array
 	{
 		$count = count($prices);
-		
+
 		for ($i = 0; $i < $count - 1; $i++)
 		{
 			for ($j = $i + 1; $j < $count; $j++)
@@ -502,10 +502,10 @@ final class Price extends Controller implements EventBindInterface
 				}
 			}
 		}
-		
+
 		return $prices;
 	}
-	
+
 	protected function getEntityTable()
 	{
 		return new PriceTable();
@@ -544,9 +544,9 @@ final class Price extends Controller implements EventBindInterface
 	protected function checkModifyPermissionEntity()
 	{
 		$r = $this->checkReadPermissionEntity();
-		if($r->isSuccess())
+		if ($r->isSuccess())
 		{
-			if(!static::getGlobalUser()->CanDoOperation('catalog_price'))
+			if (!$this->accessController->check(ActionDictionary::ACTION_PRICE_EDIT))
 			{
 				$r->addError(new Error('Access Denied', 200040300020));
 			}
@@ -559,7 +559,10 @@ final class Price extends Controller implements EventBindInterface
 	{
 		$r = new Result();
 
-		if (!static::getGlobalUser()->CanDoOperation('catalog_read') && !static::getGlobalUser()->CanDoOperation('catalog_price') && !static::getGlobalUser()->CanDoOperation('catalog_view'))
+		if (
+			!$this->accessController->check(ActionDictionary::ACTION_CATALOG_READ)
+			&& !$this->accessController->check(ActionDictionary::ACTION_PRICE_EDIT)
+		)
 		{
 			$r->addError(new Error('Access Denied', 200040300010));
 		}

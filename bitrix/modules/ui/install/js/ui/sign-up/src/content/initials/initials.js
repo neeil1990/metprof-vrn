@@ -12,6 +12,7 @@ export class InitialsContent extends Content
 	{
 		super(options);
 		this.setEventNamespace('BX.UI.SignUp.Content.InitialsContent');
+		this.subscribeFromOptions(options?.events);
 		this.onInput = this.onInput.bind(this);
 
 		void this.forceLoadFonts();
@@ -23,7 +24,7 @@ export class InitialsContent extends Content
 			...document.fonts,
 		];
 		const comforterBrushFonts = allFonts.filter((font) => {
-			return font.family === 'Comforter Brush';
+			return String(font.family).includes('Comforter Brush');
 		});
 
 		return Promise.all(comforterBrushFonts.map((font) => font.load()));
@@ -58,6 +59,7 @@ export class InitialsContent extends Content
 	onInput()
 	{
 		this.getCanvas().renderText(this.getTextValue());
+		this.emit('onChange');
 	}
 
 	getCanvas(): CanvasWrapper

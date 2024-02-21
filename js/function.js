@@ -15,7 +15,8 @@ function replaseBasketTop() {
 
 function addToBasket2(idel, quantity,el,type) {
 
-        var countFull = parseFloat($('#order-table').attr('count-full'));
+		var minCount = parseFloat($('#order-table').attr('count-min'));
+        var fullCount = parseFloat($('#order-table').attr('count-full'));
 
         $.ajax({
             url: '/ajax/maxQuantity.php?id='+idel,
@@ -27,12 +28,13 @@ function addToBasket2(idel, quantity,el,type) {
                 quantity *= parseFloat(quaMin);
             }
 
-            if(countFull < 20 && type == 6){
-                alertify.error("Минимальный заказ 20м2");
+            if(fullCount < minCount && type == 6) {
+                alertify.error("Минимальный заказ "+ minCount +"м2");
+				
                 return false;
             }
 
-            if(countFull >= 20 && type == 6){
+            if(fullCount >= minCount && type == 6){
 
                     var props = [
                         {
@@ -86,9 +88,6 @@ function addToBasket2(idel, quantity,el,type) {
                 });
             }
         });
-
-
-
 }
 
 function setCupon(){

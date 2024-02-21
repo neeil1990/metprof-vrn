@@ -2,7 +2,6 @@
 $MESS["SALE_SLRI_TAB_REINDEX_TITLE"] = "Neu indexieren";
 $MESS["SALE_SLRI_TAB_REINDEX_TITLE_SETTINGS"] = "Parameter der Neu-Indexierung";
 $MESS["SALE_SLRI_SETTINGS_BASE"] = "Haupteinstellungen";
-$MESS["SALE_SLRI_JOB2DO"] = "Jetzt neu indexieren";
 $MESS["SALE_SLRI_JOB_DICTIONARY"] = "Suchverzeichnis";
 $MESS["SALE_SLRI_JOB_SITE"] = "Anbindung an Websites";
 $MESS["SALE_SLRI_AP_TIMELIMIT"] = "Schritt der Neu-Indexierung, in Sek.";

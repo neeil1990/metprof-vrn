@@ -2,6 +2,8 @@
 
 namespace Bitrix\Catalog\v2\Integration\UI\EntitySelector;
 
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
 use Bitrix\Catalog\PriceTable;
 use Bitrix\Catalog\Product\PropertyCatalogFeature;
 use Bitrix\Catalog\ProductTable;
@@ -9,6 +11,7 @@ use Bitrix\Catalog\v2\Iblock\IblockInfo;
 use Bitrix\Catalog\v2\IoC\ServiceContainer;
 use Bitrix\Iblock\Component\Tools;
 use Bitrix\Iblock\PropertyTable;
+use Bitrix\Main\Loader;
 use Bitrix\UI\EntitySelector\BaseProvider;
 use Bitrix\UI\EntitySelector\Dialog;
 use Bitrix\UI\EntitySelector\Item;
@@ -26,12 +29,16 @@ class ProductProvider extends BaseProvider
 
 		$this->options['iblockId'] = (int)($options['iblockId'] ?? 0);
 		$this->options['basePriceId'] = (int)($options['basePriceId'] ?? 0);
-		$this->options['currency'] = $options['currency'] ;
-		$this->options['restrictedProductTypes'] =
-			is_array($options['restrictedProductTypes'])
-				? $options['restrictedProductTypes']
-				: null
-		;
+		$this->options['currency'] = $options['currency'] ?? '';
+		if (isset($options['restrictedProductTypes']) && is_array($options['restrictedProductTypes']))
+		{
+			$this->options['restrictedProductTypes'] = $options['restrictedProductTypes'];
+		}
+		else
+		{
+			$this->options['restrictedProductTypes'] = null;
+		}
+
 		$this->options['showPriceInCaption'] = (bool)($options['showPriceInCaption'] ?? true);
 	}
 
@@ -41,7 +48,7 @@ class ProductProvider extends BaseProvider
 
 		if (
 			!$USER->isAuthorized()
-			|| !($USER->canDoOperation('catalog_read') || $USER->canDoOperation('catalog_view'))
+			|| !AccessController::getCurrent()->check(ActionDictionary::ACTION_CATALOG_READ)
 		)
 		{
 			return false;
@@ -245,7 +252,7 @@ class ProductProvider extends BaseProvider
 			return null;
 		}
 
-		return Tools::getImageSrc($file, true) ?: null;
+		return Tools::getImageSrc($file, false) ?: null;
 	}
 
 	protected function getProductsByIds(array $ids): array
@@ -395,25 +402,16 @@ class ProductProvider extends BaseProvider
 		$shouldLoadOffers = (bool)($parameters['load_offers'] ?? true);
 
 		$additionalProductFilter = ['IBLOCK_ID' => $iblockInfo->getProductIblockId()];
+		$filteredTypes = [];
 		if ($this->options['restrictedProductTypes'] !== null)
 		{
 			$filteredTypes = array_intersect(
 				$this->options['restrictedProductTypes'],
-				[
-					\Bitrix\Catalog\ProductTable::TYPE_PRODUCT,
-					\Bitrix\Catalog\ProductTable::TYPE_SET,
-					\Bitrix\Catalog\ProductTable::TYPE_SKU,
-					\Bitrix\Catalog\ProductTable::TYPE_OFFER,
-					\Bitrix\Catalog\ProductTable::TYPE_FREE_OFFER,
-					\Bitrix\Catalog\ProductTable::TYPE_EMPTY_SKU,
-				]
+				ProductTable::getProductTypes()
 			);
-
-			if (count($filteredTypes) > 0)
-			{
-				$additionalProductFilter['!=TYPE'] = $filteredTypes;
-			}
 		}
+		$filteredTypes[] = ProductTable::TYPE_EMPTY_SKU;
+		$additionalProductFilter['!=TYPE'] = array_values(array_unique($filteredTypes));
 
 		$products = $this->loadElements([
 			'filter' => array_merge($productFilter, $additionalProductFilter),
@@ -433,7 +431,7 @@ class ProductProvider extends BaseProvider
 
 		$products = $this->loadPrices($products);
 
-		if ($parameters['searchString'])
+		if (!empty($parameters['searchString']))
 		{
 			$products = $this->loadBarcodes($products, $parameters['searchString']);
 		}
@@ -441,7 +439,7 @@ class ProductProvider extends BaseProvider
 		return $products;
 	}
 
-	private function loadElements(array $parameters = []): array
+	protected function loadElements(array $parameters = []): array
 	{
 		$elements = [];
 
@@ -565,7 +563,7 @@ class ProductProvider extends BaseProvider
 		return $products;
 	}
 
-	private function loadPrices(array $elements): array
+	protected function loadPrices(array $elements): array
 	{
 		if (empty($elements))
 		{
@@ -615,7 +613,7 @@ class ProductProvider extends BaseProvider
 		return $elements;
 	}
 
-	private function loadBarcodes(array $elements, string $searchString): array
+	protected function loadBarcodes(array $elements, string $searchString): array
 	{
 		if (empty($elements))
 		{
@@ -700,12 +698,16 @@ class ProductProvider extends BaseProvider
 
 	private function filterProductsWithOffers(array $products): array
 	{
-		return array_filter($products, static function ($item) {
-			return $item['TYPE'] === ProductTable::TYPE_SKU;
-		});
+		return array_filter(
+			$products,
+			static function ($item)
+			{
+				return $item['TYPE'] === ProductTable::TYPE_SKU;
+			}
+		);
 	}
 
-	private function loadProperties(array $elements, int $iblockId, IblockInfo $iblockInfo): array
+	protected function loadProperties(array $elements, int $iblockId, IblockInfo $iblockInfo): array
 	{
 		if (empty($elements))
 		{

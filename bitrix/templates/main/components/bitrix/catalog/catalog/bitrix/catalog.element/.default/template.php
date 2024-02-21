@@ -39,12 +39,18 @@ $this->setFrameMode(true);
 
 $arOffers = array();
 foreach($arResult['OFFERS'] as $offer){
-    if($offer['MIN_PRICE']['DISCOUNT_VALUE']){
-        $arOffers['ID'] = $offer['ID'];
-        $arOffers['DISCOUNT_VALUE'] = $offer['MIN_PRICE']['DISCOUNT_VALUE'];
-		$arOffers['BASE_PRICE'] = $offer['MIN_PRICE']['VALUE'];
-        $arOffers['DISCOUNT_DIFF_PERCENT'] = $offer['MIN_PRICE']['DISCOUNT_DIFF_PERCENT'];
-    }
+     // if($offer['MIN_PRICE']['DISCOUNT_VALUE']){
+     //     $arOffers['ID'] = $offer['ID'];
+     //     $arOffers['DISCOUNT_VALUE'] = $offer['MIN_PRICE']['DISCOUNT_VALUE'];
+     //     $arOffers['BASE_PRICE'] = $offer['MIN_PRICE']['VALUE'];
+     //     $arOffers['DISCOUNT_DIFF_PERCENT'] = $offer['MIN_PRICE']['DISCOUNT_DIFF_PERCENT'];
+     // }
+	if($offer['CAN_BUY'] && $offer['CATALOG_QUANTITY'] > 0){
+	   $arOffers['ID'] = $offer['ID'];
+	   $arOffers['DISCOUNT_VALUE'] = $offer['ITEM_PRICES'][0]['DISCOUNT_VALUE'];
+	   $arOffers['DISCOUNT_DIFF_PERCENT'] = $offer['ITEM_PRICES'][0]['DISCOUNT_DIFF'];
+	   $arOffers['BASE_PRICE'] = $offer['ITEM_PRICES'][0]['BASE_PRICE'];
+	}
 	$arOffers['QUANTITY'] = $offer['CATALOG_QUANTITY'];
 }
 ?>
@@ -100,7 +106,8 @@ foreach($arResult['OFFERS'] as $offer){
 							  <?if($arResult['MIN_PRICE']['DISCOUNT_DIFF_PERCENT']): ?>
 								<div class="price-old"><span><?=$arResult['MIN_PRICE']['VALUE']?></span> <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
 							  <? endif;?>
-                              <div class="price-new"><span><?=$arResult['MIN_PRICE']['DISCOUNT_VALUE']?></span>  <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
+							  <?/*<div class="price-new"><span><?=$arResult['MIN_PRICE']['DISCOUNT_VALUE']?></span>  <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>*/?>
+                              <div class="price-new"><span><?=$arOffers['BASE_PRICE']?></span>  <?=RUB?>/<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?></div>
                       </div>
                   </div>
                   <div class="bb_col right">
@@ -160,7 +167,8 @@ foreach($arResult['OFFERS'] as $offer){
 
               <?if(!$arResult['IS_M2']):?>
 
-                  <? if($arOffers['DISCOUNT_VALUE'] and $arOffers['QUANTITY'] > 0): ?>
+                  <? //if($arOffers['DISCOUNT_VALUE'] and $arOffers['QUANTITY'] > 0): ?>
+                  <? if($arOffers['BASE_PRICE'] and $arOffers['QUANTITY'] > 0): ?>
                       <a href="javascript:void(0)" class="add2cart" onclick="addToBasket2(<?=$arOffers['ID']?>, $('#count_product').val(),this,<?=$arResult['PROPERTIES']['CML2_BASE_UNIT']['DESCRIPTION']?>);">Купить</a>
                   <?else:?>
                       <a href="javascript:void(0)" class="add2cart show-popup" data-id="order-product">Товар под заказ</a>
@@ -375,26 +383,30 @@ break;
 
 
 
-    <?if($arResult['IS_M2']):
-        $first_offer = array_shift($arResult['OFFERS']); ?>
+    <?
+	if($arResult['IS_M2']):
+        $first_offer = array_shift($arResult['OFFERS']); 
+		
+		
+	?>
 
      <div class="p-view__param-col p-view__param-col_restyled">
 
         <div class="p-view__param-box prodcap data-square">
 
             <div class="b-select_help_new_place">Выберите длину листа и количество штук</div>
-            <div class="b-select_help_new_upplace">Внимание! Минимальный заказ 20м2</div>
+            <div class="b-select_help_new_upplace">Внимание! Минимальный заказ <?=$arResult['SECTION']['UF_MIN_COUNT_M2']?>м2</div>
 
             <div class="p-view__order-table-wrap">
-                <table class="p-view__order-table" id="order-table">
+                <table class="p-view__order-table" id="order-table" count-min="<?=$arResult['SECTION']['UF_MIN_COUNT_M2']?>">
                     <tr class="prod_card_table_fr">
                         <th>длина листа</th>
                         <th>кол-во шт.</th>
                         <th>кол-во м²</th>
                         <th>стоимость</th>
                     </tr>
-                    <tr class="order-cnt" data-list="<?=$first_offer['PROPERTIES']['DLINA']['VALUE']?>" data-count="0" data-id="<?=$first_offer['ID']?>" data-idblock="<?=$first_offer['IBLOCK_ID']?>" data-price="<?=$first_offer['MIN_PRICE']['DISCOUNT_VALUE']?>">
-
+                    <?/*<tr class="order-cnt" data-list="<?=$first_offer['PROPERTIES']['DLINA']['VALUE']?>" data-count="0" data-id="<?=$first_offer['ID']?>" data-idblock="<?=$first_offer['IBLOCK_ID']?>" data-price="<?=$first_offer['MIN_PRICE']['DISCOUNT_VALUE']?>">*/?>
+					<tr class="order-cnt" data-list="<?=$first_offer['PROPERTIES']['DLINA']['VALUE']?>" data-count="0" data-id="<?=$first_offer['ID']?>" data-idblock="<?=$first_offer['IBLOCK_ID']?>" data-price="<?=$first_offer['ITEM_PRICES'][0]['BASE_PRICE']?>">
                         <td data-toggle="modal" data-target="#available-length" data-item="">
                             <div class="dropdown dropdown_double-icon dropdown-modal">
                                 <div class="drop-value"><?=$first_offer['PROPERTIES']['DLINA']['VALUE']?> мм</div>
@@ -428,7 +440,7 @@ break;
             <input type="hidden" name="product_id" size="2" value="<?=$arResult['ID']?>" />
             <input type="hidden" name="product_offer_id" id="product_offer_id" value="<?=$arOffers['ID']?>" />
 
-            <? if($arOffers['DISCOUNT_VALUE']): ?>
+            <? if($arOffers['BASE_PRICE']): ?>
                 <span id="popover-button-cart">
                     <a class="button button-primary button-block text-center toShopBox" id="button-cart-offers" data-toggle="tooltip" data-placement="top" title="необходимо ввести количество">Купить</a>
                 </span>
@@ -709,7 +721,8 @@ break;
                                         class=""
                                         data-id="<?=$width['ID']?>"
                                         data-idblock="<?=$width['IBLOCK_ID']?>"
-                                        data-price="<?=$width['MIN_PRICE']['DISCOUNT_VALUE']?>"
+                                        data-price="<?=$width['ITEM_PRICES'][0]['BASE_PRICE']?>"
+                                        <?/*data-price="<?=$width['MIN_PRICE']['DISCOUNT_VALUE']?>"*/?>
                                         <?if($width['CATALOG_QUANTITY']):?> style="color: green; background: #C1EFB1" <?endif;?>
                                         >
                                         <?=$width['PROPERTIES']['DLINA']['VALUE'];?>

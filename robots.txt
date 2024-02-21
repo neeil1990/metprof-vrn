@@ -74,6 +74,12 @@ Disallow: /filter/clear/apply/
 Disallow: */preconnect/*
 Disallow: /*1.jpg*
 Disallow: /*1q.png?*
+Disallow: /catalog/terrasnaya_doska/*
+Disallow: /catalog/terrasnaya_doska_iz_dpk/*
+Disallow: /catalog/komplektuyushchie_dlya_montazha/*
+Disallow: /catalog/stupeni_iz_dpk/*
+Disallow: /catalog/gryadki_iz_dpk/*
+Disallow: /catalog/ograzhdeniya_iz_dpk/*
 Allow: /*/css/*.css
 Allow: /*/js/*.js
 Allow: /*.jpg
@@ -87,4 +93,3 @@ Allow: /*.gif
 Clean-param: utm_source&utm_medium&utm_term&utm_content&utm_campaign&yclid&gclid&_openstat&from /
 Host: https://metprof-vrn.ru
 Sitemap: https://metprof-vrn.ru/sitemap.xml
-

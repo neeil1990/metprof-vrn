@@ -201,6 +201,11 @@ abstract class Application
 		return $this->currentRoute;
 	}
 
+	public function hasCurrentRoute(): bool
+	{
+		return isset($this->currentRoute);
+	}
+
 	/**
 	 * @param Route $currentRoute
 	 */
@@ -348,6 +353,11 @@ abstract class Application
 		if (!isset($exceptionHandling["debug"]) || !is_bool($exceptionHandling["debug"]))
 			$exceptionHandling["debug"] = false;
 		$exceptionHandler->setDebugMode($exceptionHandling["debug"]);
+
+		if (!empty($exceptionHandling['track_modules']) && is_array($exceptionHandling['track_modules']))
+		{
+			$exceptionHandler->setTrackModules($exceptionHandling['track_modules']);
+		}
 
 		if (isset($exceptionHandling["handled_errors_types"]) && is_int($exceptionHandling["handled_errors_types"]))
 			$exceptionHandler->setHandledErrorsTypes($exceptionHandling["handled_errors_types"]);

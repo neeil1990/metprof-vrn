@@ -11,6 +11,7 @@ else
 if( !$id )
     die( 'Ошибка добавления товара в корзину' );
 
+
 CModule::IncludeModule( 'catalog' );
 CModule::IncludeModule( 'sale' );
 
@@ -23,15 +24,20 @@ if($_POST['props']){
 
 }else{
 
-    if($quantity > 20 OR (int)$_POST["type"] == 5){
-        if( Add2BasketByProductID( $id, $quantity ) )
+    if($quantity >= 20 OR (int)$_POST["type"] == 5){
+        if( Add2BasketByProductID( $id, $quantity ) ){
             print 'Товар успешно добавлен в корзину';
-        else{
-            if($product = CCatalogProduct::GetByID($id))
+        }else{
+            if($product = CCatalogProduct::GetByID($id)){
                 print "Запрашиваемое кол-во превышает остаток. На складе: $product[QUANTITY]";
-            else
+            }else{
                 print 'Товара нет в наличии';
+            }
         }
+    }else{
+
+            print 'Минимальное кол-во 20 ';
+
     }
 }
 

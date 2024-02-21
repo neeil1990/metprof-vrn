@@ -5,6 +5,7 @@ import {Content} from '../content';
 import {CanvasWrapper} from '../../canvas-wrapper/canvas-wrapper';
 
 import './css/style.css';
+import {MessageBox} from 'ui.dialogs.messagebox';
 
 export class PhotoContent extends Content
 {
@@ -12,6 +13,7 @@ export class PhotoContent extends Content
 	{
 		super(options);
 		this.setEventNamespace('BX.UI.SignUp.Content.PhotoContent');
+		this.subscribeFromOptions(options?.events);
 	}
 
 	getTakePhotoButton(): Button
@@ -60,20 +62,35 @@ export class PhotoContent extends Content
 		const [file: File] = event.target.files;
 		if (Type.isFile(file))
 		{
+			if (
+				!Type.isStringFilled(file.type)
+				|| !file.type.startsWith('image')
+			)
+			{
+				MessageBox.alert(Loc.getMessage('UI_SIGN_UP_BAD_IMAGE_FORMAT_ALERT_MESSAGE'));
+				return false;
+			}
+
 			Dom.replace(this.getButtonsLayout(), this.getPreviewLayout());
 
-			void this.getCanvas().renderImage(file);
+			this.getCanvas()
+				.renderImage(file)
+				.then(() => {
+					this.emit('onChange');
+				});
 		}
 	}
 
 	getButtonsLayout(): HTMLDivElement
 	{
 		return this.cache.remember('buttonsLayout', () => {
+			// const takePhotoLayout = Tag.render`
+			// 	<div class="ui-sign-up-content-photo-button-wrapper">
+			// 		${this.getOptions().mode !== 'desktop' ? this.getTakePhotoButton().render() : ''}
+			// 	</div>
+			// `;
 			return Tag.render`
 				<div class="ui-sign-up-content-photo-buttons">
-					<div class="ui-sign-up-content-photo-button-wrapper">
-						${this.getOptions().mode !== 'desktop' ? this.getTakePhotoButton().render() : ''}
-					</div>
 					<div class="ui-sign-up-content-photo-button-wrapper">
 						${this.getUploadPhoto().render()}
 					</div>

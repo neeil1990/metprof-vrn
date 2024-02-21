@@ -57,7 +57,7 @@ if (($ids = $lAdmin->GroupAction()) && $saleModulePermissions >= "W")
 		if ($_REQUEST['action'] === 'delete')
 		{
 			$check = Internals\CashboxCheckTable::getRowById($id);
-			if ($check['STATUS'] == 'E' || $check['STATUS'] == 'N')
+			if ($check['STATUS'] == 'E' || $check['STATUS'] == 'N' || $check['STATUS'] == 'P')
 			{
 				Cashbox\CheckManager::delete($id);
 			}
@@ -144,17 +144,19 @@ $filterFields = array(
 		"type" => "date",
 		"default" => true
 	),
-	...[
-		$shouldHideOrderEntities
-			? []
-			: [
+	...(
+	$shouldHideOrderEntities
+		? []
+		: [
+		[
 			"id" => "ORDER_ID",
 			"name" => GetMessage("SALE_F_ORDER_ID"),
 			"type" => "number",
 			"filterable" => "",
 			"quickSearch" => ""
 		]
-	],
+	]
+	),
 	array(
 		"id" => "STATUS",
 		"name" => GetMessage("SALE_CASHBOX_STATUS"),
@@ -208,21 +210,21 @@ $dbResultList->NavStart();
 $headers = array(
 	array("id" => "ID", "content" => GetMessage("SALE_CASHBOX_ID"), "sort" => "ID", "default" => true),
 	array("id" => "CHECK_TYPE", "content" => GetMessage("SALE_CASHBOX_CHECK_TYPE"), "sort" => "TYPE", "default" => true),
-	...[
-		$shouldHideOrderEntities
-			? [
-			"id" => "ENTITY_ID",
-			"content" => GetMessage("SALE_CASHBOX_ENTITY_ID_SOURCE"),
-			"sort" => "ORDER_ID",
-			"default" => true
-		]
-			: [
-			"id" => "ORDER_ID",
-			"content" => GetMessage("SALE_CASHBOX_ORDER_ID"),
-			"sort" => "ORDER_ID",
-			"default" => true
-		]
-	],
+	(
+	$shouldHideOrderEntities
+		? [
+		"id" => "ENTITY_ID",
+		"content" => GetMessage("SALE_CASHBOX_ENTITY_ID_SOURCE"),
+		"sort" => "ORDER_ID",
+		"default" => true
+	]
+		: [
+		"id" => "ORDER_ID",
+		"content" => GetMessage("SALE_CASHBOX_ORDER_ID"),
+		"sort" => "ORDER_ID",
+		"default" => true
+	]
+	),
 	array("id" => "CASHBOX_ID", "content" => GetMessage("SALE_CASHBOX_CASHBOX_ID"), "sort" => "CASHBOX_ID", "default" => true),
 	array("id" => "DATE_CREATE", "content" => GetMessage("SALE_CASHBOX_DATE_CREATE"), "sort" => "DATE_CREATE", "default" => true),
 	array("id" => "SUM", "content" => GetMessage("SALE_CASHBOX_SUM"), "sort" => "SUM", "default" => true),
@@ -398,9 +400,10 @@ while ($check = $dbResultList->Fetch())
 			: (int)$check['PAYMENT_ID'];
 	}
 
-	if ($relatedEntities[$check['ID']]['P'])
+	$paymentEntityIds = $relatedEntities[$check['ID']]['P'] ?? null;
+	if (is_array($paymentEntityIds))
 	{
-		foreach ($relatedEntities[$check['ID']]['P'] as $entityId)
+		foreach ($paymentEntityIds as $entityId)
 		{
 			if ($paymentIdField)
 				$paymentIdField .= "<br>";
@@ -417,10 +420,11 @@ while ($check = $dbResultList->Fetch())
 
 	$row->AddField("PAYMENT_ID",  $paymentIdField);
 
-	$paymentField = $paymentRows[(int)$check['PAYMENT_ID']];
-	if ($relatedEntities[$check['ID']]['P'])
+	$paymentId = (int)($check['PAYMENT_ID'] ?? 0);
+	$paymentField = $paymentRows[$paymentId] ?? null;
+	if (is_array($paymentEntityIds))
 	{
-		foreach ($relatedEntities[$check['ID']]['P'] as $entityId)
+		foreach ($paymentEntityIds as $entityId)
 		{
 			if ($paymentField)
 				$paymentField .= "<br>";
@@ -440,9 +444,11 @@ while ($check = $dbResultList->Fetch())
 			? '[<a href="'.$shipmentIdUrl.'">'.(int)$check['SHIPMENT_ID'].'</a>]'
 			: '[' . (int)$check['SHIPMENT_ID'] . ']';
 	}
-	if ($relatedEntities[$check['ID']]['S'])
+
+	$shipmentEntityIds = $relatedEntities[$check['ID']]['S'] ?? null;
+	if (is_array($shipmentEntityIds))
 	{
-		foreach ($relatedEntities[$check['ID']]['S'] as $entityId)
+		foreach ($shipmentEntityIds as $entityId)
 		{
 			if ($shipmentIdField)
 				$shipmentIdField .= "<br>";
@@ -458,10 +464,11 @@ while ($check = $dbResultList->Fetch())
 	}
 	$row->AddField("SHIPMENT_ID",  $shipmentIdField);
 
-	$shipmentField = $shipmentRows[(int)$check['SHIPMENT_ID']];
-	if ($relatedEntities[$check['ID']]['S'])
+	$shipmentId = (int)($check['SHIPMENT_ID'] ?? 0);
+	$shipmentField = $shipmentRows[$shipmentId] ?? '';
+	if (is_array($shipmentEntityIds))
 	{
-		foreach ($relatedEntities[$check['ID']]['S'] as $entityId)
+		foreach ($shipmentEntityIds as $entityId)
 		{
 			if ($shipmentField)
 				$shipmentField .= "<br>";
@@ -472,7 +479,9 @@ while ($check = $dbResultList->Fetch())
 
 	$row->AddField("DATE_CREATE", $check['DATE_CREATE']);
 	$row->AddField("SUM", SaleFormatCurrency($check['SUM'], $check['CURRENCY']));
-	$row->AddField("CASHBOX_ID", htmlspecialcharsbx($cashboxList[$check['CASHBOX_ID']]['NAME']));
+
+	$cashboxName = $cashboxList[$check['CASHBOX_ID']]['NAME'] ?? null;
+	$row->AddField("CASHBOX_ID", htmlspecialcharsbx($cashboxName));
 
 	$cashbox = null;
 	$checkLink = '';
@@ -497,7 +506,7 @@ while ($check = $dbResultList->Fetch())
 	$row->AddField("STATUS", Loc::getMessage('SALE_CASHBOX_STATUS_'.$check['STATUS']) . $errorMessage);
 
 	$arActions = array();
-	if ($check['STATUS'] === 'E' || $check['STATUS'] == 'N')
+	if ($check['STATUS'] === 'E' || $check['STATUS'] == 'N' || $check['STATUS'] == 'P')
 	{
 		$arActions[] = array(
 			"ICON" => "delete",

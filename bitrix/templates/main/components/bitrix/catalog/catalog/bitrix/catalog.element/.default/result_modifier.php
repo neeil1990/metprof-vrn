@@ -510,6 +510,8 @@ if ($arResult['CATALOG'] && isset($arResult['OFFERS']) && !empty($arResult['OFFE
 		$intSelected = 0;
 		$arResult['MIN_PRICE'] = (isset($arResult['OFFERS'][0]['RATIO_PRICE']) ? $arResult['OFFERS'][0]['RATIO_PRICE'] : $arResult['OFFERS'][0]['MIN_PRICE']);
 		$arResult['MIN_BASIS_PRICE'] = $arResult['OFFERS'][0]['MIN_PRICE'];
+
+
 	}
 	$arResult['JS_OFFERS'] = $arMatrix;
 	$arResult['OFFERS_SELECTED'] = $intSelected;
@@ -634,14 +636,16 @@ foreach($arResult['OFFERS'] as $key => $offer){
 			continue;
 		}
 	}
-	$arResult['IS_M2'] = ($offer['CATALOG_MEASURE'] == 6) ? true : false;
+	//$arResult['IS_M2'] = ($offer['CATALOG_MEASURE'] == 6) ? true : false;
+$arResult['IS_M2'] = ($offer['PRODUCT']['MEASURE'] == 6) ? true : false;
+
 }
 
 ksort($arResult['OFFERS']);
 
 $arResult['OFFERS_TABLE'] = array_chunk($arResult['OFFERS'],15,true);
 
-$res = CIBlockSection::GetByID($arResult["IBLOCK_SECTION_ID"]);
+$res = CIBlockSection::GetList([], ["IBLOCK_ID" => $arResult['IBLOCK_ID'], "ID" => $arResult["IBLOCK_SECTION_ID"]], false, ["UF_*"]);
 if($ar_res = $res->GetNext()){
    if($ar_res['CODE'] != $arParams["SECTION_CODE"]){
 		 Bitrix\Iblock\Component\Tools::process404(
@@ -651,8 +655,9 @@ if($ar_res = $res->GetNext()){
 		         true, // Показывать ли 404-ю страницу
 		         false // Ссылка на отличную от стандартной 404-ю
 		 );
-	   //LocalRedirect($ar_res["SECTION_PAGE_URL"].$arResult["CODE"].'/');
    }
+   
+   $arResult['SECTION']['UF_MIN_COUNT_M2'] = ($ar_res['UF_MIN_COUNT_M2'] > 0) ? $ar_res['UF_MIN_COUNT_M2'] : 20;
 }
 
 ?>

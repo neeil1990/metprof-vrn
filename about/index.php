@@ -4,7 +4,7 @@ $APPLICATION->SetTitle("О компании");
 ?><div class="at__block-about cl">
 	<div class="col-about">
 		<p>
-			 Компания ООО «Металлинвест Профиль» была основана в 2014 году как дочернее предприятие ООО «Металлинвест плюс» (одного из крупнейших поставщиков стального металлопроката и труб в Воронежской области с почти 20-летней историей).
+			 Компания ООО «Металлинвест Профиль» была основана в 2014 году как дочернее предприятие ООО «Металлинвест плюс» (одного из крупнейших поставщиков стального металлопроката и труб в Воронежской области с более чем 25 летней историей).
 		</p>
 		<p class="about">
 			 Основные виды предлагаемой продукции:
@@ -181,13 +181,20 @@ $APPLICATION->SetTitle("О компании");
 </div>
 <div align="center">
 	<p style="text-align: center;">
- 		<a href="/upload/new_certificates/sertif7.jpg" target="_blank">
-			<img class="hover-shadow" style="width:265px;transform: rotate(90deg);margin-right: 100px;" src="/upload/new_certificates/sertif7.jpg">
- 		</a>
 		<a href="/upload/sertifikat-rpof.jpg" target="_blank">
-			<img class="hover-shadow" style="width:265px;" src="/upload/sertifikat-rpof.jpg">
+			<img class="hover-shadow" style="width:265px; margin-right: 45px;" src="/upload/sertifikat-rpof.jpg">
+ 		</a>
+		<a href="/upload/new_certificates/sert-isopan.pdf" target="_blank">
+			<img class="hover-shadow" style="width:265px;" src="/upload/new_certificates/sert-isopan.jpg">
  		</a>
  	</p>
+</div>
+<div align="center">
+	<p style="text-align: center;">
+ 		<a href="/upload/new_certificates/sertif7.jpg" target="_blank">
+			<img class="hover-shadow" style="width:265px; transform: rotate(90deg);" src="/upload/new_certificates/sertif7.jpg">
+ 		</a>
+	</p>
 </div>
 <p>
  <img width="580" src="/upload/company/comp-0.jpg" height="387" style="margin-right: 30px;"> <img width="580" src="/upload/company/comp-1.jpg" height="387"> <img width="580" src="/upload/company/comp-2.jpg" height="387" style="margin-right: 30px;"> <img width="580" src="/upload/company/comp-3.jpg" height="387"> <img width="580" src="/upload/company/comp-4.jpg" height="387" style="margin-right: 30px;"> <img width="580" src="/upload/company/comp-5.jpg" height="387"> <img width="580" src="/upload/company/comp-6.jpg" height="387" style="margin-right: 30px;"> <img width="580" src="/upload/company/comp-7.jpg" height="387"> <img width="580" src="/upload/company/comp-8.jpg" height="387" style="margin-right: 30px;"> <img width="580" src="/upload/company/comp-9.jpg" height="387">

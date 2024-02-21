@@ -3,7 +3,9 @@
 namespace Bitrix\UI\FileUploader;
 
 use Bitrix\Main\Engine\UrlManager;
-use Bitrix\Main\Error;
+use Bitrix\Main\File\Image;
+use Bitrix\Main\File\Image\Rectangle;
+use Bitrix\Main\ORM\Objectify\State;
 use Bitrix\Main\Security\Sign\Signer;
 use Bitrix\Main\Web\Json;
 
@@ -27,6 +29,30 @@ class Uploader
 		$uploadResult = new UploadResult();
 		if ($chunk->isFirst())
 		{
+			// Common file validation (uses in CFile::SaveFile)
+			$commitOptions = $controller->getCommitOptions();
+			$error = \CFile::checkFile(
+				[
+					'name' => $chunk->getName(),
+					'size' => $chunk->getFileSize(),
+					'type' => $chunk->getType()
+				],
+				0,
+				false,
+				false,
+				$commitOptions->isForceRandom(),
+				$commitOptions->isSkipExtension()
+			);
+
+			if ($error !== '')
+			{
+				return $this->handleUploadError(
+					$uploadResult->addError(new UploaderError('CHECK_FILE_FAILED', $error)),
+					$controller
+				);
+			}
+
+			// Controller Validation
 			$validationResult = $chunk->validate($controller->getConfiguration());
 			if (!$validationResult->isSuccess())
 			{
@@ -40,7 +66,7 @@ class Uploader
 			if (!$controller->canUpload())
 			{
 				return $this->handleUploadError(
-					$uploadResult->addError(new UploaderError(UploaderError::CONTROLLER_UPLOAD_FAILED)),
+					$uploadResult->addError(new UploaderError(UploaderError::FILE_UPLOAD_ACCESS_DENIED)),
 					$controller
 				);
 			}
@@ -134,7 +160,7 @@ class Uploader
 		if (!$uploadResult->isSuccess())
 		{
 			$tempFile = $uploadResult->getTempFile();
-			if ($tempFile !== null)
+			if ($tempFile !== null && $tempFile->state !== State::DELETED)
 			{
 				$tempFile->delete();
 			}
@@ -183,7 +209,7 @@ class Uploader
 				[
 					$controller->getName(),
 					$options,
-					\bitrix_sessid(),
+					$controller->getFingerprint(),
 				]
 			)
 		));
@@ -213,7 +239,7 @@ class Uploader
 				else
 				{
 					$loadResult = new LoadResult($fileOwnership->getId());
-					$loadResult->addError(new UploaderError(UploaderError::FILE_ACCESS_DENIED));
+					$loadResult->addError(new UploaderError(UploaderError::FILE_LOAD_ACCESS_DENIED));
 				}
 
 				$results->add($loadResult);
@@ -240,10 +266,10 @@ class Uploader
 		$results = new RemoveResultCollection();
 		[$bfileIds, $tempFileIds] = $this->splitIds($ids);
 
+		$controller = $this->getController();
 		// Files from b_file
 		if (count($bfileIds) > 0)
 		{
-			$controller = $this->getController();
 			$fileOwnerships = new FileOwnershipCollection($bfileIds);
 			if ($controller->canRemove())
 			{
@@ -259,7 +285,7 @@ class Uploader
 				}
 				else
 				{
-					$removeResult->addError(new UploaderError(UploaderError::FILE_ACCESS_DENIED));
+					$removeResult->addError(new UploaderError(UploaderError::FILE_REMOVE_ACCESS_DENIED));
 				}
 
 				$results->add($removeResult);
@@ -269,11 +295,35 @@ class Uploader
 		// Temp Files
 		if (count($tempFileIds) > 0)
 		{
+			$canUpload = $controller->canUpload();
 			foreach ($tempFileIds as $tempFileId)
 			{
-				// TODO: remove file
 				$removeResult = new RemoveResult($tempFileId);
 				$results->add($removeResult);
+
+				if (!$canUpload)
+				{
+					$removeResult->addError(new UploaderError(UploaderError::FILE_REMOVE_ACCESS_DENIED));
+					continue;
+				}
+
+				$guid = $this->getGuidFromToken($tempFileId);
+				if (!$guid)
+				{
+					$removeResult->addError(new UploaderError(UploaderError::INVALID_SIGNATURE));
+					continue;
+				}
+
+				$tempFile = TempFileTable::getList([
+					'filter' => [
+						'=GUID' => $guid,
+					],
+				])->fetchObject();
+
+				if ($tempFile)
+				{
+					$tempFile->delete();
+				}
 			}
 		}
 
@@ -388,9 +438,22 @@ class Uploader
 			if ($fileInfo->getWidth() && $fileInfo->getHeight())
 			{
 				$fileInfo->setPreviewUrl($this->getFileActionUrl($fileInfo, 'preview'));
-				// TODO:
-				// $fileInfo->setPreviewWidth($previewWidth);
-				// $fileInfo->setPreviewHeight($previewHeight);
+
+				// Sync with \Bitrix\UI\Controller\FileUploader::previewAction
+				$sourceRectangle = new Rectangle($fileInfo->getWidth(), $fileInfo->getHeight());
+				$destinationRectangle = new Rectangle(300, 300);
+				$needResize = $sourceRectangle->resize($destinationRectangle, Image::RESIZE_PROPORTIONAL);
+				if ($needResize)
+				{
+					$fileInfo->setPreviewWidth($destinationRectangle->getWidth());
+					$fileInfo->setPreviewHeight($destinationRectangle->getHeight());
+				}
+				else
+				{
+					$fileInfo->setPreviewWidth($sourceRectangle->getWidth());
+					$fileInfo->setPreviewHeight($sourceRectangle->getHeight());
+				}
+
 			}
 		}
 

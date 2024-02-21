@@ -5,6 +5,9 @@
 
 use Bitrix\Main\Loader;
 use Bitrix\Main\Localization\Loc;
+use Bitrix\Catalog\Access\AccessController;
+use Bitrix\Catalog\Access\ActionDictionary;
+
 
 require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/main/include/prolog_admin_before.php');
 require_once($_SERVER['DOCUMENT_ROOT'] . '/bitrix/modules/catalog/prolog.php');
@@ -19,12 +22,15 @@ global $adminSidePanelHelper;
 $publicMode = $adminPage->publicMode;
 $selfFolderUrl = $adminPage->getSelfFolderUrl();
 
-if (!($USER->CanDoOperation('catalog_read') || $USER->CanDoOperation('catalog_vat')))
+CModule::IncludeModule("catalog");
+
+$accessController = AccessController::getCurrent();
+if (!($accessController->check(ActionDictionary::ACTION_CATALOG_READ) || $accessController->check(ActionDictionary::ACTION_VAT_EDIT)))
 {
-	$APPLICATION->AuthForm(Loc::getMessage('CVAT_LIST_ACCESS_DENIED'));
+	$APPLICATION->AuthForm(GetMessage("ACCESS_DENIED"));
 }
-Loader::includeModule('catalog');
-$bReadOnly = !$USER->CanDoOperation('catalog_vat');
+
+$bReadOnly = !$accessController->check(ActionDictionary::ACTION_VAT_EDIT);
 
 if ($ex = $APPLICATION->GetException())
 {
@@ -41,6 +47,8 @@ $sTableID = "tbl_catalog_vat";
 
 $oSort = new CAdminUiSorting($sTableID, 'C_SORT', 'ASC');
 $lAdmin = new CAdminUiList($sTableID, $oSort);
+$by = mb_strtoupper($oSort->getField());
+$order = mb_strtoupper($oSort->getOrder());
 
 $filterFields = [
 	[
@@ -113,17 +121,6 @@ if ($lAdmin->EditAction() && !$bReadOnly)
 	}
 }
 
-global $by, $order;
-if (!isset($by))
-{
-	$by = 'C_SORT';
-}
-if (!isset($order))
-{
-	$order = 'asc';
-}
-$by = strtoupper($by);
-$order = strtoupper($order);
 switch ($by)
 {
 	case 'ID':
@@ -152,7 +149,7 @@ if (($arID = $lAdmin->GroupAction()) && !$bReadOnly)
 	{
 		$arID = [];
 		$dbResultList = CCatalogVat::GetListEx(
-			$vatListOrder,
+			[],
 			$arFilter,
 			false,
 			false,
@@ -338,7 +335,7 @@ while ($arVAT = $dbResultList->Fetch())
 	$arActions = [];
 	$arActions[] = [
 		"ICON" => "edit",
-		"TEXT" => Loc::getMessage("CVAT_EDIT_ALT"),
+		"TEXT" => $bReadOnly ? Loc::getMessage('CVAT_VIEW_ALT') : Loc::getMessage('CVAT_EDIT_ALT'),
 		"LINK" => $editUrl,
 		"DEFAULT" => true,
 	];

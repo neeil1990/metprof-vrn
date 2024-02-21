@@ -92,12 +92,19 @@ if (!empty($arResult['ITEMS']))
           <?
           $arOffers = array();
           foreach($arItem['OFFERS'] as $offer){
-            if($offer['MIN_PRICE']['DISCOUNT_VALUE'] && $offer['CATALOG_QUANTITY'] > 0){
+            // if($offer['MIN_PRICE']['DISCOUNT_VALUE'] && $offer['CATALOG_QUANTITY'] > 0){
+            //   $arOffers['ID'] = $offer['ID'];
+            //   $arOffers['DISCOUNT_VALUE'] = $offer['MIN_PRICE']['DISCOUNT_VALUE'];
+            //   $arOffers['DISCOUNT_DIFF'] = $offer['MIN_PRICE']['DISCOUNT_DIFF'];
+            //   $arOffers['QUANTITY'] = $offer['CATALOG_QUANTITY'];
+            // }
+            if($offer['ITEM_PRICES'][0]['BASE_PRICE'] && $offer['CATALOG_QUANTITY'] > 0){
               $arOffers['ID'] = $offer['ID'];
-              $arOffers['DISCOUNT_VALUE'] = $offer['MIN_PRICE']['DISCOUNT_VALUE'];
+              $arOffers['DISCOUNT_VALUE'] = $offer['ITEM_PRICES'][0]['BASE_PRICE'];
               $arOffers['DISCOUNT_DIFF'] = $offer['MIN_PRICE']['DISCOUNT_DIFF'];
               $arOffers['QUANTITY'] = $offer['CATALOG_QUANTITY'];
             }
+
           }
           ?>
 
@@ -144,7 +151,7 @@ if (!empty($arResult['ITEMS']))
                 <? if($arItem['IS_PARTNER']):?>
                     <div class="cost">
                         <? if($price = price($arItem['ID'])): ?>
-                            <span>цена партнера <?=$price;?></span> <?=RUB?>
+                            цена партнера <span><?=$price;?></span> <?=RUB?>
                         <? else: ?>
                             <span style="font-size: 14px;">Цена на сайте партнера</span>
                         <? endif; ?>
@@ -154,16 +161,16 @@ if (!empty($arResult['ITEMS']))
                     <? if($intPrice < $arResult['UF_JS_TEXT_PRICE']): ?>
                         <div class="cost">
                             <?if(priceDiscount($arItem['ID'])){?>
-                                <span>цена <?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                                цена <span><?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                             <?}else{?>
-                                <span>цена <?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                                цена <span><?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                             <?}?>
                         </div>
                     <? else: ?>
                         <div class="cost js-text" data-text="<?if(priceDiscount($arItem['ID'])){?>
-                            <span>цена <?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                            цена <span><?=priceDiscount($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                         <?}else{?>
-                            <span>цена <?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
+                            цена <span><?=price($arItem['ID']);?></span> <?=RUB?>/<?=$arItem['PROPERTIES']['CML2_BASE_UNIT']['VALUE'];?>
                         <?}?>"></div>
                     <? endif;?>
                     <?

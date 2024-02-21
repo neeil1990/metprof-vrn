@@ -225,7 +225,7 @@ if($USER->CanDoOperation('view_other_settings') || $USER->CanDoOperation('manage
 		$aModuleItems = array();
 		if(method_exists($adminMenu, "IsSectionActive"))
 		{
-			if($adminMenu->IsSectionActive("menu_module_settings") || ($APPLICATION->GetCurPage() == "/bitrix/admin/settings.php" && $_REQUEST["mid_menu"]<>"") || defined('BX_SEARCH_ADMIN') && BX_SEARCH_ADMIN === true)
+			if($adminMenu->IsSectionActive("menu_module_settings") || ($APPLICATION->GetCurPage() == "/bitrix/admin/settings.php" && isset($_REQUEST["mid_menu"]) && $_REQUEST["mid_menu"] != '') || defined('BX_SEARCH_ADMIN') && BX_SEARCH_ADMIN === true)
 			{
 				$adminPage->Init();
 				foreach($adminPage->aModules as $module)
@@ -586,7 +586,6 @@ if($USER->CanDoOperation('install_updates') || (in_array(LANGUAGE_ID, array("ru"
 					if($ht->getStatus() == "200")
 					{
 						$res = \Bitrix\Main\Text\Encoding::convertEncoding($res, "windows-1251", SITE_CHARSET);
-						require_once($_SERVER["DOCUMENT_ROOT"]."/bitrix/modules/main/classes/general/xml.php");
 
 						$objXML = new CDataXML();
 						$objXML->LoadString($res);

@@ -247,33 +247,30 @@ final class Product extends Base
 	private function getFieldsCatalogProductCommonFields(): array
 	{
 		$fieldList = [
-			'ID'=>[
-				'TYPE'=>DataType::TYPE_INT,
+			'ID' => [
+				'TYPE' => DataType::TYPE_INT,
 				'ATTRIBUTES'=>[
-					Attributes::READONLY
-				]
+					Attributes::READONLY,
+				],
 			],
-			'TIMESTAMP_X'=>[
+			'TIMESTAMP_X' => [
 				'TYPE'=>DataType::TYPE_DATETIME,
 			],
-			'PRICE_TYPE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'PRICE_TYPE' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'TYPE'=>[
-				'TYPE'=>DataType::TYPE_INT,
-				'ATTRIBUTES'=>[
-					Attributes::READONLY
-				]
+			'TYPE' => [
+				'TYPE' => DataType::TYPE_INT,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'AVAILABLE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-				'ATTRIBUTES'=>[
-					Attributes::READONLY
-				]
+			'BUNDLE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'BUNDLE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-			]
 		];
 
 		return $this->fillFieldNames($fieldList);
@@ -344,79 +341,107 @@ final class Product extends Base
 	private function getFieldsCatalogProduct(): array
 	{
 		$fieldList = [
-			'TYPE'=>[
-				'TYPE'=>DataType::TYPE_INT,
-				'ATTRIBUTES'=>[
-					Attributes::READONLY
-				]
+			'TYPE' => [
+				'TYPE' => DataType::TYPE_INT,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'AVAILABLE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-				'ATTRIBUTES'=>[
-					Attributes::READONLY
-				]
+			'AVAILABLE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'BUNDLE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'BUNDLE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'QUANTITY'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'QUANTITY' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'QUANTITY_RESERVED'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'QUANTITY_RESERVED' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'QUANTITY_TRACE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'QUANTITY_TRACE' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'CAN_BUY_ZERO'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'CAN_BUY_ZERO' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'SUBSCRIBE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'SUBSCRIBE' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'VAT_ID'=>[
-				'TYPE'=>DataType::TYPE_INT,
+			'VAT_ID' => [
+				'TYPE' => DataType::TYPE_INT,
 			],
-			'VAT_INCLUDED'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'VAT_INCLUDED' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'PURCHASING_PRICE'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'PURCHASING_PRICE' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'PURCHASING_CURRENCY'=>[
-				'TYPE'=>DataType::TYPE_STRING,
+			'PURCHASING_CURRENCY' => [
+				'TYPE' => DataType::TYPE_STRING,
 			],
-			'BARCODE_MULTI'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'BARCODE_MULTI' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'WEIGHT'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'WEIGHT' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'LENGTH'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'LENGTH' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'WIDTH'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'WIDTH' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'HEIGHT'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'HEIGHT' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'MEASURE'=>[
-				'TYPE'=>DataType::TYPE_INT,
+			'MEASURE' => [
+				'TYPE' => DataType::TYPE_INT,
 			],
-			'RECUR_SCHEME_LENGTH'=>[
-				'TYPE'=>DataType::TYPE_INT,
+			'RECUR_SCHEME_LENGTH' => [
+				'TYPE' => DataType::TYPE_INT,
 			],
-			'RECUR_SCHEME_TYPE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'RECUR_SCHEME_TYPE' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'TRIAL_PRICE_ID'=>[
-				'TYPE'=>DataType::TYPE_INT,
+			'TRIAL_PRICE_ID' => [
+				'TYPE' => DataType::TYPE_INT,
 			],
-			'WITHOUT_ORDER'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'WITHOUT_ORDER' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
 		];
+
+		if (Catalog\Config\State::isUsedInventoryManagement())
+		{
+			$lockFields = [
+				'QUANTITY',
+				'QUANTITY_RESERVED',
+				'PURCHASING_PRICE',
+				'PURCHASING_CURRENCY',
+			];
+
+			foreach ($lockFields as $fieldName)
+			{
+				if (!isset($fieldList[$fieldName]['ATTRIBUTES']))
+				{
+					$fieldList[$fieldName]['ATTRIBUTES'] = [
+						Attributes::READONLY,
+					];
+				}
+				else
+				{
+					$fieldList[$fieldName]['ATTRIBUTES'][] = Attributes::READONLY;
+					$fieldList[$fieldName]['ATTRIBUTES'] = array_unique($fieldList[$fieldName]['ATTRIBUTES']);
+				}
+			}
+		}
 
 		return $this->fillFieldNames($fieldList);
 	}
@@ -430,6 +455,9 @@ final class Product extends Base
 		$r = [];
 		switch ($id)
 		{
+			case ProductTable::TYPE_SERVICE:
+				$r = $this->getFieldsCatalogProductByTypeService();
+				break;
 			case ProductTable::TYPE_PRODUCT:
 				$r = $this->getFieldsCatalogProductByTypeProduct();
 				break;
@@ -452,56 +480,76 @@ final class Product extends Base
 	/**
 	 * @return array
 	 */
+	private function getFieldsCatalogProductByTypeService(): array
+	{
+		$fieldList = [
+			'AVAILABLE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+			],
+		];
+
+		return $this->fillFieldNames($fieldList);
+	}
+
+	/**
+	 * @return array
+	 */
 	private function getFieldsCatalogProductByTypeProduct(): array
 	{
 		$fieldList = [
-			'PURCHASING_PRICE'=>[
-				'TYPE'=>DataType::TYPE_STRING,
+			'AVAILABLE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'PURCHASING_CURRENCY'=>[
-				'TYPE'=>DataType::TYPE_STRING,
+			'PURCHASING_PRICE' => [
+				'TYPE' => DataType::TYPE_STRING,
 			],
-			'VAT_ID'=>[
-				'TYPE'=>DataType::TYPE_INT,
+			'PURCHASING_CURRENCY' => [
+				'TYPE' => DataType::TYPE_STRING,
 			],
-			'VAT_INCLUDED'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'VAT_ID' => [
+				'TYPE' => DataType::TYPE_INT,
 			],
-			'QUANTITY'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'VAT_INCLUDED' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'QUANTITY_RESERVED'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'QUANTITY' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'MEASURE'=>[
-				'TYPE'=>DataType::TYPE_INT,
+			'QUANTITY_RESERVED' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'QUANTITY_TRACE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'MEASURE' => [
+				'TYPE' => DataType::TYPE_INT,
 			],
-			'CAN_BUY_ZERO'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'QUANTITY_TRACE' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'NEGATIVE_AMOUNT_TRACE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-				'ATTRIBUTES'=>[
-					Attributes::READONLY
-				]
+			'CAN_BUY_ZERO' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'SUBSCRIBE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
+			'NEGATIVE_AMOUNT_TRACE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'WEIGHT'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'SUBSCRIBE' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'LENGTH'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'WEIGHT' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'WIDTH'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'LENGTH' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
-			'HEIGHT'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'WIDTH' => [
+				'TYPE' => DataType::TYPE_FLOAT,
+			],
+			'HEIGHT' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
 		];
 
@@ -513,7 +561,16 @@ final class Product extends Base
 	 */
 	private function getFieldsCatalogProductByTypeSKU(): array
 	{
-		return [];
+		$fieldList = [
+			'AVAILABLE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
+			],
+		];
+
+		return $this->fillFieldNames($fieldList);
 	}
 
 	/**
@@ -530,65 +587,71 @@ final class Product extends Base
 	private function getFieldsCatalogProductByTypeSet(): array
 	{
 		$fieldList = [
-			'PURCHASING_PRICE'=>[
-				'TYPE'=>DataType::TYPE_STRING,
-			],
-			'PURCHASING_CURRENCY'=>[
-				'TYPE'=>DataType::TYPE_STRING,
-			],
-			'VAT_ID'=>[
-				'TYPE'=>DataType::TYPE_INT,
-			],
-			'VAT_INCLUDED'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-			],
-			'QUANTITY'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
-				'ATTRIBUTES'=>[
+			'AVAILABLE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
 					Attributes::READONLY,
 				],
 			],
-			'MEASURE'=>[
-				'TYPE'=>DataType::TYPE_INT,
-				'ATTRIBUTES'=>[
+			'PURCHASING_PRICE' => [
+				'TYPE' => DataType::TYPE_STRING,
+			],
+			'PURCHASING_CURRENCY' => [
+				'TYPE' => DataType::TYPE_STRING,
+			],
+			'VAT_ID' => [
+				'TYPE' => DataType::TYPE_INT,
+			],
+			'VAT_INCLUDED' => [
+				'TYPE' => DataType::TYPE_CHAR,
+			],
+			'QUANTITY' => [
+				'TYPE' => DataType::TYPE_FLOAT,
+				'ATTRIBUTES' => [
 					Attributes::READONLY,
 				],
 			],
-			'QUANTITY_TRACE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-				'ATTRIBUTES'=>[
+			'MEASURE' => [
+				'TYPE' => DataType::TYPE_INT,
+				'ATTRIBUTES' => [
 					Attributes::READONLY,
 				],
 			],
-			'CAN_BUY_ZERO'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-				'ATTRIBUTES'=>[
+			'QUANTITY_TRACE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
 					Attributes::READONLY,
 				],
 			],
-			'NEGATIVE_AMOUNT_TRACE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-				'ATTRIBUTES'=>[
+			'CAN_BUY_ZERO' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
 					Attributes::READONLY,
 				],
 			],
-			'SUBSCRIBE'=>[
-				'TYPE'=>DataType::TYPE_CHAR,
-			],
-			'WEIGHT'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
-				'ATTRIBUTES'=>[
+			'NEGATIVE_AMOUNT_TRACE' => [
+				'TYPE' => DataType::TYPE_CHAR,
+				'ATTRIBUTES' => [
 					Attributes::READONLY,
 				],
 			],
-			'LENGTH'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'SUBSCRIBE' => [
+				'TYPE' => DataType::TYPE_CHAR,
 			],
-			'WIDTH'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'WEIGHT' => [
+				'TYPE' => DataType::TYPE_FLOAT,
+				'ATTRIBUTES' => [
+					Attributes::READONLY,
+				],
 			],
-			'HEIGHT'=>[
-				'TYPE'=>DataType::TYPE_FLOAT,
+			'LENGTH' => [
+				'TYPE' => DataType::TYPE_FLOAT,
+			],
+			'WIDTH' => [
+				'TYPE' => DataType::TYPE_FLOAT,
+			],
+			'HEIGHT' => [
+				'TYPE' => DataType::TYPE_FLOAT,
 			],
 		];
 
@@ -655,6 +718,7 @@ final class Product extends Base
 		{
 			case \CCatalogSku::TYPE_CATALOG:
 				$result = array(
+					ProductTable::TYPE_SERVICE => true,
 					ProductTable::TYPE_PRODUCT => true,
 					ProductTable::TYPE_SET => true
 				);
@@ -667,6 +731,7 @@ final class Product extends Base
 				break;
 			case \CCatalogSku::TYPE_FULL:
 				$result = array(
+					ProductTable::TYPE_SERVICE => true,
 					ProductTable::TYPE_PRODUCT => true,
 					ProductTable::TYPE_SET => true,
 					ProductTable::TYPE_SKU => true,
@@ -700,15 +765,16 @@ final class Product extends Base
 			'S:map_google',
 			'S:employee',
 			'S:ECrm',
+			'E:EAutocomplete',
 			'E:SKU',
 			'S:ElementXmlID',
+			'G:SectionAuto',
+			'S:directory',
+			'S:UserID',
 			//TODO: support types
 			//'S:video',
-			//'S:UserID',
-			//'G:SectionAuto',
 			//'S:TopicID',
 			//'S:FileMan',
-			//'E:EAutocomplete',
 			//'S:DiskFile',
 		];
 	}
@@ -865,70 +931,75 @@ final class Product extends Base
 			$userType = $info['USER_TYPE'] ?? '';
 
 			$attrs = $info['ATTRIBUTES'] ?? array();
-			$isMultiple = in_array(Attributes::REQUIRED, $attrs, true);
+			$isMultiple = in_array(Attributes::MULTIPLE, $attrs, true);
 
-			$value = $isMultiple? $value: [$value];
+			$r = $isMultiple ? $this->checkIndexedMultipleValue($value) : new Result();
 
-			if($propertyType === 'S' && $userType === 'Date')
+			if ($r->isSuccess())
 			{
-				array_walk($value, function(&$item) use ($r)
+				$value = $isMultiple ? $value : [$value];
+
+				if($propertyType === 'S' && $userType === 'Date')
 				{
-					$date = $this->internalizeDateProductPropertyValue($item['VALUE']);
-					if($date->isSuccess())
+					array_walk($value, function(&$item) use ($r)
 					{
-						$item['VALUE'] = $date->getData()[0];
-					}
-					else
-					{
-						$r->addErrors($date->getErrors());
-					}
-				});
-			}
-			elseif($propertyType === 'S' && $userType === 'DateTime')
-			{
-				array_walk($value, function(&$item) use ($r)
-				{
-					$date = $this->internalizeDateTimeProductPropertyValue($item['VALUE']);
-					if($date->isSuccess())
-					{
-						$item['VALUE'] = $date->getData()[0];
-					}
-					else
-					{
-						$r->addErrors($date->getErrors());
-					}
-				});
-			}
-			elseif($propertyType === 'F' && empty($userType))
-			{
-				array_walk($value, function(&$item) use ($r)
-				{
-					$date = $this->internalizeFileValue($item['VALUE']);
-					if(count($date)>0)
-					{
-						$item['VALUE'] = $date;
-					}
-					else
-					{
-						$r->addError(new Error('Wrong file date'));
-					}
-				});
-			}
-			elseif ($this->isPropertyBoolean($info))
-			{
-				$booleanValue = $value[0]['VALUE'];
-				if ($booleanValue === 'Y')
-				{
-					$value[0]['VALUE'] = current($info['VALUES'])['ID'];
+						$date = $this->internalizeDateProductPropertyValue($item['VALUE']);
+						if($date->isSuccess())
+						{
+							$item['VALUE'] = $date->getData()[0];
+						}
+						else
+						{
+							$r->addErrors($date->getErrors());
+						}
+					});
 				}
-				elseif ($booleanValue === 'N')
+				elseif($propertyType === 'S' && $userType === 'DateTime')
 				{
-					$value[0]['VALUE'] = null;
+					array_walk($value, function(&$item) use ($r)
+					{
+						$date = $this->internalizeDateTimeProductPropertyValue($item['VALUE']);
+						if($date->isSuccess())
+						{
+							$item['VALUE'] = $date->getData()[0];
+						}
+						else
+						{
+							$r->addErrors($date->getErrors());
+						}
+					});
 				}
-			}
-			//elseif($propertyType === 'S' && $userType === 'HTML'){}
+				elseif($propertyType === 'F' && empty($userType))
+				{
+					array_walk($value, function(&$item) use ($r)
+					{
+						$date = $this->internalizeFileValue($item['VALUE']);
+						if(count($date)>0)
+						{
+							$item['VALUE'] = $date;
+						}
+						else
+						{
+							$r->addError(new Error('Wrong file date'));
+						}
+					});
+				}
+				elseif ($this->isPropertyBoolean($info))
+				{
+					$booleanValue = $value[0]['VALUE'];
+					if ($booleanValue === 'Y')
+					{
+						$value[0]['VALUE'] = current($info['VALUES'])['ID'];
+					}
+					elseif ($booleanValue === 'N')
+					{
+						$value[0]['VALUE'] = null;
+					}
+				}
+				//elseif($propertyType === 'S' && $userType === 'HTML'){}
 
-			$value = $isMultiple? $value: $value[0];
+				$value = $isMultiple? $value: $value[0];
+			}
 		}
 
 		if($r->isSuccess())
@@ -1287,5 +1358,30 @@ final class Product extends Base
 		}
 
 		return count($property['VALUES']) === 1;
+	}
+
+	protected function checkIndexedMultipleValue($values): Result
+	{
+		$r = new Result();
+
+		return $this->isIndexedArray($values) ? $r : $r->addError(new Error('For type Multiple field - value must be an Indexed array'));
+	}
+
+	protected function isIndexedArray($ary): bool
+	{
+		if (!is_array($ary))
+		{
+			return false;
+		}
+
+		$keys = array_keys($ary);
+		foreach ($keys as $k)
+		{
+			if (!is_int($k))
+			{
+				return false;
+			}
+		}
+		return true;
 	}
 }

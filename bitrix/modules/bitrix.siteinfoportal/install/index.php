@@ -1,7 +1,7 @@
 <?
 global $MESS;
 $strPath2Lang = str_replace("\\", "/", __FILE__);
-$strPath2Lang = substr($strPath2Lang, 0, strlen($strPath2Lang)-strlen("/install/index.php"));
+$strPath2Lang = mb_substr($strPath2Lang, 0, mb_strlen($strPath2Lang) - mb_strlen("/install/index.php"));
 include(GetLangFileName($strPath2Lang."/lang/", "/install/index.php"));
 Class bitrix_siteinfoportal extends CModule
 {
@@ -13,13 +13,11 @@ Class bitrix_siteinfoportal extends CModule
 	var $MODULE_CSS;
 	var $MODULE_GROUP_RIGHTS = "Y";
 
-	function bitrix_siteinfoportal()
+	public function __construct()
 	{
 		$arModuleVersion = array();
 
-		$path = str_replace("\\", "/", __FILE__);
-		$path = substr($path, 0, strlen($path) - strlen("/index.php"));
-		include($path."/version.php");
+		include(__DIR__.'/version.php');
 
 		$this->MODULE_VERSION = $arModuleVersion["VERSION"];
 		$this->MODULE_VERSION_DATE = $arModuleVersion["VERSION_DATE"];
@@ -33,8 +31,6 @@ Class bitrix_siteinfoportal extends CModule
 
 	function InstallDB($install_wizard = true)
 	{
-		global $DB, $DBType, $APPLICATION;
-
 		RegisterModule("bitrix.siteinfoportal");
 		RegisterModuleDependences("main", "OnBeforeProlog", "bitrix.siteinfoportal", "CSiteInfoportal", "ShowPanel");
 
@@ -43,9 +39,7 @@ Class bitrix_siteinfoportal extends CModule
 
 	function UnInstallDB($arParams = Array())
 	{
-		global $DB, $DBType, $APPLICATION;
-
-		UnRegisterModuleDependences("main", "OnBeforeProlog", "bitrix.siteinfoportal", "CSiteInfoportal", "ShowPanel"); 
+		UnRegisterModuleDependences("main", "OnBeforeProlog", "bitrix.siteinfoportal", "CSiteInfoportal", "ShowPanel");
 		UnRegisterModule("bitrix.siteinfoportal");
 
 		return true;

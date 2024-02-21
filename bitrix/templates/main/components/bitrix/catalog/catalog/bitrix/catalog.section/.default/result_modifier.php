@@ -528,11 +528,15 @@ foreach ($arResult['ITEMS'] as $key => &$arItem){
   }else{
       $arResult['ITEMS'][$key]['NAME'] = preg_replace('#(~(.*?)~)#is', '', $arItem['NAME']);
   }
-  $arItem['IS_M2'] = ($arItem['OFFERS'][0]['CATALOG_MEASURE'] == 6) ? true : false;
+	//$arItem['IS_M2'] = ($arItem['OFFERS'][0]['CATALOG_MEASURE'] == 6) ? true : false;
+$arItem['IS_M2'] = ($arItem['OFFERS'][0]['PRODUCT']['MEASURE'] == 6) ? true : false;
+
+
 
   $arItem['IS_PARTNER'] = ($arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE']) ? true : false;
   $arItem['DETAIL_PAGE_URL'] = ($arItem['IS_PARTNER']) ? $arItem['PROPERTIES']['ALTERNATIVE_CODE']['VALUE'] : $arItem['DETAIL_PAGE_URL'];
 }
+
 
 $arResult['UF_JS_TEXT_PROP'] = ($arResult['UF_JS_TEXT_PROP']) ?: 15;
 $arResult['UF_JS_TEXT_ORDER'] = ($arResult['UF_JS_TEXT_ORDER']) ?: 10;

@@ -1,20 +1,18 @@
 import { MenuManager } from 'main.popup';
-import { Text, Loc } from 'main.core';
-import { BitrixVue } from 'ui.vue';
+import { Text, Loc, Type } from 'main.core';
 import { FileOrigin, FileStatus } from 'ui.uploader.core';
 
 import { UploadLoader } from './upload-loader';
 import { ErrorPopup } from './error-popup';
 import { FileIconComponent } from './file-icon';
 
-import type { TileWidget } from 'ui.uploader.tile-widget';
-
-export const TileItem = BitrixVue.localComponent('tile', {
+export const TileItem = {
 	components: {
 		UploadLoader,
 		ErrorPopup,
 		FileIconComponent,
 	},
+	inject: ['uploader'],
 	props: {
 		item: {
 			type: Object,
@@ -25,7 +23,6 @@ export const TileItem = BitrixVue.localComponent('tile', {
 	{
 		return {
 			tileId: 'tile-uploader-' + Text.getRandom().toLowerCase(),
-			menu: null,
 			showError: false,
 		};
 	},
@@ -82,13 +79,38 @@ export const TileItem = BitrixVue.localComponent('tile', {
 			const nameWithoutExtension = nameParts.join('.');
 			if (nameWithoutExtension.length > 27)
 			{
-				return nameWithoutExtension.substr(0, 20) + '...' + nameWithoutExtension.substr(-5);
+				return nameWithoutExtension.substr(0, 17) + '...' + nameWithoutExtension.substr(-5);
 			}
 
 			return nameWithoutExtension;
+		},
+		menuItems()
+		{
+			const items = [];
+
+			if (Type.isStringFilled(this.item.downloadUrl))
+			{
+				items.push({
+					text: Loc.getMessage('TILE_UPLOADER_MENU_DOWNLOAD'),
+					href: this.item.downloadUrl,
+				});
+
+				items.push({
+					text: Loc.getMessage('TILE_UPLOADER_MENU_REMOVE'),
+					onclick: () => {
+						this.remove();
+					},
+				});
+			}
+
+			return items;
 		}
 	},
-	beforeDestroy()
+	created()
+	{
+		this.menu = null;
+	},
+	beforeUnmount()
 	{
 		if (this.menu)
 		{
@@ -99,8 +121,7 @@ export const TileItem = BitrixVue.localComponent('tile', {
 	methods: {
 		remove()
 		{
-			const widget: TileWidget = this.$root.getWidget();
-			widget.remove(this.item.id);
+			this.uploader.removeFile(this.item.id);
 		},
 
 		handleMouseEnter(item)
@@ -116,6 +137,7 @@ export const TileItem = BitrixVue.localComponent('tile', {
 			this.showError = false;
 		},
 
+
 		showMenu()
 		{
 			if (this.menu)
@@ -130,18 +152,7 @@ export const TileItem = BitrixVue.localComponent('tile', {
 				offsetLeft: 13,
 				minWidth: 100,
 				cacheable: false,
-				items: [
-					{
-						text: Loc.getMessage('TILE_UPLOADER_MENU_DOWNLOAD'),
-						href: this.item.downloadUrl,
-					},
-					{
-						text: Loc.getMessage('TILE_UPLOADER_MENU_REMOVE'),
-						onclick: () => {
-							this.remove();
-						},
-					},
-				],
+				items: this.menuItems,
 				events: {
 					onDestroy: () => this.menu = null,
 				},
@@ -178,12 +189,12 @@ export const TileItem = BitrixVue.localComponent('tile', {
 				<template v-else>
 					<div class="ui-tile-uploader-item-remove" @click="remove" key="remove"></div>
 					<div class="ui-tile-uploader-item-actions" key="actions">
-						<div class="ui-tile-uploader-item-menu" @click="showMenu" ref="menu"></div>
+						<div v-if="menuItems.length" class="ui-tile-uploader-item-menu" @click="showMenu" ref="menu"></div>
 					</div>
 				</template>
 				<div class="ui-tile-uploader-item-preview">
 					<div
-						v-if="item.isImage"
+						v-if="item.previewUrl"
 						class="ui-tile-uploader-item-image"
 						:class="{ 'ui-tile-uploader-item-image-default': item.previewUrl === null }"
 						:style="{ backgroundImage: item.previewUrl !== null ? 'url(' + item.previewUrl + ')' : '' }">
@@ -211,4 +222,4 @@ export const TileItem = BitrixVue.localComponent('tile', {
 		</div>
 	</transition>
 	`
-});
+};

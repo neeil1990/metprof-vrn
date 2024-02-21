@@ -32,6 +32,7 @@
 		this.order = params["order"]; // message sort direction DESC || ASC
 		this.mid = parseInt(params["mid"]); // last messageId
 		this.operationIds = [];
+		this.canCheckVisibleComments = true;
 
 		this.status = "ready";
 		this.msg = (this.node.navigation ? this.node.navigation.innerHTML : "");
@@ -1593,6 +1594,10 @@
 			}
 		},
 		checkVisibleComments : function(screenPosition) {
+			if (!this.canCheckVisibleComments)
+			{
+				return;
+			}
 			var keys = this.getVisibleCommentIds(this.unreadComments, screenPosition);
 			var key;
 			while (key = keys.shift())
@@ -2083,7 +2088,6 @@
 		{
 			var taskId = +/\d+/.exec(entityXmlId);
 			var result = BX.Tasks.ResultManager.getInstance().getResult(taskId);
-
 			if (
 				result
 				&& result.context === 'task'
@@ -2092,7 +2096,7 @@
 			)
 			{
 				panels.push({
-					text : BX.message("BPC_MES_REMOVE_TASK_RESULT"),
+					text : BX.message("BPC_MES_DELETE_TASK_RESULT"),
 					onclick : function() {
 						BX.Tasks.ResultAction.getInstance().deleteFromComment(ID);
 						this.popupWindow.close();

@@ -282,6 +282,11 @@ class Chunk
 	{
 		$result = new Result();
 
+		if (in_array(mb_strtolower($this->getName()), $config->getIgnoredFileNames()))
+		{
+			return $result->addError(new UploaderError(UploaderError::FILE_NAME_NOT_ALLOWED));
+		}
+
 		if ($config->getMaxFileSize() !== null && $this->getFileSize() > $config->getMaxFileSize())
 		{
 			return $result->addError(
@@ -295,7 +300,7 @@ class Chunk
 			);
 		}
 
-		if ($config->getMinFileSize() !== null && $this->getFileSize() < $config->getMinFileSize())
+		if ($this->getFileSize() < $config->getMinFileSize())
 		{
 			return $result->addError(
 				new UploaderError(
@@ -330,7 +335,7 @@ class Chunk
 				);
 			}
 
-			if ($config->getImageMinFileSize() !== null && $this->getFileSize() < $config->getImageMinFileSize())
+			if ($this->getFileSize() < $config->getImageMinFileSize())
 			{
 				return $result->addError(
 					new UploaderError(

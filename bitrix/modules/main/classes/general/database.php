@@ -647,12 +647,13 @@ abstract class CAllDBResult
 			'nSelectedCount',
 			'arGetNextCache',
 			'bDescPageNumbering',
-			'arUserMultyFields',
 		);
 	}
 
 	/**
-	 * @return array
+	 * Returns the next row of the result in a form of associated array or false on empty set.
+	 *
+	 * @return array | false
 	 */
 	abstract public function Fetch();
 
@@ -673,7 +674,7 @@ abstract class CAllDBResult
 	{
 		if (
 			is_array($this->arResultAdd)
-			&& count($this->arResultAdd) > 0
+			&& !empty($this->arResultAdd)
 		)
 		{
 			$this->arResult = $this->arResultAdd;
@@ -923,7 +924,7 @@ abstract class CAllDBResult
 				$arTilda = array();
 				foreach($arRes as $FName=>$arFValue)
 				{
-					if($this->arGetNextCache[$FName] && $bTextHtmlAuto)
+					if(isset($this->arGetNextCache[$FName]) && $this->arGetNextCache[$FName] && $bTextHtmlAuto)
 						$arTilda[$FName] = FormatText($arFValue, $arRes[$FName."_TYPE"]);
 					elseif(is_array($arFValue))
 						$arTilda[$FName] = htmlspecialcharsEx($arFValue);
@@ -997,7 +998,9 @@ abstract class CAllDBResult
 		$PAGEN = (int)$PAGEN;
 		$SHOWALL = ${$SHOWALL_NAME};
 
-		$inSession = (CPageOption::GetOptionString("main", "nav_page_in_session", "Y") == "Y");
+		$application = Main\Application::getInstance();
+
+		$inSession = (CPageOption::GetOptionString("main", "nav_page_in_session", "Y") == "Y") && $application->getKernelSession()->isStarted();
 
 		if ($inSession)
 		{
@@ -1005,7 +1008,7 @@ abstract class CAllDBResult
 			$SESS_PAGEN = $md5Path . "SESS_PAGEN_" . ($NavNum+1);
 			$SESS_ALL = $md5Path . "SESS_ALL_" . ($NavNum+1);
 
-			$localStorage = Main\Application::getInstance()->getLocalSession('navigation');
+			$localStorage = $application->getLocalSession('navigation');
 			$session = $localStorage->getData();
 		}
 
@@ -1124,15 +1127,17 @@ abstract class CAllDBResult
 
 	protected function calculatePageNumber(int $defaultNumber = 1, bool $useSession = true, bool $checkOutOfRange = false)
 	{
+		$application = Main\Application::getInstance();
+
 		$correct = false;
 		if ($this->PAGEN > 0 && $this->PAGEN <= $this->NavPageCount)
 		{
 			$this->NavPageNomer = $this->PAGEN;
 			$correct = true;
 		}
-		elseif ($useSession && $this->SESS_PAGEN)
+		elseif ($useSession && $this->SESS_PAGEN && $application->getKernelSession()->isStarted())
 		{
-			$localStorage = Main\Application::getInstance()->getLocalSession('navigation');
+			$localStorage = $application->getLocalSession('navigation');
 			$session = $localStorage->getData();
 
 			if ($session[$this->SESS_PAGEN] > 0 && $session[$this->SESS_PAGEN] <= $this->NavPageCount)
@@ -1262,8 +1267,10 @@ abstract class CAllDBResult
 				$this->usedUserFields = array();
 				foreach($this->arUserFields as $userField)
 				{
-					if (array_key_exists($userField['FIELD_NAME'], $res))
+					if (isset($userField['FIELD_NAME']) && array_key_exists($userField['FIELD_NAME'], $res))
+					{
 						$this->usedUserFields[] = $userField;
+					}
 				}
 			}
 			// We need to call OnAfterFetch for each user field
