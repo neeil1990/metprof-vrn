@@ -13,4 +13,3 @@ bitrix/catalog_export/*
 *.log
 *.xml
 .htaccess
-.htaccess2
