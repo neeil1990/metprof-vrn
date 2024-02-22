@@ -38,7 +38,7 @@ if ($normalCount > 0)
 						<div class="txt qn">Кол-во</div>
 						<div class="quantity" id="<?=$arItem['ID']?>">
                             <? if($arItem["MEASURE_CODE"] == $arResult["PIECES_MEASURE_CODE"]): ?>
-                                <select id="quantity_select">
+                                <select class="quantity_select">
                                     <? foreach(range(1, $arItem["AVAILABLE_QUANTITY"]) as $value): ?>
                                     <option value="<?=$value?>" <? if($value == $arItem['QUANTITY']): ?> selected="selected" <?endif;?>>
                                         <?=$value?> <?=$arItem["MEASURE_TEXT"]?>
@@ -90,12 +90,15 @@ if ($normalCount > 0)
 	</div><!--end::basket-->
 
     <script>
-        $("#quantity_select").change(function(){
+        $(".quantity_select").change(function(){
             let el = $(this);
             let ID = el.closest('.quantity').attr('id');
 
-            $.get( `?basketAction=recalculate&QUANTITY_${ID}=${el.val()}`, function() {
-                window.location.reload();
+            $.get( `?basketAction=recalculate&QUANTITY_${ID}=${el.val()}`, function(data) {
+                if(data.CODE === "SUCCESS")
+                    window.location.reload();
+
+                console.log(data);
             });
         });
     </script>
