@@ -1,10 +1,11 @@
 <?if (!defined("B_PROLOG_INCLUDED") || B_PROLOG_INCLUDED!==true)die();?>
-<?echo ShowError($arResult["ERROR_MESSAGE"]);
+<?
+echo ShowError($arResult["ERROR_MESSAGE"]);
+
 if ($normalCount > 0)
 {?>
 
 	<div class="basket">
-<!--		<a href="#" class="check">Проверка наличия на складе</a>-->
 		<h1>Корзина</h1>
 		<div class="list">
 			<div class="l-head">
@@ -17,7 +18,7 @@ if ($normalCount > 0)
 			</div>
 			<div class="l-block">
 
-				<? foreach($arResult["GRID"]["ROWS"] as $k=>$arItem):?>
+				<? foreach($arResult["GRID"]["ROWS"] as $k => $arItem): ?>
 				<div class="l-row cl">
 					<div class="l-cell img"><span><img src="<?=$arItem['PREVIEW_PICTURE_SRC']?>" alt=""></span></div>
 					<div class="l-cell name">
@@ -30,20 +31,29 @@ if ($normalCount > 0)
 						<? if(isset($arItem['PROPS_ALL']['WIDTH_LIST'])): ?>
 							<span><?=trim($arItem['PROPS_ALL']['WIDTH_LIST']['VALUE'])?> мм</span>
 						<? else: ?>
-							<span><?=$arItem['PROPERTY_DLINA_VALUE']?> мм</span>
+							<span><?=$arItem['PROPERTY_DLINA_VALUE']?></span>
 						<? endif; ?>
 					</div>
 					<div class="l-cell quan">
 						<div class="txt qn">Кол-во</div>
 						<div class="quantity" id="<?=$arItem['ID']?>">
-							<?=$arItem['QUANTITY']?> <?=$arItem["MEASURE_TEXT"]?>
+                            <? if($arItem["MEASURE_CODE"] == $arResult["PIECES_MEASURE_CODE"]): ?>
+                                <select id="quantity_select">
+                                    <? foreach(range(1, $arItem["AVAILABLE_QUANTITY"]) as $value): ?>
+                                    <option value="<?=$value?>" <? if($value == $arItem['QUANTITY']): ?> selected="selected" <?endif;?>>
+                                        <?=$value?> <?=$arItem["MEASURE_TEXT"]?>
+                                    </option>
+                                    <? endforeach; ?>
+                                </select>
+                            <? else: ?>
+							    <?=$arItem['QUANTITY']?> <?=$arItem["MEASURE_TEXT"]?>
+                            <? endif; ?>
 						</div>
 					</div>
 					<div class="l-cell cost"><div class="txt ct">Стоимость</div><span><?=$arItem['SUM']?></span></div>
 					<div class="l-cell del"><div class="txt dl">Удалить</div><a href="?basketAction=delete&id=<?=$arItem["ID"]?>"></a></div>
 				</div>
 				<? endforeach; ?>
-
 			</div>
 		</div>
 
@@ -79,6 +89,16 @@ if ($normalCount > 0)
 		</div>
 	</div><!--end::basket-->
 
+    <script>
+        $("#quantity_select").change(function(){
+            let el = $(this);
+            let ID = el.closest('.quantity').attr('id');
+
+            $.get( `?basketAction=recalculate&QUANTITY_${ID}=${el.val()}`, function() {
+                window.location.reload();
+            });
+        });
+    </script>
 <?}
 else
 {?>

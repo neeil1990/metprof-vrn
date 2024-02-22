@@ -1,4 +1,5 @@
 <?php
+$arResult["PIECES_MEASURE_CODE"] = 796;
 
 $curPage = $APPLICATION->GetCurPage().'?'.$arParams["ACTION_VARIABLE"].'=';
 $arUrls = array(
