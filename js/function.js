@@ -512,19 +512,6 @@ if($(window).width() < 768){
     });
 }
 
-/*var lazyLoadInstance = new LazyLoad({
-    elements_selector: "img",
-    threshold: 0,
-});
-
-
-
-if (lazyLoadInstance) {
-    lazyLoadInstance.update();
-}*/
-
-
-
 function destroyPopover(){
     $('#order-table, #popover-button-cart, #popover-button-cart-table-add').popover('destroy');
     $.get('/ajax/popover.php', { button : true });
