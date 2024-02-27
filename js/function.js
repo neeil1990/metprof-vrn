@@ -30,7 +30,7 @@ function addToBasket2(idel, quantity,el,type) {
 
             if(fullCount < minCount && type == 6) {
                 alertify.error("Минимальный заказ "+ minCount +"м2");
-				
+
                 return false;
             }
 
@@ -487,15 +487,15 @@ $(function(){
         //отмена действия по умолчанию для кнопки submit
         e.preventDefault();
       });
-	  
-	  
-	$('body').on('click','.show-popup', function(e) {   
+
+
+	$('body').on('click','.show-popup', function(e) {
         var self = $(this);
 		var formId = self.data('id');
-		
+
         grecaptcha.ready(function() {
 			var form = $('#' + formId).find('form');
-			
+
             grecaptcha.execute('6LezVEgaAAAAAKzoeExCbnYHBOc8sf974RuGrDEX', {action: ''}).then(function(token) {
                 // Add your logic to submit to your backend server here.
 				form.prepend($('<input>').attr({name : 'g-recaptcha-response', type : 'hidden', value : token}));
@@ -512,7 +512,7 @@ if($(window).width() < 768){
     });
 }
 
-var lazyLoadInstance = new LazyLoad({
+/*var lazyLoadInstance = new LazyLoad({
     elements_selector: "img",
     threshold: 0,
 });
@@ -521,7 +521,7 @@ var lazyLoadInstance = new LazyLoad({
 
 if (lazyLoadInstance) {
     lazyLoadInstance.update();
-}
+}*/
 
 
 
