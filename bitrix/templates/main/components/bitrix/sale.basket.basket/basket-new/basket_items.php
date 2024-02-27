@@ -4,7 +4,6 @@ echo ShowError($arResult["ERROR_MESSAGE"]);
 
 if ($normalCount > 0)
 {?>
-
 	<div class="basket">
 		<h1>Корзина</h1>
 		<div class="list">
@@ -38,13 +37,9 @@ if ($normalCount > 0)
 						<div class="txt qn">Кол-во</div>
 						<div class="quantity" id="<?=$arItem['ID']?>">
                             <? if($arItem["MEASURE_CODE"] == $arResult["PIECES_MEASURE_CODE"]): ?>
-                                <select class="quantity_select">
-                                    <? foreach(range(1, $arItem["AVAILABLE_QUANTITY"]) as $value): ?>
-                                    <option value="<?=$value?>" <? if($value == $arItem['QUANTITY']): ?> selected="selected" <?endif;?>>
-                                        <?=$value?> <?=$arItem["MEASURE_TEXT"]?>
-                                    </option>
-                                    <? endforeach; ?>
-                                </select>
+                                <a class="minus" data-ratio="<?=$arItem['MEASURE_RATIO']?>" href="javascript:void(0);" onclick="basketMinus(<?=$arItem['AVAILABLE_QUANTITY']?>,$('.quantity#<?=$arItem['ID']?> input').val(),<?=$arItem['ID']?>, <?=$arItem['MEASURE_RATIO']?>)"></a>
+                                    <input type="text" onblur="inputQuntly(<?=$arItem['AVAILABLE_QUANTITY']?>,this.value,<?=$arItem['ID']?>)" limit-count="<?=$arItem['AVAILABLE_QUANTITY']?>" value="<?=$arItem['QUANTITY']?>"/>
+                                <a class="plus" data-ratio="<?=$arItem['MEASURE_RATIO']?>" href="javascript:void(0)" onclick="basketPlus(<?=$arItem['AVAILABLE_QUANTITY']?>,$('.quantity#<?=$arItem['ID']?> input').val(),<?=$arItem['ID']?>, <?=$arItem['MEASURE_RATIO']?>)"></a>
                             <? else: ?>
 							    <?=$arItem['QUANTITY']?> <?=$arItem["MEASURE_TEXT"]?>
                             <? endif; ?>
@@ -66,7 +61,7 @@ if ($normalCount > 0)
 				<input type="text" id="coupon" name="COUPON" value="">
 				<span>Активировать промокод:</span>
 			</div>
-<!--			<a href="/check-out/step2.php" class="checkout_wr">Оформить заказ без регистрации</a>-->
+
 			<a href="javascript:void(0)" class="checkout_wr show-popup" data-id="oneclickcart">Купить в один клик</a>
 			<a href="<?=$arParams['PATH_TO_ORDER']?>" class="checkout">Оформить заказ</a>
 			<div class="total">
@@ -87,21 +82,8 @@ if ($normalCount > 0)
 				</div>
 			</div>
 		</div>
-	</div><!--end::basket-->
-
-    <script>
-        $(".quantity_select").change(function(){
-            let el = $(this);
-            let ID = el.closest('.quantity').attr('id');
-
-            $.get( `?basketAction=recalculate&QUANTITY_${ID}=${el.val()}`, function(data) {
-                if(data.CODE === "SUCCESS")
-                    window.location.reload();
-
-                console.log(data);
-            });
-        });
-    </script>
+	</div>
+    <!--end::basket-->
 <?}
 else
 {?>
