@@ -4,6 +4,11 @@ echo ShowError($arResult["ERROR_MESSAGE"]);
 
 if ($normalCount > 0)
 {?>
+    <style>
+        .popover.top {
+            min-width: 220px;
+        }
+    </style>
 	<div class="basket">
 		<h1>Корзина</h1>
 		<div class="list">
@@ -41,7 +46,7 @@ if ($normalCount > 0)
                                     <input type="text" onblur="inputQuntly(<?=$arItem['AVAILABLE_QUANTITY']?>,this.value,<?=$arItem['ID']?>)" limit-count="<?=$arItem['AVAILABLE_QUANTITY']?>" value="<?=$arItem['QUANTITY']?>"/>
                                 <a class="plus" data-ratio="<?=$arItem['MEASURE_RATIO']?>" href="javascript:void(0)" onclick="basketPlus(<?=$arItem['AVAILABLE_QUANTITY']?>,$('.quantity#<?=$arItem['ID']?> input').val(),<?=$arItem['ID']?>, <?=$arItem['MEASURE_RATIO']?>)"></a>
                             <? else: ?>
-							    <?=$arItem['QUANTITY']?> <?=$arItem["MEASURE_TEXT"]?>
+							    <?=$arItem['QUANTITY']?> <?=$arItem["MEASURE_TEXT"]?> <span class="question">?</span>
                             <? endif; ?>
 						</div>
 					</div>
@@ -84,6 +89,13 @@ if ($normalCount > 0)
 		</div>
 	</div>
     <!--end::basket-->
+    <script>
+        $('.question').popover({
+            "content" : "Изменить количество данного товара Вы можете только через карточку, т.к. у товара имеется длина и минимальный объем. Если данная позиция не нужна, можете ее удалить справа, нажав на крестик.",
+            "placement" : "top",
+            "trigger" : "hover",
+        });
+    </script>
 <?}
 else
 {?>
