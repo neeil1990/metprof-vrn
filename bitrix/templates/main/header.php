@@ -56,9 +56,6 @@ $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'cat
 		Asset::getInstance()->addCss(SITE_TEMPLATE_PATH.'/css/wickedpicker.min.css');
 		Asset::getInstance()->addCss(SITE_TEMPLATE_PATH.'/css/modal.css');
 
-		Asset::getInstance()->addCss(SITE_TEMPLATE_PATH.'/css/lazyload.css');
-
-
 		Asset::getInstance()->addJs(SITE_TEMPLATE_PATH.'/js/jquery.min.js');
 		Asset::getInstance()->addJs(SITE_TEMPLATE_PATH.'/js/vendor.min.js');
 		Asset::getInstance()->addJs(SITE_TEMPLATE_PATH.'/js/slick.min.js');
@@ -76,7 +73,6 @@ $noh1    = $pages[1] == 'personal' || $pages[1] == 'price' || ($pages[1] == 'cat
 		Asset::getInstance()->addJs(SITE_TEMPLATE_PATH.'/js/jquery.form.js');
 
 		Asset::getInstance()->addJs('/js/readmore.js');
-		Asset::getInstance()->addJs('/js/lazyload.min.js');
 		Asset::getInstance()->addJs('/js/function.js');
 		Asset::getInstance()->addJs('/js/bootstrap.min.js');
 		?>
